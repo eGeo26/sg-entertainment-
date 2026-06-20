@@ -26,10 +26,10 @@ export default function StepIndicator({ steps, currentStep }: Props) {
                 className={clsx(
                   "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200",
                   isDone && "text-black",
-                  isActive && "border-2 border-white text-white",
+                  isActive && "border-2 border-studio-gold text-studio-gold",
                   !isDone && !isActive && "bg-white/5 border border-white/10 text-white/25"
                 )}
-                style={isDone ? { background: "#ffffff" } : isActive ? { background: "rgba(255,255,255,0.1)" } : {}}
+                style={isDone ? { background: "var(--sg-gold)" } : isActive ? { background: "rgba(255,255,255,0.1)" } : {}}
               >
                 {isDone ? (
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,19 +40,19 @@ export default function StepIndicator({ steps, currentStep }: Props) {
               <span
                 className={clsx(
                   "text-xs mt-1 font-medium whitespace-nowrap hidden sm:block",
-                  isActive ? "text-white" : isDone ? "text-white/60" : "text-white/20"
+                  isActive ? "text-studio-gold" : isDone ? "text-white/60" : "text-white/20"
                 )}
               >
                 {step.label}
               </span>
             </div>
-
+ 
             {/* Connector */}
             {i < steps.length - 1 && (
               <div
                 className={clsx(
                   "h-px flex-1 mx-1.5 mb-3 sm:mb-5 transition-all duration-300",
-                  i < currentIndex ? "bg-white" : "bg-white/10"
+                  i < currentIndex ? "bg-studio-gold" : "bg-white/10"
                 )}
               />
             )}

@@ -27,8 +27,9 @@ function calcPrice(minutes: number): number {
 }
 
 function getEndTimestamp(date: string, startTime: string, durationMinutes: number): string {
+  const [yr, mo, dy] = date.split("-").map(Number)
   const [h, m] = startTime.split(":").map(Number)
-  const start = new Date(`${date}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`)
+  const start = new Date(yr, mo - 1, dy, h, m, 0)
   return format(addMinutes(start, durationMinutes), "HH:mm")
 }
 
@@ -41,9 +42,11 @@ interface Props {
 type SlotStatus = "available" | "unavailable" | "loading"
 
 export default function StepDateTime({ form, updateForm, onNext }: Props) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(
-    form.sessionDate ? new Date(form.sessionDate) : null
-  )
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
+    if (!form.sessionDate) return null
+    const [yr, mo, dy] = form.sessionDate.split("-").map(Number)
+    return new Date(yr, mo - 1, dy)
+  })
   const [selectedTime, setSelectedTime] = useState<string>(form.startTime ?? "")
   const [durationMinutes, setDurationMinutes] = useState<number>(
     form.durationHours ? Math.round(form.durationHours * 60) : MIN_MINUTES
@@ -194,7 +197,7 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
                 <span className="text-xs text-white/30 animate-pulse">Checking…</span>
               )}
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {TIME_SLOTS.map((time) => {
                 const status = slots[time] ?? "loading"
                 const isSelected = selectedTime === time
@@ -209,7 +212,7 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
                     className={clsx(
                       "py-2 px-1 rounded-lg text-xs font-medium transition-all duration-150",
                       isSelected
-                        ? "bg-white text-black font-bold"
+                        ? "bg-studio-gold text-black font-bold"
                         : isUnavailable
                         ? "bg-white/3 text-white/20 cursor-not-allowed line-through"
                         : isLoading

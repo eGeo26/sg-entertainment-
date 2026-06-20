@@ -59,7 +59,7 @@ export default function Navbar() {
         ) : (
           <Link
             href="/booking"
-            className="flex items-center gap-1.5 text-xs font-bold text-black bg-white hover:bg-neutral-200 px-4 py-2 rounded-lg transition-all"
+            className="flex items-center gap-1.5 text-xs font-bold text-black bg-studio-gold hover:bg-studio-gold/90 px-4 py-2 rounded-lg transition-all"
             id="nav-book"
           >
             Book

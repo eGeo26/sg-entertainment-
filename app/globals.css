@@ -6,9 +6,9 @@
 /* ── Google Font ──────────────────────────────────────────────────────────── */
 /* Loaded optimized via next/font/google in root layouts */
 :root {
-  --sg-crimson:      #FFFFFF;
-  --sg-gold:         #FFFFFF;
-  --sg-gold-dark:    #E5E5E5;
+  --sg-crimson:      #9E0000;
+  --sg-gold:         #C5A880;
+  --sg-gold-dark:    #A3845B;
   --sg-dark:         #000000;
   --sg-surface:      rgba(255,255,255,0.03);
   --sg-border:       rgba(255,255,255,0.10);
@@ -47,11 +47,11 @@
     @apply inline-flex items-center justify-center font-bold px-5 py-3 rounded-xl
            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
            select-none text-black text-sm;
-    background: #ffffff;
+    background: var(--sg-gold);
     will-change: transform;
   }
   .btn-primary:hover:not(:disabled) {
-    background: #e5e5e5;
+    background: var(--sg-gold-dark);
     transform: translateY(-1px);
   }
   .btn-primary:active:not(:disabled) {
@@ -124,7 +124,7 @@
 }
 .react-calendar__tile--active,
 .react-calendar__tile--active:hover {
-  background: rgba(255,255,255,0.90) !important;
+  background: var(--sg-gold) !important;
   color: black !important;
   font-weight: 700 !important;
 }

@@ -97,8 +97,8 @@ function SimulatePaymentContent() {
         <span className="inline-block bg-white/10 border border-white/20 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3">
           Sandbox Mode
         </span>
-        <h1 className="text-xl font-bold text-white uppercase tracking-tight">S&amp;G Secure Payment</h1>
-        <p className="text-xs text-white/40 mt-1">Simulated Gateway for Accran Bookings</p>
+        <h1 className="text-xl font-bold text-white uppercase tracking-tight">S&amp;G Hubtel Secure Payment</h1>
+        <p className="text-xs text-white/40 mt-1">Simulated Gateway for Hubtel Payments</p>
       </div>
 
       <div className="card bg-black/45 border border-white/10 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl">
@@ -108,7 +108,7 @@ function SimulatePaymentContent() {
             <div>
               <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Total Amount</p>
               <h2 className="text-2xl font-bold text-white mt-0.5">
-                GHS {booking.amountGHS.toFixed(2)}
+                GHS {(booking.amountGHS / 100).toFixed(2)}
               </h2>
             </div>
             <div className="text-right">
@@ -232,7 +232,7 @@ function SimulatePaymentContent() {
             <button
               onClick={() => handleSimulate("SUCCESS")}
               disabled={processing}
-              className="w-full flex items-center justify-center font-bold px-4 py-3 bg-white text-black hover:bg-neutral-200 rounded-xl text-xs uppercase tracking-wider transition-colors disabled:opacity-50 select-none"
+              className="w-full flex items-center justify-center font-bold px-4 py-3 bg-studio-gold text-black hover:bg-studio-gold/90 rounded-xl text-xs uppercase tracking-wider transition-colors disabled:opacity-50 select-none"
             >
               {processing ? "Authorizing..." : "Simulate Payment Success"}
             </button>

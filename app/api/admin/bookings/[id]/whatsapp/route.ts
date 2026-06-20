@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { sendBookingConfirmationNotifications, customerConfirmationMessage } from "@/lib/whatsapp"
 import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
-import { pesewasToGhs } from "@/lib/paystack"
+
+const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
 
 export async function POST(
   req: NextRequest,

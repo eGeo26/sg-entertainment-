@@ -77,7 +77,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
     setBtnRect(rect)
 
     const symbols = ["♪", "♫", "★", "✦", "♩", "✶", "♬", "♭"]
-    const colors  = ["#ffffff", "#cccccc", "#888888", "#444444", "#aaaaaa"]
+    const colors  = ["#C5A880", "#A3845B", "#9E0000", "#ffffff", "#aaaaaa"]
 
     const ps: Particle[] = Array.from({ length: 22 }, (_, i) => {
       const angle = (i / 22) * Math.PI * 2 + (Math.random() - 0.5) * 0.5
@@ -212,7 +212,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
         </div>
       </div>
 
-      {/* Payment — Paystack only, compact */}
+      {/* Payment — Hubtel only, compact */}
       <div className="card bg-black/30 backdrop-blur-sm py-3 px-4">
         <div className="flex items-center gap-3">
           <svg className="w-7 h-7 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +220,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
               d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
           <div>
-            <p className="text-white text-sm font-semibold">Paystack</p>
+            <p className="text-white text-sm font-semibold">Hubtel</p>
             <p className="text-white/40 text-xs">MoMo · Visa · Mastercard · Bank Transfer</p>
           </div>
           <div className="ml-auto flex items-center gap-1">

@@ -94,7 +94,7 @@ export default function HomePage() {
           <br />
           <span
             style={{
-              background: "linear-gradient(135deg,#ffffff 0%,#a3a3a3 100%)",
+              background: "linear-gradient(135deg,#C5A880 0%,#A3845B 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -131,7 +131,7 @@ export default function HomePage() {
         <Link
           href="/booking"
           id="btn-book"
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-black bg-white hover:bg-neutral-200 transition-all duration-200"
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-black bg-studio-gold hover:bg-studio-gold/90 transition-all duration-200"
         >
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -167,7 +167,7 @@ export default function HomePage() {
         {/* Badge — centered within the card */}
         <div className="flex justify-center mb-3">
           <span
-            className="inline-block text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/25"
+            className="inline-block text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-studio-gold/10 text-studio-gold border border-studio-gold/25"
           >
             WE OFFER
           </span>
@@ -299,7 +299,7 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-white text-black hover:bg-neutral-200 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                  className="px-4 py-2 bg-studio-gold text-black hover:bg-studio-gold/90 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-50"
                 >
                   {submitting ? "Posting..." : "Post Review"}
                 </button>

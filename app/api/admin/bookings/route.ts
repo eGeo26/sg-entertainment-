@@ -7,9 +7,11 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
-import { ghsToPesewas, pesewasToGhs } from "@/lib/paystack"
 import { getEndTime, generatePaystackReference, normalizePhone } from "@/lib/booking"
 import { Prisma } from "@prisma/client"
+
+const ghsToPesewas = (ghs: number) => Math.round(ghs * 100)
+const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -123,7 +125,6 @@ export async function POST(req: NextRequest) {
         paystackReference: paystackRef,
         status: "CONFIRMED", // Manual bookings are auto-confirmed
         paystackStatus: "SUCCESS",
-        anollaStatus: "CONFIRMED",
       },
     })
 

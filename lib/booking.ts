@@ -59,7 +59,9 @@ function minutesToDisplay(mins: number): string {
 // ── Date/time ─────────────────────────────────────────────────────────────────
 
 export function buildDateTime(date: string, time: string): Date {
-  return parseISO(`${date}T${time}:00`)
+  const [yr, mo, dy] = date.split("-").map(Number)
+  const [h, m] = time.split(":").map(Number)
+  return new Date(yr, mo - 1, dy, h, m, 0)
 }
 
 export function getEndTime(date: string, startTime: string, durationHours: number): string {

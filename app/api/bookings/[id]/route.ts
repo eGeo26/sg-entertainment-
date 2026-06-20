@@ -3,8 +3,9 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { pesewasToGhs } from "@/lib/paystack"
 import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
+
+const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
 
 export async function GET(
   _req: NextRequest,
@@ -27,7 +28,6 @@ export async function GET(
       amountGHS: true,
       status: true,
       paystackReference: true,
-      anollaStatus: true,
       createdAt: true,
     },
   })

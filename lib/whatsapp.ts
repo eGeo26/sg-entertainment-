@@ -2,7 +2,8 @@
 // WhatsApp notifications via Twilio for S&G Entertainment
 // Sends booking confirmations to both customer and studio owner
 
-import { formatGHS } from "./paystack"
+const formatGHS = (amount: number) =>
+  new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(amount)
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID!
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!
@@ -97,7 +98,7 @@ A new paid booking has been confirmed!
 🎙️ *Studio:* ${d.studio}
 🎛️ *Equipment:* ${equipmentList}
 💰 *Revenue:* ${formatGHS(d.amountGHS)}
-💳 *Paystack Ref:* ${d.paystackReference}
+💳 *Hubtel Ref:* ${d.paystackReference}
 🆔 *Booking ID:* ${d.bookingId.slice(0, 8).toUpperCase()}
 
 ${d.notes ? `📝 *Client notes:* ${d.notes}` : ""}
@@ -126,7 +127,7 @@ S&G Entertainment Team
 
 /**
  * Send booking confirmation to customer + owner.
- * Called after successful Paystack payment + Anolla confirmation.
+ * Called after successful Hubtel payment confirmation.
  */
 export async function sendBookingConfirmationNotifications(
   data: BookingNotificationData

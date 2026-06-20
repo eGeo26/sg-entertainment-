@@ -13,7 +13,7 @@ const config: Config = {
         studio: {
           dark: "#000000",
           surface: "#0A0A0A",
-          gold: "#FFFFFF",
+          gold: "#C5A880",
         },
       },
       borderColor: {
