@@ -4,49 +4,47 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DESIGN TOKENS — Adaptive via light-dark() + color-scheme
+   DESIGN TOKENS — Fixed dark glass theme (admin is dark-only)
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  color-scheme: light dark;
-
   /* Brand */
   --sg-crimson:      #9E0000;
   --sg-gold:         #C5A880;
   --sg-gold-dark:    #A3845B;
   --sg-gold-light:   #D9C4A0;
 
-  /* Adaptive base */
-  --bg-base:         light-dark(#f5f4f2, #09090f);
-  --bg-elevated:     light-dark(rgba(255,255,255,0.85), rgba(255,255,255,0.035));
-  --bg-overlay:      light-dark(rgba(0,0,0,0.04), rgba(255,255,255,0.028));
-  --bg-hover:        light-dark(rgba(0,0,0,0.06), rgba(255,255,255,0.05));
-  --bg-active:       light-dark(rgba(0,0,0,0.09), rgba(255,255,255,0.08));
+  /* Base backgrounds */
+  --bg-base:         #09090f;
+  --bg-elevated:     rgba(255,255,255,0.035);
+  --bg-overlay:      rgba(255,255,255,0.028);
+  --bg-hover:        rgba(255,255,255,0.05);
+  --bg-active:       rgba(255,255,255,0.08);
 
   /* Text */
-  --text-primary:    light-dark(#111018, #F0EFE8);
-  --text-secondary:  light-dark(#555468, rgba(240,239,232,0.55));
-  --text-muted:      light-dark(#8884a0, rgba(240,239,232,0.32));
+  --text-primary:    #F0EFE8;
+  --text-secondary:  rgba(240,239,232,0.60);
+  --text-muted:      rgba(240,239,232,0.32);
 
   /* Borders */
-  --border:          light-dark(rgba(0,0,0,0.09), rgba(255,255,255,0.08));
-  --border-hover:    light-dark(rgba(0,0,0,0.18), rgba(255,255,255,0.20));
-  --border-focus:    light-dark(rgba(0,0,0,0.40), rgba(255,255,255,0.45));
+  --border:          rgba(255,255,255,0.08);
+  --border-hover:    rgba(255,255,255,0.20);
+  --border-focus:    rgba(255,255,255,0.45);
 
   /* Surfaces (glass) */
-  --surface:         light-dark(rgba(255,255,255,0.70), rgba(255,255,255,0.035));
-  --surface-sidebar: light-dark(rgba(248,247,245,0.88), rgba(10,10,18,0.70));
-  --surface-header:  light-dark(rgba(255,255,255,0.75), rgba(10,10,18,0.55));
+  --surface:         rgba(255,255,255,0.035);
+  --surface-sidebar: rgba(10,10,18,0.72);
+  --surface-header:  rgba(10,10,18,0.55);
 
-  /* Admin mesh bg */
+  /* Admin bg */
   --sg-dark: #09090f;
 
-  /* Legacy (kept for booking flow) */
+  /* Legacy (booking flow) */
   --sg-surface:      rgba(255,255,255,0.03);
   --sg-border:       rgba(255,255,255,0.10);
   --sg-border-hover: rgba(255,255,255,0.30);
 
   /* Scrollbar */
-  scrollbar-color: light-dark(rgba(0,0,0,0.18), rgba(255,255,255,0.12)) transparent;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
   scrollbar-width: thin;
 }
 
@@ -248,7 +246,7 @@
   }
   .admin-input:focus {
     border-color: var(--border-focus);
-    box-shadow: 0 0 0 3px light-dark(rgba(0,0,0,0.06), rgba(255,255,255,0.06));
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
   }
 }
 
@@ -261,9 +259,9 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 60% at 15% 10%,  light-dark(rgba(197,168,128,0.06), rgba(197,168,128,0.05)) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 80% at 85% 90%,  light-dark(rgba(158,0,0,0.04),    rgba(158,0,0,0.04))     0%, transparent 60%),
-    radial-gradient(ellipse 100% 100% at 50% 50%, light-dark(#f5f4f2,              #09090f)                 0%, transparent 100%);
+    radial-gradient(ellipse 80% 60% at 15% 10%,  rgba(197,168,128,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 85% 90%,  rgba(158,0,0,0.04)    0%, transparent 60%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, #09090f              0%, transparent 100%);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
