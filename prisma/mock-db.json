@@ -1,0 +1,37 @@
+{
+  "bookings": [],
+  "webhookEvents": [],
+  "reviews": [
+    {
+      "id": "098af71e-c0e3-4047-a9c0-b5bbc8cdcea0",
+      "createdAt": "2026-06-20T05:53:24.325Z",
+      "name": "John Doe ",
+      "socialHandle": "@john",
+      "rating": 3,
+      "text": "I love the production it's the best",
+      "approved": true
+    }
+  ],
+  "settings": [
+    {
+      "key": "payment_simulation_mode",
+      "value": "true"
+    },
+    {
+      "key": "admin_password",
+      "value": "adminlee"
+    },
+    {
+      "key": "simulated_activity_control",
+      "value": "true"
+    },
+    {
+      "key": "google_sheet_sync_url",
+      "value": ""
+    },
+    {
+      "key": "google_sheet_auto_sync",
+      "value": "false"
+    }
+  ]
+}

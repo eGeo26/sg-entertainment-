@@ -1,0 +1,118 @@
+// prisma/schema.prisma
+// S&G Entertainment Studio Booking System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Booking {
+  id                String        @id @default(uuid())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Customer info
+  customerName      String
+  customerEmail     String
+  customerPhone     String        // Ghana format: +233XXXXXXXXX
+
+  // Session details
+  sessionDate       DateTime
+  startTime         String        // "10:00"
+  endTime           String        // "14:00"
+  durationHours     Int
+  studio            String        @default("Main Studio")
+  equipment         String[]      @default([])
+  notes             String?
+
+  // Pricing
+  amountGHS         Int           // in pesewas (kobo equivalent) e.g. 40000 = GHS 400.00
+  currency          String        @default("GHS")
+
+  // Anolla integration
+  anollaBookingId   String?       @unique
+  anollaStatus      AnollaStatus  @default(PENDING)
+
+  // Paystack integration
+  paystackReference String?       @unique
+  paystackStatus    PaystackStatus @default(PENDING)
+
+  // Overall booking status
+  status            BookingStatus @default(AWAITING_PAYMENT)
+
+  // Notification tracking
+  customerNotified  Boolean       @default(false)
+  ownerNotified     Boolean       @default(false)
+
+  // Idempotency — store raw webhook event IDs to prevent duplicate processing
+  processedEvents   String[]      @default([])
+
+  // Logistics / pipeline fields
+  isPaid             Boolean       @default(false)
+  isPacked           Boolean       @default(false)
+  isDispatched       Boolean       @default(false)
+  isDelivered        Boolean       @default(false)
+  adminNotes         String?
+  estimatedDeliveryTime String?
+
+  @@index([customerEmail])
+  @@index([sessionDate])
+  @@index([paystackReference])
+  @@index([anollaBookingId])
+}
+
+enum BookingStatus {
+  AWAITING_PAYMENT   // Slot temporarily held; payment not yet made
+  CONFIRMED          // Payment successful; Anolla confirmed
+  CANCELLED          // Cancelled by customer or studio
+  REFUNDED           // Payment refunded
+  FAILED             // Payment failed; slot released
+  EXPIRED            // Hold expired without payment
+}
+
+enum AnollaStatus {
+  PENDING            // Draft / tentative in Anolla
+  CONFIRMED          // Confirmed in Anolla
+  CANCELLED          // Cancelled in Anolla
+  NO_SHOW            // Customer no-show
+}
+
+enum PaystackStatus {
+  PENDING            // Not yet paid
+  SUCCESS            // charge.success event received + verified
+  FAILED             // Payment failed
+  ABANDONED          // Customer abandoned checkout
+  REVERSED           // Payment reversed/refunded
+}
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  source      String   // "paystack" | "anolla"
+  eventId     String   @unique // Paystack event id or Anolla event id
+  eventType   String
+  payload     Json
+  processedAt DateTime @default(now())
+
+  @@index([source])
+  @@index([eventId])
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now())
+  name         String
+  socialHandle String?  // e.g. @username
+  rating       Int      // 1 to 5 stars
+  text         String
+  approved     Boolean  @default(false)
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+

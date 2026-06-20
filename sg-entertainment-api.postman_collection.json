@@ -1,0 +1,159 @@
+{
+  "info": {
+    "name": "S&G Entertainment — Studio Booking API",
+    "description": "API collection for testing the S&G Entertainment recording studio booking system. Set the BASE_URL variable before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost:3000", "type": "string" },
+    { "key": "BOOKING_ID", "value": "", "type": "string" },
+    { "key": "PAYSTACK_SECRET", "value": "sk_test_xxx", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create Booking + Init Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{BASE_URL}}/api/bookings/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Kofi Mensah\",\n  \"customerEmail\": \"kofi@example.com\",\n  \"customerPhone\": \"0244123456\",\n  \"sessionDate\": \"2024-10-15\",\n  \"startTime\": \"10:00\",\n  \"durationHours\": 4,\n  \"studio\": \"Main Studio\",\n  \"equipment\": [\"condenser_mic\", \"mixing_engineer\"],\n  \"notes\": \"Afrobeats EP, 2 artists\"\n}"
+            },
+            "description": "Creates a pending booking and returns Paystack authorization URL. Redirects customer to Paystack checkout."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.bookingId) {",
+                  "  pm.collectionVariables.set('BOOKING_ID', json.bookingId);",
+                  "  console.log('Booking ID saved:', json.bookingId);",
+                  "  console.log('Paystack URL:', json.authorizationUrl);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has authorizationUrl', () => pm.expect(json.authorizationUrl).to.include('paystack'));",
+                  "pm.test('Has bookingId', () => pm.expect(json.bookingId).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/bookings/{{BOOKING_ID}}",
+            "description": "Fetch booking details. Used on the success page to show confirmation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has status field', () => pm.expect(json.status).to.be.a('string'));",
+                  "console.log('Booking status:', json.status);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Availability",
+      "item": [
+        {
+          "name": "Get Day Availability",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/anolla/availability?date=2024-10-15&duration=120",
+              "query": [
+                { "key": "date", "value": "2024-10-15", "description": "YYYY-MM-DD" },
+                { "key": "duration", "value": "120", "description": "Duration in minutes" }
+              ]
+            },
+            "description": "Get available time slots from Anolla for a specific date."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Has slots array', () => pm.expect(json.slots).to.be.an('array'));",
+                  "console.log('Available slots:', json.slots?.filter(s => s.available).length);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Paystack Webhooks (simulate)",
+      "item": [
+        {
+          "name": "Simulate charge.success",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              {
+                "key": "x-paystack-signature",
+                "value": "REPLACE_WITH_VALID_HMAC_SHA512",
+                "description": "Compute HMAC-SHA512 of body with your PAYSTACK_WEBHOOK_SECRET"
+              }
+            ],
+            "url": "{{BASE_URL}}/api/paystack/webhook",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"id\": 123456789,\n    \"domain\": \"test\",\n    \"status\": \"success\",\n    \"reference\": \"SG-XXXXXXXX-1723456789\",\n    \"amount\": 110000,\n    \"currency\": \"GHS\",\n    \"paid_at\": \"2024-08-15T10:00:00.000Z\",\n    \"channel\": \"mobile_money\",\n    \"customer\": {\n      \"email\": \"kofi@example.com\",\n      \"phone\": \"+233244123456\"\n    },\n    \"metadata\": {\n      \"booking_id\": \"REPLACE_WITH_ACTUAL_BOOKING_ID\",\n      \"customer_name\": \"Kofi Mensah\"\n    }\n  }\n}"
+            },
+            "description": "⚠️ In test mode, Paystack sends real webhook events to your URL. Use this to simulate a successful payment.\n\nIMPORTANT: You must compute the correct HMAC-SHA512 signature or the webhook will be rejected. Use the Paystack dashboard 'Send test event' feature instead for easier testing."
+          }
+        },
+        {
+          "name": "Simulate charge.failed",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-paystack-signature", "value": "REPLACE_WITH_VALID_HMAC_SHA512" }
+            ],
+            "url": "{{BASE_URL}}/api/paystack/webhook",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.failed\",\n  \"data\": {\n    \"reference\": \"SG-XXXXXXXX-1723456789\",\n    \"status\": \"failed\"\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paystack Direct (verify)",
+      "item": [
+        {
+          "name": "Verify Transaction",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{PAYSTACK_SECRET}}" }
+            ],
+            "url": "https://api.paystack.co/transaction/verify/SG-XXXXXXXX-1723456789",
+            "description": "Directly verify a Paystack transaction. Replace the reference in the URL."
+          }
+        }
+      ]
+    }
+  ]
+}
