@@ -3,24 +3,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Google Font ──────────────────────────────────────────────────────────── */
-/* Loaded optimized via next/font/google in root layouts */
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — Adaptive via light-dark() + color-scheme
+   ═══════════════════════════════════════════════════════════════════════════ */
 :root {
+  color-scheme: light dark;
+
+  /* Brand */
   --sg-crimson:      #9E0000;
   --sg-gold:         #C5A880;
   --sg-gold-dark:    #A3845B;
-  --sg-dark:         #000000;
+  --sg-gold-light:   #D9C4A0;
+
+  /* Adaptive base */
+  --bg-base:         light-dark(#f5f4f2, #09090f);
+  --bg-elevated:     light-dark(rgba(255,255,255,0.85), rgba(255,255,255,0.035));
+  --bg-overlay:      light-dark(rgba(0,0,0,0.04), rgba(255,255,255,0.028));
+  --bg-hover:        light-dark(rgba(0,0,0,0.06), rgba(255,255,255,0.05));
+  --bg-active:       light-dark(rgba(0,0,0,0.09), rgba(255,255,255,0.08));
+
+  /* Text */
+  --text-primary:    light-dark(#111018, #F0EFE8);
+  --text-secondary:  light-dark(#555468, rgba(240,239,232,0.55));
+  --text-muted:      light-dark(#8884a0, rgba(240,239,232,0.32));
+
+  /* Borders */
+  --border:          light-dark(rgba(0,0,0,0.09), rgba(255,255,255,0.08));
+  --border-hover:    light-dark(rgba(0,0,0,0.18), rgba(255,255,255,0.20));
+  --border-focus:    light-dark(rgba(0,0,0,0.40), rgba(255,255,255,0.45));
+
+  /* Surfaces (glass) */
+  --surface:         light-dark(rgba(255,255,255,0.70), rgba(255,255,255,0.035));
+  --surface-sidebar: light-dark(rgba(248,247,245,0.88), rgba(10,10,18,0.70));
+  --surface-header:  light-dark(rgba(255,255,255,0.75), rgba(10,10,18,0.55));
+
+  /* Admin mesh bg */
+  --sg-dark: #09090f;
+
+  /* Legacy (kept for booking flow) */
   --sg-surface:      rgba(255,255,255,0.03);
   --sg-border:       rgba(255,255,255,0.10);
   --sg-border-hover: rgba(255,255,255,0.30);
+
+  /* Scrollbar */
+  scrollbar-color: light-dark(rgba(0,0,0,0.18), rgba(255,255,255,0.12)) transparent;
+  scrollbar-width: thin;
 }
 
-/* ── Base ─────────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE LAYER
+   ═══════════════════════════════════════════════════════════════════════════ */
 @layer base {
   html {
     scroll-behavior: smooth;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-text-size-adjust: 100%;
+    accent-color: var(--sg-gold);
   }
 
   body {
@@ -31,18 +69,24 @@
     min-height: 100dvh;
   }
 
+  /* Admin pages get adaptive background + text color */
+  .admin-body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+  }
+
   * { box-sizing: border-box; }
 
-  /* Remove tap highlight on mobile */
   button, a {
     -webkit-tap-highlight-color: transparent;
   }
 }
 
-/* ── Component classes ────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENT CLASSES — Booking flow (original)
+   ═══════════════════════════════════════════════════════════════════════════ */
 @layer components {
-
-  /* Primary monochrome button */
+  /* Primary gold button */
   .btn-primary {
     @apply inline-flex items-center justify-center font-bold px-5 py-3 rounded-xl
            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
@@ -58,7 +102,7 @@
     transform: translateY(0) scale(0.98);
   }
 
-  /* Ghost secondary button */
+  /* Ghost button */
   .btn-secondary {
     @apply inline-flex items-center justify-center border text-white px-5 py-3 rounded-xl
            transition-all duration-200 select-none text-sm;
@@ -74,7 +118,7 @@
     transform: scale(0.98);
   }
 
-  /* Glass card */
+  /* Glass card (booking flow) */
   .card {
     @apply rounded-2xl p-5;
     background: rgba(0,0,0,0.42);
@@ -102,9 +146,129 @@
   .label {
     @apply block text-xs text-white/55 mb-1.5 font-medium uppercase tracking-wide;
   }
+
+  /* ── ADMIN GLASS SYSTEM ─────────────────────────────────────────────────── */
+
+  /* Glass card — adapts to theme */
+  .glass-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 16px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .glass-card:hover {
+    border-color: var(--border-hover);
+  }
+
+  /* Sidebar glass */
+  .glass-sidebar {
+    background: var(--surface-sidebar);
+    border-right: 1px solid var(--border);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+  }
+
+  /* Header glass */
+  .glass-header {
+    background: var(--surface-header);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  /* Glass button — admin */
+  .btn-glass {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium
+           select-none transition-all duration-200;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    backdrop-filter: blur(8px);
+  }
+  .btn-glass:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+  .btn-glass:active {
+    transform: scale(0.97);
+  }
+
+  /* Gold accent button — admin primary */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold
+           select-none transition-all duration-200 text-black;
+    background: var(--sg-gold);
+    padding: 0.5rem 1.25rem;
+  }
+  .btn-gold:hover {
+    background: var(--sg-gold-dark);
+    transform: translateY(-1px);
+  }
+  .btn-gold:active {
+    transform: scale(0.97);
+  }
+
+  /* Tab bar */
+  .tab-glass {
+    @apply inline-flex items-center gap-1 rounded-xl p-1;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+  }
+  .tab-glass-item {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium
+           transition-all duration-200 cursor-pointer;
+    color: var(--text-muted);
+  }
+  .tab-glass-item:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+  }
+  .tab-glass-item.active {
+    background: var(--surface);
+    border: 1px solid var(--border-hover);
+    color: var(--text-primary);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+
+  /* Admin input */
+  .admin-input {
+    @apply w-full rounded-xl px-4 py-2.5 text-sm
+           focus:outline-none transition-all duration-200;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    backdrop-filter: blur(8px);
+  }
+  .admin-input::placeholder {
+    color: var(--text-muted);
+  }
+  .admin-input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px light-dark(rgba(0,0,0,0.06), rgba(255,255,255,0.06));
+  }
 }
 
-/* ── Calendar overrides ───────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN MESH BACKGROUND
+   ═══════════════════════════════════════════════════════════════════════════ */
+.admin-mesh-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 10%,  light-dark(rgba(197,168,128,0.06), rgba(197,168,128,0.05)) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 85% 90%,  light-dark(rgba(158,0,0,0.04),    rgba(158,0,0,0.04))     0%, transparent 60%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, light-dark(#f5f4f2,              #09090f)                 0%, transparent 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CALENDAR OVERRIDES
+   ═══════════════════════════════════════════════════════════════════════════ */
 .react-calendar {
   background: transparent !important;
   border: none !important;
@@ -155,7 +319,9 @@
   text-decoration: none !important;
 }
 
-/* ── Skeleton shimmer ─────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON SHIMMER
+   ═══════════════════════════════════════════════════════════════════════════ */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
@@ -163,57 +329,58 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0.03) 25%,
-    rgba(255,255,255,0.07) 50%,
-    rgba(255,255,255,0.03) 75%
+    var(--bg-overlay) 25%,
+    var(--bg-hover)   50%,
+    var(--bg-overlay) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
   border-radius: 8px;
 }
 
-/* ── Pay button sparkle — emits from button centre (uses pixel coordinates) ─ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPARKLE ANIMATION
+   ═══════════════════════════════════════════════════════════════════════════ */
 @keyframes sg-sparkle {
   0%   { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
   100% { opacity: 0; transform: translate(calc(-50% + var(--sg-dx, 0px)), calc(-50% + var(--sg-dy, -120px))) scale(0.15) rotate(540deg); }
 }
 
-/* ── Print styles ─────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
 @media print {
-  /* Hide everything except the booking card */
   video, header, footer, nav,
   .btn-primary, .btn-secondary,
   .print\:hidden {
     display: none !important;
   }
-
   body {
     background: white !important;
     color: black !important;
   }
-
   .card {
     background: white !important;
     border: 1px solid #ddd !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
   }
-
   .text-white { color: black !important; }
   .text-white\/70, .text-white\/80 { color: #222 !important; }
   .text-white\/40, .text-white\/50, .text-white\/60 { color: #666 !important; }
 }
 
-/* ── Scroll margin for auto-scroll targets ────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
 .scroll-mt-20 { scroll-margin-top: 5rem; }
 
-/* ── Mobile touch improvements ────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .btn-primary, .btn-secondary {
     @apply py-3;
-    min-height: 44px; /* iOS tap target */
+    min-height: 44px;
   }
   .input-field {
-    font-size: 16px; /* prevent iOS zoom */
+    font-size: 16px;
   }
 }

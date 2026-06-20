@@ -28,8 +28,6 @@ interface Booking {
   amountGHS: number
   status: string
   paystackStatus: string
-  anollaStatus: string
-  anollaBookingId: string | null
   paystackReference: string | null
   createdAt: string
 }
@@ -93,18 +91,15 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <div className="space-y-8">
-        {/* Stats Grid Skeleton */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Bookings" value="..." loading accent="gold" />
           <StatCard label="Confirmed" value="..." loading accent="green" />
           <StatCard label="Pending Payments" value="..." loading accent="amber" />
           <StatCard label="Total Revenue" value="..." loading accent="blue" />
         </div>
-
-        {/* Chart Skeleton */}
-        <div className="bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-xl p-6 h-[380px] animate-pulse">
-          <div className="h-4 bg-white/10 rounded w-48 mb-6" />
-          <div className="h-64 bg-white/5 rounded w-full" />
+        <div className="glass-card p-6 h-[380px]">
+          <div className="h-4 rounded w-48 mb-6 skeleton" />
+          <div className="h-64 rounded w-full skeleton" />
         </div>
       </div>
     )
@@ -128,7 +123,7 @@ export default function AdminDashboardPage() {
         <StatCard
           label="Confirmed"
           value={stats?.confirmedBookings ?? 0}
-          subtext="Paid & booked in Anolla"
+          subtext="Paid & confirmed via Hubtel"
           accent="green"
           icon={
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -161,13 +156,16 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Analytics Chart Row */}
-      <div className="bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-xl p-5 md:p-6">
+      <div className="glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-sm font-semibold tracking-wider text-white uppercase">Revenue Over Time</h2>
-            <p className="text-xs text-white/40 mt-1">Confirmed payments over the last 30 days</p>
+            <h2 className="text-sm font-semibold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>Revenue Over Time</h2>
+            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Confirmed payments over the last 30 days</p>
           </div>
-          <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-1 rounded text-white/50 tracking-wider font-medium">30 DAYS</span>
+          <span
+            className="text-[10px] px-2.5 py-1 rounded-lg tracking-wider font-semibold"
+            style={{ background: "var(--bg-overlay)", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+          >30 DAYS</span>
         </div>
 
         <div className="h-[280px] w-full">
@@ -176,8 +174,8 @@ export default function AdminDashboardPage() {
               <AreaChart data={stats.revenueByDay} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FFFFFF" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#FFFFFF" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#C5A880" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#C5A880" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
@@ -214,8 +212,8 @@ export default function AdminDashboardPage() {
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
+                  stroke="#C5A880"
+                  strokeWidth={1.5}
                   fillOpacity={1}
                   fill="url(#colorRevenue)"
                 />
@@ -226,15 +224,16 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Recent Bookings Table */}
-      <div className="bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-xl overflow-hidden shadow-lg shadow-black/10">
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
+      <div className="glass-card overflow-hidden">
+        <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--border)" }}>
           <div>
-            <h2 className="text-sm font-semibold tracking-wider text-white uppercase">Recent Bookings</h2>
-            <p className="text-xs text-white/40 mt-1">Latest checkout activities</p>
+            <h2 className="text-sm font-semibold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>Recent Bookings</h2>
+            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Latest checkout activities</p>
           </div>
           <Link
             href="/admin/bookings"
-            className="text-xs text-white hover:underline font-medium uppercase tracking-wider flex items-center gap-1"
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
+            style={{ color: "var(--sg-gold)" }}
           >
             All Bookings
             <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -246,7 +245,10 @@ export default function AdminDashboardPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-white/5 text-[10px] font-medium tracking-wider text-white/40 uppercase bg-white/[0.01]">
+              <tr
+                className="text-[10px] font-semibold tracking-wider uppercase"
+                style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-overlay)", color: "var(--text-muted)" }}
+              >
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Session Time</th>
                 <th className="px-6 py-4">Amount</th>
@@ -254,23 +256,29 @@ export default function AdminDashboardPage() {
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody>
               {stats?.recentBookings && stats.recentBookings.length > 0 ? (
                 stats.recentBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-white/[0.01] transition-colors text-sm">
+                  <tr
+                    key={b.id}
+                    className="text-sm transition-colors"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-semibold text-white/90">{b.customerName}</p>
-                        <p className="text-xs text-white/40">{b.customerEmail}</p>
+                        <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{b.customerName}</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.customerEmail}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="text-white/80">{formatDate(b.sessionDate)}</p>
-                        <p className="text-xs text-white/40">{b.startTime} ({b.durationHours} hrs)</p>
+                        <p style={{ color: "var(--text-secondary)" }}>{formatDate(b.sessionDate)}</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.startTime} ({b.durationHours} hrs)</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-medium text-white/80">
+                    <td className="px-6 py-4 font-medium" style={{ color: "var(--text-secondary)" }}>
                       {formatGHS(b.amountGHS)}
                     </td>
                     <td className="px-6 py-4">
@@ -279,7 +287,7 @@ export default function AdminDashboardPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => setSelectedBooking(b)}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/75 hover:text-white rounded-lg text-xs font-medium border border-white/8 transition-all"
+                        className="btn-glass px-3 py-1.5 text-xs"
                       >
                         Inspect
                       </button>
@@ -300,10 +308,16 @@ export default function AdminDashboardPage() {
 
       {/* Booking Inspector Modal */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-[#0F0F0F]/90 border border-white/10 backdrop-blur-2xl rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/80">
-            <div className="flex items-center justify-between p-5 border-b border-white/5">
-              <h3 className="text-sm font-semibold tracking-wider text-white uppercase">Booking Inspection</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)" }}>
+          <div
+            className="glass-card w-full max-w-xl max-h-[90vh] overflow-y-auto"
+            style={{ boxShadow: "0 32px 64px rgba(0,0,0,0.5)" }}
+          >
+            <div
+              className="flex items-center justify-between p-5"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
+              <h3 className="text-sm font-semibold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>Booking Inspection</h3>
               <button
                 onClick={() => setSelectedBooking(null)}
                 className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-all"
@@ -318,62 +332,56 @@ export default function AdminDashboardPage() {
               {/* Basic Customer Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Customer Name</span>
-                  <span className="text-white text-sm font-medium">{selectedBooking.customerName}</span>
+                  <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Customer Name</span>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{selectedBooking.customerName}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Status Badge</span>
+                  <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Status</span>
                   <div className="mt-1"><StatusBadge status={selectedBooking.status} /></div>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Email Address</span>
-                  <span className="text-white text-sm break-all">{selectedBooking.customerEmail}</span>
+                  <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Email Address</span>
+                  <span className="text-sm break-all" style={{ color: "var(--text-secondary)" }}>{selectedBooking.customerEmail}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Total Paid</span>
-                  <span className="text-white text-sm font-semibold">{formatGHS(selectedBooking.amountGHS)}</span>
+                  <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Total Paid</span>
+                  <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{formatGHS(selectedBooking.amountGHS)}</span>
                 </div>
               </div>
 
               <hr className="border-white/5" />
 
-              {/* Schedule */}
+              {/* Payment reference */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Session Date</span>
-                  <span className="text-white text-sm font-medium">{formatDate(selectedBooking.sessionDate)}</span>
+                  <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Session Date</span>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{formatDate(selectedBooking.sessionDate)}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Duration</span>
-                  <span className="text-white text-sm">{selectedBooking.startTime} - {selectedBooking.endTime} ({selectedBooking.durationHours} hrs)</span>
+                  <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Duration</span>
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{selectedBooking.startTime} – {selectedBooking.endTime} ({selectedBooking.durationHours} hrs)</span>
                 </div>
               </div>
 
-              <hr className="border-white/5" />
+              <hr style={{ borderColor: "var(--border)" }} />
 
-              {/* Engine references */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Anolla Booking ID</span>
-                  <span className="text-white/80 font-mono text-xs break-all">{selectedBooking.anollaBookingId ?? "None"}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Paystack Reference</span>
-                  <span className="text-white/80 font-mono text-xs break-all">{selectedBooking.paystackReference ?? "None"}</span>
-                </div>
+              {/* Hubtel reference */}
+              <div>
+                <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Hubtel Client Reference</span>
+                <span className="font-mono text-xs break-all" style={{ color: "var(--text-secondary)" }}>{selectedBooking.paystackReference ?? "None"}</span>
               </div>
             </div>
 
-            <div className="p-5 border-t border-white/5 flex justify-end gap-3 bg-white/[0.01]">
+            <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-overlay)" }}>
               <Link
                 href={`/admin/bookings?search=${selectedBooking.id}`}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold rounded-xl transition-all uppercase tracking-wider"
+                className="btn-gold text-xs uppercase tracking-wider"
               >
                 Manage Booking
               </Link>
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/8 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider"
+                className="btn-glass text-xs uppercase tracking-wider"
               >
                 Close
               </button>

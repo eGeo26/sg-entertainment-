@@ -88,33 +88,24 @@ export default function AdminSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  
   const [systemStatus, setSystemStatus] = useState({ isPlaceholderDb: true })
 
   useEffect(() => {
     setIsMounted(true)
     const stored = localStorage.getItem("admin-sidebar-collapsed")
-    if (stored === "true") {
-      setCollapsed(true)
-    }
+    if (stored === "true") setCollapsed(true)
 
     async function fetchStatus() {
       try {
         const res = await fetch("/api/admin/status")
-        if (res.ok) {
-          const data = await res.json()
-          setSystemStatus(data)
-        }
-      } catch (err) {
-        console.error("Failed to query status endpoint", err)
-      }
+        if (res.ok) setSystemStatus(await res.json())
+      } catch {}
     }
     fetchStatus()
   }, [])
 
   useEffect(() => {
     const INACTIVITY_TIMEOUT = 8 * 60 * 60 * 1000
-
     const checkInactivity = () => {
       const sessionStart = localStorage.getItem("slay_admin_session")
       if (sessionStart) {
@@ -122,23 +113,16 @@ export default function AdminSidebar() {
         if (elapsed > INACTIVITY_TIMEOUT) {
           localStorage.removeItem("slay_admin_session")
           localStorage.removeItem("slay_admin_password")
-          toast.warning("Session expired due to 8 hours of inactivity. Logging out...")
+          toast.warning("Session expired due to inactivity. Logging out…")
           signOut({ callbackUrl: "/admin/login" })
         }
       }
     }
-
-    const resetTimer = () => {
-      localStorage.setItem("slay_admin_session", Date.now().toString())
-    }
-
+    const resetTimer = () => localStorage.setItem("slay_admin_session", Date.now().toString())
     checkInactivity()
-
     const events = ["mousemove", "mousedown", "keypress", "scroll", "touchstart"]
     events.forEach((e) => window.addEventListener(e, resetTimer))
-
     const interval = setInterval(checkInactivity, 60000)
-
     return () => {
       events.forEach((e) => window.removeEventListener(e, resetTimer))
       clearInterval(interval)
@@ -158,16 +142,31 @@ export default function AdminSidebar() {
     const isCollapsed = collapsed && !isMobile
     return (
       <div className="flex flex-col h-full">
-        <div className={`py-6 border-b border-white/5 transition-all duration-300 ${isCollapsed ? "px-4" : "px-6"}`}>
+        {/* Brand */}
+        <div
+          className={`py-5 transition-all duration-300 ${isCollapsed ? "px-3" : "px-5"}`}
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
           <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
-            {isCollapsed ? (
-              <span className="text-white font-bold text-sm tracking-wider">S&amp;G</span>
-            ) : (
-              <div className="whitespace-nowrap overflow-hidden transition-all duration-300">
-                <p className="text-sm font-bold tracking-widest uppercase text-white">S&amp;G Studios</p>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${systemStatus.isPlaceholderDb ? "bg-amber-500 animate-pulse" : "bg-emerald-500 animate-pulse"}`} />
-                  <span className="text-[8px] text-white/40 tracking-wider uppercase font-bold">
+            {/* Logo mark */}
+            <div
+              className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-black font-black text-xs"
+              style={{ background: "linear-gradient(135deg, var(--sg-gold), var(--sg-gold-dark))" }}
+            >
+              SG
+            </div>
+            {!isCollapsed && (
+              <div className="whitespace-nowrap overflow-hidden">
+                <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
+                  S&amp;G Studios
+                </p>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                      systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
+                    }`}
+                  />
+                  <span className="text-[9px] tracking-wider uppercase font-semibold" style={{ color: "var(--text-muted)" }}>
                     {systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
                   </span>
                 </div>
@@ -176,7 +175,12 @@ export default function AdminSidebar() {
           </div>
         </div>
 
-        <nav className={`flex-1 py-4 space-y-1 overflow-y-auto transition-all duration-300 ${isCollapsed ? "px-2" : "px-3"}`}>
+        {/* Nav */}
+        <nav
+          className={`flex-1 py-3 space-y-0.5 overflow-y-auto transition-all duration-300 ${
+            isCollapsed ? "px-2" : "px-3"
+          }`}
+        >
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href)
             return (
@@ -185,19 +189,44 @@ export default function AdminSidebar() {
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 title={isCollapsed ? item.label : undefined}
-                className={`flex items-center rounded-lg text-sm transition-all duration-150 group ${
+                className={`flex items-center rounded-xl text-sm transition-all duration-150 group relative ${
                   isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
-                } ${
-                  active
-                    ? "bg-white/10 text-white border-l-2 border-white pl-[10px]"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/5"
                 }`}
+                style={{
+                  background: active ? "var(--bg-active)" : "transparent",
+                  color: active ? "var(--text-primary)" : "var(--text-muted)",
+                  border: active ? "1px solid var(--border-hover)" : "1px solid transparent",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
+                    ;(e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLElement).style.background = "transparent"
+                    ;(e.currentTarget as HTMLElement).style.color = "var(--text-muted)"
+                  }
+                }}
               >
-                <span className={`flex-shrink-0 ${active ? "text-white" : "text-white/40 group-hover:text-white/60"}`}>
+                {/* Gold accent bar on active */}
+                {active && !isCollapsed && (
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
+                    style={{ background: "var(--sg-gold)" }}
+                  />
+                )}
+
+                <span
+                  className="flex-shrink-0 transition-colors duration-150"
+                  style={{ color: active ? "var(--sg-gold)" : "var(--text-muted)" }}
+                >
                   {item.icon}
                 </span>
+
                 {!isCollapsed && (
-                  <span className="font-medium tracking-wide whitespace-nowrap overflow-hidden text-ellipsis">
+                  <span className="font-medium tracking-wide text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                     {item.label}
                   </span>
                 )}
@@ -206,45 +235,68 @@ export default function AdminSidebar() {
           })}
         </nav>
 
+        {/* Collapse toggle (desktop only) */}
         {!isMobile && (
-          <div className="hidden md:block border-t border-white/5 p-3">
+          <div className="hidden md:block p-3" style={{ borderTop: "1px solid var(--border)" }}>
             <button
               onClick={toggleCollapse}
-              className={`flex items-center rounded-lg text-xs text-white/40 hover:text-white hover:bg-white/5 w-full transition-all duration-150 ${
-                isCollapsed ? "justify-center py-2" : "gap-3 px-3 py-2.5"
+              className={`flex items-center rounded-xl text-xs w-full transition-all duration-150 ${
+                isCollapsed ? "justify-center py-2" : "gap-3 px-3 py-2"
               }`}
+              style={{ color: "var(--text-muted)" }}
               title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              id="admin-sidebar-toggle"
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
+                ;(e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent"
+                ;(e.currentTarget as HTMLElement).style.color = "var(--text-muted)"
+              }}
             >
               <span className="flex-shrink-0">
                 {isCollapsed ? (
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
                   </svg>
                 ) : (
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
                   </svg>
                 )}
               </span>
-              {!isCollapsed && <span className="font-medium tracking-wide">Collapse Sidebar</span>}
+              {!isCollapsed && <span className="font-medium tracking-wide">Collapse</span>}
             </button>
           </div>
         )}
 
-        <div className={`py-4 border-t border-white/5 transition-all duration-300 ${isCollapsed ? "px-2 text-center" : "px-6"}`}>
+        {/* Footer */}
+        <div
+          className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2 text-center" : "px-5"}`}
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
           <button
             onClick={() => signOut({ callbackUrl: "/admin/login" })}
-            className={`flex items-center text-[#C8102E] hover:text-red-400 text-xs font-semibold uppercase tracking-wider py-1.5 rounded w-full transition-colors ${
-              isCollapsed ? "justify-center" : "gap-2"
+            className={`flex items-center text-xs font-semibold uppercase tracking-wider py-1.5 rounded-xl w-full transition-colors ${
+              isCollapsed ? "justify-center" : "gap-2 px-2"
             }`}
+            style={{ color: "var(--sg-crimson)" }}
+            id="admin-logout"
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent"
+            }}
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
             </svg>
             {!isCollapsed && <span>Log Out</span>}
           </button>
-          <p className="text-[10px] text-white/20 tracking-widest uppercase mt-3">
-            {isCollapsed ? "v1.0" : "S&G Admin v1.0"}
+          <p className="text-[9px] tracking-widest uppercase mt-3" style={{ color: "var(--text-muted)" }}>
+            {isCollapsed ? "v1" : "S&G Admin v1.0"}
           </p>
         </div>
       </div>
@@ -253,39 +305,59 @@ export default function AdminSidebar() {
 
   return (
     <>
-      <aside className={`hidden md:flex flex-col bg-black/30 backdrop-blur-xl border-r border-white/5 flex-shrink-0 transition-all duration-300 ease-in-out ${
-        isMounted && collapsed ? "w-[72px]" : "w-60"
-      }`}>
+      {/* Desktop sidebar */}
+      <aside
+        className={`glass-sidebar hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out ${
+          isMounted && collapsed ? "w-[68px]" : "w-60"
+        }`}
+      >
         <SidebarContent />
       </aside>
 
+      {/* Mobile hamburger */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 w-9 h-9 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg flex items-center justify-center text-white/70 hover:text-white"
+        className="md:hidden fixed top-3.5 left-4 z-50 w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          backdropFilter: "blur(12px)",
+          color: "var(--text-secondary)",
+        }}
         onClick={() => setMobileOpen(true)}
         aria-label="Open menu"
+        id="admin-mobile-menu"
       >
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
         </svg>
       </button>
 
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
           onClick={() => setMobileOpen(false)}
         />
       )}
 
+      {/* Mobile drawer */}
       <aside
-        className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-[#0F0F0F] border-r border-white/10 flex flex-col transform transition-transform duration-300 ${
+        className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 flex flex-col transform transition-transform duration-300 glass-sidebar ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
-          <span className="text-sm font-bold tracking-wider text-white uppercase">S&amp;G Admin</span>
+        <div
+          className="flex items-center justify-between px-4 py-4"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          <span className="text-sm font-bold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>
+            S&amp;G Admin
+          </span>
           <button
             onClick={() => setMobileOpen(false)}
-            className="w-7 h-7 flex items-center justify-center text-white/50 hover:text-white"
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+            style={{ color: "var(--text-muted)" }}
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
