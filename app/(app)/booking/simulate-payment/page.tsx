@@ -108,7 +108,7 @@ function SimulatePaymentContent() {
             <div>
               <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Total Amount</p>
               <h2 className="text-2xl font-bold text-white mt-0.5">
-                GHS {(booking.amountGHS / 100).toFixed(2)}
+                GHS {booking.amountGHS.toFixed(2)}
               </h2>
             </div>
             <div className="text-right">

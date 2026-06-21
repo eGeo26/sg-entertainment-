@@ -43,14 +43,17 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] relative overflow-hidden px-4">
-      {/* Main Login Card */}
-      <div className="w-full max-w-md bg-[#111111]/60 border border-white/8 backdrop-blur-xl rounded-2xl p-8 md:p-10 shadow-2xl relative z-10">
+    <div className="min-h-screen flex items-center justify-center bg-[#070708] relative overflow-hidden px-4">
+      {/* Subtle background glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-neutral-900 rounded-full blur-3xl opacity-30 pointer-events-none" />
+
+      {/* Main Login Card - Sleek dark glass card */}
+      <div className="w-full max-w-md bg-[#0F0F0F]/90 border border-white/10 backdrop-blur-2xl rounded-2xl p-8 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative z-10 text-white">
         
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
-          <h1 className="text-xl font-bold tracking-tight text-white uppercase">S&amp;G Studios</h1>
-          <p className="text-[10px] text-white/45 mt-1.5 uppercase tracking-widest font-bold">Admin Portal</p>
+          <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">S&amp;G Studios</h1>
+          <p className="text-[10px] text-white/40 mt-1.5 uppercase tracking-widest font-semibold">Admin Portal</p>
         </div>
 
         {/* Form */}
@@ -65,7 +68,7 @@ export default function AdminLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••••"
               disabled={loading}
-              className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3.5 text-white placeholder-white/20 text-sm focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all disabled:opacity-50"
+              className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white transition-all disabled:opacity-50"
             />
           </div>
 
@@ -90,7 +93,7 @@ export default function AdminLoginPage() {
 
         {/* Footer info */}
         <div className="mt-8 text-center">
-          <p className="text-[10px] text-white/20 tracking-wider uppercase">
+          <p className="text-[10px] text-white/30 tracking-wider uppercase">
             Secure Session · Authorized Personnel Only
           </p>
         </div>

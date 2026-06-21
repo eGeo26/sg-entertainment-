@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       where: { status: "CONFIRMED" }
     }),
     prisma.booking.count({
-      where: { status: "AWAITING_PAYMENT" }
+      where: { isDelivered: true }
     })
   ])
 
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     stats: {
       totalRevenueGHS: (totalRevenueAgg._sum.amountGHS ?? 0) / 100,
       activeBookings: activeCount,
-      pendingPayments: pendingCount
+      grantedSessions: pendingCount
     }
   })
 }

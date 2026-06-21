@@ -71,10 +71,10 @@ export default function PaymentsLedgerPage() {
 
       if (!res.ok) {
         const errData = await res.json()
-        throw new Error(errData.error || "Paystack refund failed")
+        throw new Error(errData.error || "Hubtel refund failed")
       }
 
-      toast.success("Refund processed successfully through Paystack!")
+      toast.success("Refund processed successfully through Hubtel!")
       setRefundTarget(null)
       setRefundReason("")
       fetchPayments()
@@ -97,25 +97,36 @@ export default function PaymentsLedgerPage() {
     })
   }
 
+  const truncateRef = (ref: string) => {
+    if (!ref) return "None"
+    if (ref.length <= 16) return ref
+    return ref.slice(0, 16) + "..."
+  }
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id)
+    toast.success(`Copied ID: ${id.slice(0, 8)}`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-white uppercase">Payments Ledger</h1>
-        <p className="text-xs text-white/40 mt-1">
+        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Payments Ledger</h1>
+        <p className="text-xs text-white/40 mt-1.5">
           Monitor Hubtel transaction flows, track invoice reference logs, and initiate customer refunds
         </p>
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-xl p-4 flex items-center justify-between gap-4">
+      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by client name, email, or reference..."
-            className="w-full bg-white/5 border border-white/5 rounded-lg px-3 py-2.5 pl-9 text-white text-xs focus:outline-none focus:border-white/50"
+            className="w-full bg-white/5 border border-white/5 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-white/50"
           />
           <svg
             className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2"
@@ -130,73 +141,88 @@ export default function PaymentsLedgerPage() {
       </div>
 
       {/* Ledger Table */}
-      <div className="bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-xl overflow-hidden shadow-lg shadow-black/10">
+      <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-white/5 text-[10px] font-medium tracking-wider text-white/40 uppercase bg-white/[0.01]">
-                <th className="px-6 py-4">Transaction Details</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4">Hubtel Status</th>
-                <th className="px-6 py-4">Booking Status</th>
-                <th className="px-6 py-4">Transaction Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+              <tr className="border-b border-white/5 text-[9px] font-bold tracking-wider text-white/40 uppercase bg-white/[0.01]">
+                <th className="px-4 py-3">Transaction Details</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Gateway</th>
+                <th className="px-4 py-3">Booking Status</th>
+                <th className="px-4 py-3">Transaction Date</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {loading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
-                    <td colSpan={7} className="px-6 py-5">
+                    <td colSpan={7} className="px-4 py-4">
                       <div className="h-4 bg-white/10 rounded w-2/3" />
                     </td>
                   </tr>
                 ))
               ) : filteredPayments.length > 0 ? (
                 filteredPayments.map((p) => (
-                  <tr key={p.id} className="hover:bg-white/[0.01] transition-colors text-sm">
-                    <td className="px-6 py-4">
+                  <tr key={p.id} className="hover:bg-white/[0.005] transition-colors text-xs">
+                    <td className="px-4 py-3">
                       <div>
-                        <p className="font-semibold text-white/95 font-mono text-xs">{p.paystackReference}</p>
-                        <p className="text-[10px] text-white/30 font-mono mt-0.5">Booking: {p.id}</p>
+                        <p
+                          className="font-semibold text-white/95 font-mono text-[10px] cursor-pointer hover:text-white transition-colors"
+                          title={`Hubtel Reference: ${p.paystackReference}\nClick to copy`}
+                          onClick={() => {
+                            navigator.clipboard.writeText(p.paystackReference)
+                            toast.success("Copied transaction reference!")
+                          }}
+                        >
+                          {truncateRef(p.paystackReference)}
+                        </p>
+                        <p
+                          className="text-[10px] text-white/30 font-mono mt-0.5 cursor-pointer hover:text-white/60 transition-colors"
+                          onClick={() => handleCopyId(p.id)}
+                          title="Click to copy full Booking ID"
+                        >
+                          Booking: {p.id.slice(0, 8)}
+                        </p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-white/90">{p.customerName}</p>
-                        <p className="text-xs text-white/40">{p.customerEmail}</p>
+                        <p className="text-[10px] text-white/40">{p.customerEmail}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-white font-semibold">
+                    <td className="px-4 py-3 text-white font-semibold">
                       GH₵ {p.amountGHS.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <StatusBadge status={p.paystackStatus} />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <StatusBadge status={p.status} />
                     </td>
-                    <td className="px-6 py-4 text-white/70">
+                    <td className="px-4 py-3 text-white/70">
                       {formatDate(p.createdAt)}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3 text-right">
                       {p.paystackStatus === "SUCCESS" && p.status !== "REFUNDED" ? (
                         <button
                           onClick={() => setRefundTarget(p)}
-                          className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-lg text-xs font-semibold transition-all"
+                          className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-md text-[10px] font-semibold transition-all"
                         >
-                          Refund Transaction
+                          Refund
                         </button>
                       ) : (
-                        <span className="text-xs text-white/20 italic select-none">No Actions</span>
+                        <span className="text-[10px] text-white/20 italic select-none">No Actions</span>
                       )}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-white/30 text-sm">
+                  <td colSpan={7} className="text-center py-12 text-white/30 text-xs">
                     No transactions registered.
                   </td>
                 </tr>

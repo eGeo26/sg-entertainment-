@@ -83,8 +83,8 @@ export default function CustomersCRMPage() {
     <div className="space-y-6">
       {/* Top Header */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-white uppercase">Customer CRM Directory</h1>
-        <p className="text-xs text-white/40 mt-1">
+        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Customer CRM Directory</h1>
+        <p className="text-xs text-white/40 mt-1.5">
           Detailed history and analytics per recording customer
         </p>
       </div>

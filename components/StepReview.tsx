@@ -1,18 +1,9 @@
 "use client"
-// components/StepReview.tsx — Final review before Paystack payment
+// components/StepReview.tsx — Final review before Hubtel payment
 
 import { useState, useEffect, useRef } from "react"
 import { BookingFormData } from "@/types"
 import { formatDisplayDate, formatDisplayTime, getEndTime } from "@/lib/booking"
-
-const EQUIPMENT_LIST = [
-  { id: "condenser_mic",  label: "Condenser Microphone",       priceGHS: 50  },
-  { id: "dynamic_mic",   label: "Dynamic Microphone",          priceGHS: 30  },
-  { id: "headphones",    label: "Studio Headphones (per pair)",priceGHS: 20  },
-  { id: "guitar_amp",    label: "Guitar Amplifier",            priceGHS: 80  },
-  { id: "keyboard",      label: "MIDI Keyboard",               priceGHS: 60  },
-  { id: "mixing_engineer",label:"In-house Mixing Engineer",    priceGHS: 150 },
-]
 
 function calcSessionPrice(durationHours: number): number {
   const mins = Math.round(durationHours * 60)
@@ -53,13 +44,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
   const endTime = getEndTime(form.sessionDate, form.startTime, form.durationHours)
   const displayDate = formatDisplayDate(form.sessionDate)
   const baseRate = calcSessionPrice(form.durationHours)
-  const equipmentTotal = form.equipment.reduce((sum, id) => {
-    return sum + (EQUIPMENT_LIST.find((e) => e.id === id)?.priceGHS ?? 0)
-  }, 0)
-  const total = baseRate + equipmentTotal
-  const equipmentLabels = form.equipment.map(
-    (id) => EQUIPMENT_LIST.find((e) => e.id === id)?.label ?? id
-  )
+  const total = baseRate
 
   // Clear particles after animation completes
   useEffect(() => {
@@ -106,7 +91,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
   return (
     <div className="space-y-4 relative">
 
-      {/* ── Sparkles — fixed over button centre ── */}
+      {/* ── Sparkles ── */}
       {particles.length > 0 && btnRect && (
         <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden" aria-hidden="true">
           {particles.map((p) => (
@@ -130,7 +115,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
         </div>
       )}
 
-      {/* Summary card — compact */}
+      {/* Summary card */}
       <div className="card bg-black/40 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-white">Review Booking</h2>
@@ -170,20 +155,6 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
             </div>
           </div>
 
-          {/* Equipment */}
-          {equipmentLabels.length > 0 && (
-            <div className="border-t border-white/8 pt-3">
-              <p className="text-white/35 text-xs uppercase tracking-wider mb-2">Add-ons</p>
-              <div className="flex flex-wrap gap-1.5">
-                {equipmentLabels.map((label) => (
-                  <span key={label} className="text-xs bg-white/8 text-white/65 px-2.5 py-1 rounded-full">
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Pricing */}
           <div className="border-t border-white/8 pt-3">
             <p className="text-white/35 text-xs uppercase tracking-wider mb-2">Pricing</p>
@@ -192,15 +163,6 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
                 <span className="text-white/50">Studio time ({minutesToDisplay(form.durationHours)})</span>
                 <span className="text-white/80">GHS {baseRate.toLocaleString()}</span>
               </div>
-              {form.equipment.map((id) => {
-                const item = EQUIPMENT_LIST.find((e) => e.id === id)
-                return item ? (
-                  <div key={id} className="flex justify-between text-xs">
-                    <span className="text-white/50">{item.label}</span>
-                    <span className="text-white/80">GHS {item.priceGHS}</span>
-                  </div>
-                ) : null
-              })}
             </div>
             <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-white/8">
               <span className="text-white text-sm font-semibold">Total Due</span>
@@ -212,7 +174,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
         </div>
       </div>
 
-      {/* Payment — Hubtel only, compact */}
+      {/* Payment — Hubtel Secure Payment */}
       <div className="card bg-black/30 backdrop-blur-sm py-3 px-4">
         <div className="flex items-center gap-3">
           <svg className="w-7 h-7 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,8 +182,8 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
               d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
           <div>
-            <p className="text-white text-sm font-semibold">Hubtel</p>
-            <p className="text-white/40 text-xs">MoMo · Visa · Mastercard · Bank Transfer</p>
+            <p className="text-white text-sm font-semibold">S&amp;G Hubtel Secure Payment</p>
+            <p className="text-white/40 text-xs">Mobile Money &amp; Card Payments</p>
           </div>
           <div className="ml-auto flex items-center gap-1">
             <svg className="w-3.5 h-3.5 text-green-400" fill="currentColor" viewBox="0 0 24 24">
@@ -246,9 +208,9 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
           className="btn-secondary flex-1 py-3.5 text-sm flex items-center justify-center gap-1.5"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Back
+          Go Back
         </button>
         <button
           ref={btnRef}
@@ -265,9 +227,9 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
             </span>
           ) : (
             <span className="flex items-center justify-center gap-1.5">
-              Pay GHS {total.toLocaleString()}
+              Pay Now — GHS {total.toLocaleString()}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </span>
           )}

@@ -1,6 +1,5 @@
 "use client"
 // components/StepDateTime.tsx
-// Step 1: Pick date → duration auto-scrolls into view → pick time → proceed
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import Calendar from "react-calendar"
@@ -11,19 +10,12 @@ import { isDateAvailable } from "@/lib/booking"
 import "react-calendar/dist/Calendar.css"
 
 const SESSION_RATE = 300
-const MIN_MINUTES = 150   // 2h 30m
-const MAX_MINUTES = 720   // 12h
-const STEP_MINUTES = 30
+const DURATION_MINUTES = 150 // locked at 2h 30m
 
 function minutesToDisplay(m: number): string {
   const h = Math.floor(m / 60)
   const min = m % 60
   return min === 0 ? `${h}h` : `${h}h ${min}m`
-}
-
-function calcPrice(minutes: number): number {
-  if (minutes <= MIN_MINUTES) return SESSION_RATE
-  return SESSION_RATE + Math.ceil((minutes - MIN_MINUTES) / 30) * 60
 }
 
 function getEndTimestamp(date: string, startTime: string, durationMinutes: number): string {
@@ -48,39 +40,26 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
     return new Date(yr, mo - 1, dy)
   })
   const [selectedTime, setSelectedTime] = useState<string>(form.startTime ?? "")
-  const [durationMinutes, setDurationMinutes] = useState<number>(
-    form.durationHours ? Math.round(form.durationHours * 60) : MIN_MINUTES
-  )
   const [slots, setSlots] = useState<Record<string, SlotStatus>>({})
   const [loadingSlots, setLoadingSlots] = useState(false)
 
   // Refs for auto-scroll targets
-  const durationRef = useRef<HTMLDivElement>(null)
   const timeSlotsRef = useRef<HTMLDivElement>(null)
   const pricingRef = useRef<HTMLDivElement>(null)
   const continueRef = useRef<HTMLButtonElement>(null)
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""
 
-  // Auto-scroll to duration picker when date is selected
+  // Auto-scroll to time slots when date is selected
   const prevDate = useRef<Date | null>(null)
   useEffect(() => {
     if (selectedDate && prevDate.current?.getTime() !== selectedDate.getTime()) {
       prevDate.current = selectedDate
       setTimeout(() => {
-        durationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+        timeSlotsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
       }, 150)
     }
   }, [selectedDate])
-
-  // Auto-scroll to time slots when date is picked
-  useEffect(() => {
-    if (dateStr) {
-      setTimeout(() => {
-        timeSlotsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
-      }, 350)
-    }
-  }, [dateStr])
 
   // Auto-scroll to pricing + continue when time is selected
   useEffect(() => {
@@ -92,10 +71,10 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
   }, [selectedTime])
 
   // Fetch slot availability
-  const fetchAvailability = useCallback(async (date: string, dur: number) => {
+  const fetchAvailability = useCallback(async (date: string) => {
     setLoadingSlots(true)
     try {
-      const res = await fetch(`/api/anolla/availability?date=${date}&duration=${dur}`)
+      const res = await fetch(`/api/anolla/availability?date=${date}&duration=${DURATION_MINUTES}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       const statusMap: Record<string, SlotStatus> = {}
@@ -116,14 +95,14 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
   }, [])
 
   useEffect(() => {
-    if (dateStr) fetchAvailability(dateStr, durationMinutes)
-  }, [dateStr, durationMinutes, fetchAvailability])
+    if (dateStr) fetchAvailability(dateStr)
+  }, [dateStr, fetchAvailability])
 
   const isDisabledDate = (date: Date) =>
     isBefore(date, startOfDay(new Date())) || !isDateAvailable(format(date, "yyyy-MM-dd"))
 
-  const endTime = selectedTime ? getEndTimestamp(dateStr, selectedTime, durationMinutes) : null
-  const price = calcPrice(durationMinutes)
+  const endTime = selectedTime ? getEndTimestamp(dateStr, selectedTime, DURATION_MINUTES) : null
+  const price = SESSION_RATE
   const canProceed = !!selectedDate && !!selectedTime
 
   const handleNext = () => {
@@ -131,14 +110,13 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
     updateForm({
       sessionDate: dateStr,
       startTime: selectedTime,
-      durationHours: durationMinutes / 60,
+      durationHours: DURATION_MINUTES / 60, // 2.5
     })
     onNext()
   }
 
   return (
     <div className="space-y-4">
-
       {/* Calendar */}
       <div className="card bg-black/40 backdrop-blur-sm">
         <h2 className="text-base font-semibold text-white mb-3">Choose a Date</h2>
@@ -155,38 +133,13 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
         />
       </div>
 
-      {/* Duration + Time visible as soon as date is chosen */}
+      {/* Info: Duration (Fixed) + Time Slots */}
       {selectedDate && (
         <>
-          {/* Duration */}
-          <div ref={durationRef} className="card bg-black/40 backdrop-blur-sm scroll-mt-20">
-            <h2 className="text-base font-semibold text-white mb-3">Session Duration</h2>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setDurationMinutes((d) => Math.max(MIN_MINUTES, d - STEP_MINUTES))}
-                className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center font-semibold"
-                aria-label="Decrease duration"
-              >
-                −
-              </button>
-              <div className="flex-1 text-center">
-                <span className="text-2xl font-bold text-white">
-                  {minutesToDisplay(durationMinutes)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDurationMinutes((d) => Math.min(MAX_MINUTES, d + STEP_MINUTES))}
-                className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center font-semibold"
-                aria-label="Increase duration"
-              >
-                +
-              </button>
-            </div>
-            <p className="text-white/30 text-xs text-center mt-2">
-              Min 2h 30m · Max 12h · Steps of 30 min
-            </p>
+          {/* Duration locked info */}
+          <div className="card bg-black/40 backdrop-blur-sm">
+            <h2 className="text-base font-semibold text-white mb-1">Session Duration</h2>
+            <p className="text-studio-gold font-bold text-lg">2 hr 30 min session</p>
           </div>
 
           {/* Time slots */}
@@ -229,7 +182,7 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
             {selectedTime && endTime && (
               <div className="mt-3 p-2.5 bg-white/5 border border-white/10 rounded-lg">
                 <p className="text-white/80 text-xs font-medium text-center">
-                  {selectedTime} → {endTime} · {minutesToDisplay(durationMinutes)}
+                  {selectedTime} → {endTime} · {minutesToDisplay(DURATION_MINUTES)}
                 </p>
               </div>
             )}

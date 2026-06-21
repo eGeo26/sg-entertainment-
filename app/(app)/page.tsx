@@ -14,9 +14,13 @@ interface Review {
   createdAt: string
 }
 
+import { useRef } from "react"
+
 export default function HomePage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const carouselRef = useRef<HTMLDivElement>(null)
 
   // Review Form States
   const [name, setName] = useState("")
@@ -25,6 +29,36 @@ export default function HomePage() {
   const [text, setText] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
+
+  // Auto-slide every 5s
+  useEffect(() => {
+    if (reviews.length <= 1) return
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % reviews.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [reviews])
+
+  // Scroll to active index
+  useEffect(() => {
+    if (carouselRef.current) {
+      const child = carouselRef.current.children[activeIndex] as HTMLElement
+      if (child) {
+        carouselRef.current.scrollTo({
+          left: child.offsetLeft,
+          behavior: "smooth",
+        })
+      }
+    }
+  }, [activeIndex])
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget
+    const index = Math.round(container.scrollLeft / container.clientWidth)
+    if (index !== activeIndex && index >= 0 && index < reviews.length) {
+      setActiveIndex(index)
+    }
+  }
 
   const fetchReviews = async () => {
     try {
@@ -308,36 +342,82 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Reviews Grid */}
+        {/* Reviews Carousel */}
         {reviewsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="h-28 bg-white/5 rounded-xl animate-pulse" />
-            <div className="h-28 bg-white/5 rounded-xl animate-pulse" />
-            <div className="h-28 bg-white/5 rounded-xl animate-pulse" />
-          </div>
+          <div className="max-w-xl mx-auto h-36 bg-white/5 rounded-2xl animate-pulse" />
         ) : reviews.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reviews.slice(0, 6).map((rev) => (
-              <div key={rev.id} className="bg-black/35 border border-white/10 p-5 rounded-2xl backdrop-blur-sm space-y-3 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-xs font-bold text-white">{rev.name}</h4>
-                      {rev.socialHandle && (
-                        <span className="text-[10px] text-white/40 block">{rev.socialHandle}</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-white/60">
-                      {"★".repeat(rev.rating)}{"☆".repeat(5 - rev.rating)}
+          <div className="relative max-w-xl mx-auto group">
+            {/* Scroll Container */}
+            <div
+              ref={carouselRef}
+              onScroll={handleScroll}
+              className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth gap-4 scrollbar-none pb-4"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              {reviews.map((rev, idx) => {
+                const isActive = activeIndex === idx
+                return (
+                  <div
+                    key={rev.id}
+                    className={`w-full flex-shrink-0 snap-center transition-all duration-500 ease-out transform ${
+                      isActive ? "opacity-100 scale-100" : "opacity-30 scale-95 pointer-events-none"
+                    }`}
+                  >
+                    <div
+                      className="bg-black/35 border border-white/10 p-6 md:p-8 rounded-2xl backdrop-blur-sm space-y-4 shadow-xl flex flex-col justify-between min-h-[160px]"
+                      style={{
+                        background: "rgba(0,0,0,0.3)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        backdropFilter: "blur(12px)",
+                      }}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-sm font-bold text-white">{rev.name}</h4>
+                            {rev.socialHandle && (
+                              <span className="text-xs text-white/40 block mt-0.5">{rev.socialHandle}</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-[#C5A880]">
+                            {"★".repeat(rev.rating)}{"☆".repeat(5 - rev.rating)}
+                          </div>
+                        </div>
+                        <p className="text-sm text-white/80 italic leading-relaxed font-light">
+                          &ldquo;{rev.text}&rdquo;
+                        </p>
+                      </div>
+                      <div className="text-[10px] text-white/20 text-right font-medium font-mono">
+                        {new Date(rev.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </div>
                     </div>
                   </div>
-                  <p className="text-xs text-white/70 italic leading-relaxed">"{rev.text}"</p>
-                </div>
-                <div className="text-[9px] text-white/25 text-right font-medium">
-                  {new Date(rev.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </div>
+                )
+              })}
+            </div>
+
+            {/* Dot Navigation */}
+            {reviews.length > 1 && (
+              <div className="flex justify-center gap-2 mt-2">
+                {reviews.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveIndex(idx)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      activeIndex === idx ? "bg-[#C5A880] w-4" : "bg-white/20 hover:bg-white/40"
+                    }`}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
               </div>
-            ))}
+            )}
           </div>
         ) : (
           <div className="text-center py-8 bg-white/[0.01] border border-white/5 rounded-2xl">

@@ -28,6 +28,9 @@ export async function GET(
       amountGHS: true,
       status: true,
       paystackReference: true,
+      isPaid: true,
+      isPacked: true,
+      isDelivered: true,
       createdAt: true,
     },
   })

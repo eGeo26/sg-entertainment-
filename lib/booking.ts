@@ -72,13 +72,15 @@ export function getEndTime(date: string, startTime: string, durationHours: numbe
 }
 
 export function formatDisplayDate(dateStr: string): string {
-  return format(parseISO(dateStr), "EEEE, d MMMM yyyy")
+  const [yr, mo, dy] = dateStr.split("-").map(Number)
+  const d = new Date(yr, mo - 1, dy)
+  return format(d, "EEEE, d MMMM yyyy")
 }
 
 export function formatDisplayTime(time: string): string {
   const [hours, minutes] = time.split(":").map(Number)
   const d = new Date()
-  d.setHours(hours, minutes)
+  d.setHours(hours, minutes, 0, 0)
   return format(d, "hh:mm a")
 }
 
@@ -120,7 +122,8 @@ export function normalizePhone(phone: string): string {
 // ── Reference generation ──────────────────────────────────────────────────────
 
 export function generatePaystackReference(bookingId: string): string {
-  const timestamp = Date.now()
-  const shortId = bookingId.slice(0, 8).toUpperCase()
-  return `SG-${shortId}-${timestamp}`
+  const shortId = bookingId.slice(0, 5).toUpperCase()
+  const randomSuffix = Math.floor(100 + Math.random() * 900) // 3 digits
+  return `SG-${shortId}-${randomSuffix}`
 }
+

@@ -1,7 +1,7 @@
 "use client"
 // app/(admin)/admin/insights/page.tsx
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import {
   BarChart,
@@ -48,6 +48,35 @@ interface InsightsData {
 }
 
 const COLORS = ["#FFFFFF", "#A3A3A3", "#737373", "#404040", "#171717"]
+
+function AnimatedNumber({ value, prefix = "", suffix = "", decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    let startTimestamp: number | null = null
+    const duration = 800 // 800ms
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1)
+      setDisplayValue(progress * value)
+      if (progress < 1) {
+        window.requestAnimationFrame(step)
+      }
+    }
+    window.requestAnimationFrame(step)
+  }, [value])
+
+  return (
+    <span>
+      {prefix}
+      {displayValue.toLocaleString("en-GH", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })}
+      {suffix}
+    </span>
+  )
+}
 
 export default function InsightsPage() {
   const [data, setData] = useState<InsightsData | null>(null)
@@ -102,32 +131,32 @@ export default function InsightsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-bold tracking-tight text-white uppercase">Sales &amp; Business Insights</h1>
-        <p className="text-xs text-white/40 mt-0.5">Core recording analytics, asset rentals, and popular equipment rankings</p>
+        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Sales &amp; Business Insights</h1>
+        <p className="text-xs text-white/40 mt-1.5">Core recording analytics, asset rentals, and popular equipment rankings</p>
       </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Confirmed vs. Pending */}
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+        <div className="glass-card p-4">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Confirmed vs. Pending Rev</p>
           <div className="mt-2 flex justify-between items-baseline">
-            <h3 className="text-xl font-bold text-white">
-              GH₵ {data.revenueOverview.confirmedGHS.toFixed(0)}
+            <h3 className="text-3xl font-light text-white">
+              <AnimatedNumber value={data.revenueOverview.confirmedGHS} prefix="GH₵ " decimals={0} />
             </h3>
             <span className="text-[10px] text-white/60 font-semibold">
               Pending: GH₵ {data.revenueOverview.pendingGHS.toFixed(0)}
             </span>
           </div>
-          <p className="text-[9px] text-white/30 mt-1">Confirmed: {data.revenueOverview.confirmedCount} | Awaiting: {data.revenueOverview.pendingCount}</p>
+          <p className="text-[9px] text-white/30 mt-1.5">Confirmed: {data.revenueOverview.confirmedCount} | Awaiting: {data.revenueOverview.pendingCount}</p>
         </div>
 
         {/* MoM margins */}
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+        <div className="glass-card p-4">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">MoM Growth Margin</p>
           <div className="mt-2 flex justify-between items-baseline">
-            <h3 className="text-xl font-bold text-white">
-              GH₵ {data.compareMoM.currentMonthGHS.toFixed(0)}
+            <h3 className="text-3xl font-light text-white">
+              <AnimatedNumber value={data.compareMoM.currentMonthGHS} prefix="GH₵ " decimals={0} />
             </h3>
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
               data.compareMoM.percentChange >= 0
@@ -137,33 +166,33 @@ export default function InsightsPage() {
               {data.compareMoM.percentChange >= 0 ? "▲" : "▼"}{Math.abs(data.compareMoM.percentChange).toFixed(1)}%
             </span>
           </div>
-          <p className="text-[9px] text-white/30 mt-1">Previous Month: GH₵ {data.compareMoM.prevMonthGHS.toFixed(0)}</p>
+          <p className="text-[9px] text-white/30 mt-1.5">Previous Month: GH₵ {data.compareMoM.prevMonthGHS.toFixed(0)}</p>
         </div>
 
         {/* AOV */}
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+        <div className="glass-card p-4">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Average Order Value (AOV)</p>
-          <h3 className="text-xl font-bold text-white mt-2">
-            GH₵ {data.metrics.aovGHS.toLocaleString("en-GH", { minimumFractionDigits: 2 })}
+          <h3 className="text-3xl font-light text-white mt-2">
+            <AnimatedNumber value={data.metrics.aovGHS} prefix="GH₵ " decimals={2} />
           </h3>
-          <p className="text-[9px] text-white/30 mt-1">Based on verified bookings</p>
+          <p className="text-[9px] text-white/30 mt-1.5">Based on verified bookings</p>
         </div>
 
         {/* Total Hours Booked */}
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
+        <div className="glass-card p-4">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Total Session Hours Booked</p>
-          <h3 className="text-xl font-bold text-white mt-2">
-            {data.metrics.totalHoursBooked} hrs
+          <h3 className="text-3xl font-light text-white mt-2">
+            <AnimatedNumber value={data.metrics.totalHoursBooked} suffix=" hrs" />
           </h3>
-          <p className="text-[9px] text-white/30 mt-1">Confirmed recording time</p>
+          <p className="text-[9px] text-white/30 mt-1.5">Confirmed recording time</p>
         </div>
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Month over Month Revenue */}
-        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-xl">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">MoM Revenue Comparison</h3>
+        <div className="glass-card p-5 md:p-6">
+          <h3 className="text-xs font-semibold tracking-wider text-white uppercase mb-4">MoM Revenue Comparison</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueComparisonData}>
@@ -180,8 +209,8 @@ export default function InsightsPage() {
         </div>
 
         {/* Pipeline Distribution */}
-        <div className="bg-white/[0.02] border border-white/5 p-5 rounded-xl">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Pipeline Distribution Status</h3>
+        <div className="glass-card p-5 md:p-6">
+          <h3 className="text-xs font-semibold tracking-wider text-white uppercase mb-4">Pipeline Distribution Status</h3>
           <div className="h-64 w-full flex items-center justify-center">
             {formattedPipeline.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">

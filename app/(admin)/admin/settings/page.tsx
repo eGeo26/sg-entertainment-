@@ -123,11 +123,34 @@ export default function SettingsConsolePage() {
     <div className="max-w-xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-bold tracking-tight text-white uppercase">System Configurations</h1>
-        <p className="text-xs text-white/40 mt-0.5">Control security credentials and clear local data entries</p>
+        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Admin Settings</h1>
+        <p className="text-xs text-white/40 mt-1.5">Control security credentials, view studio details, and reset database</p>
       </div>
 
       <div className="space-y-6">
+        {/* Studio Information (Display only) */}
+        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Studio Information</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="block text-white/45 mb-1 uppercase tracking-wider text-[9px] font-bold">Studio Name</span>
+              <span className="text-white/80 font-medium">S&amp;G Studios</span>
+            </div>
+            <div>
+              <span className="block text-white/45 mb-1 uppercase tracking-wider text-[9px] font-bold">Location</span>
+              <span className="text-white/80 font-medium">Accra, Taifa, Ghana</span>
+            </div>
+            <div>
+              <span className="block text-white/45 mb-1 uppercase tracking-wider text-[9px] font-bold">Phone Number</span>
+              <span className="text-white/80 font-medium">0244 922 500</span>
+            </div>
+            <div>
+              <span className="block text-white/45 mb-1 uppercase tracking-wider text-[9px] font-bold">Email Address</span>
+              <span className="text-white/80 font-medium">sgentstudios@gmail.com</span>
+            </div>
+          </div>
+        </div>
+
         {/* Credential update */}
         <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
           <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Change Administrator Password</h3>
@@ -183,7 +206,7 @@ export default function SettingsConsolePage() {
       {showPasswordGate && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
           <div className="bg-[#111111] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Secondary Password Gate</h3>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Confirm Action</h3>
             <p className="text-xs text-white/45 mb-4 leading-relaxed">
               This is a critical operation (credential updates or database wipe). Please enter the admin password to verify.
             </p>
@@ -208,7 +231,7 @@ export default function SettingsConsolePage() {
                   type="submit"
                   className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider"
                 >
-                  Verify Gate
+                  Verify
                 </button>
               </div>
             </form>

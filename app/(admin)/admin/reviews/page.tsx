@@ -152,8 +152,8 @@ export default function ReviewsConsolePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-white uppercase">Reviews Console</h1>
-          <p className="text-xs text-white/40 mt-0.5">Moderate customer testimonials and social proof ratings</p>
+          <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Reviews Console</h1>
+          <p className="text-xs text-white/40 mt-1.5">Moderate customer testimonials and social proof ratings</p>
         </div>
         <button
           onClick={handleOpenAddModal}
@@ -194,7 +194,7 @@ export default function ReviewsConsolePage() {
                     )}
                   </div>
                   {/* Stars */}
-                  <div className="flex text-white text-xs">
+                  <div className="flex text-[#C5A880] text-xs">
                     {"★".repeat(r.rating)}
                     {"☆".repeat(5 - r.rating)}
                   </div>

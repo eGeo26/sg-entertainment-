@@ -35,7 +35,7 @@ interface Booking {
 interface StatsData {
   totalBookings: number
   confirmedBookings: number
-  pendingPayments: number
+  grantedSessions: number
   revenueGHS: number
   revenueByDay: { date: string; revenue: number }[]
   recentBookings: Booking[]
@@ -94,7 +94,7 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Bookings" value="..." loading accent="gold" />
           <StatCard label="Confirmed" value="..." loading accent="green" />
-          <StatCard label="Pending Payments" value="..." loading accent="amber" />
+          <StatCard label="Granted Sessions" value="..." loading accent="amber" />
           <StatCard label="Total Revenue" value="..." loading accent="blue" />
         </div>
         <div className="glass-card p-6 h-[380px]">
@@ -107,6 +107,12 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Overview</h1>
+        <p className="text-xs text-white/40 mt-1.5">Real-time studio activity metrics, financial summaries, and booking logs</p>
+      </div>
+
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -132,13 +138,13 @@ export default function AdminDashboardPage() {
           }
         />
         <StatCard
-          label="Pending Payments"
-          value={stats?.pendingPayments ?? 0}
-          subtext="Abandoned or awaiting MoMo"
+          label="Granted Sessions"
+          value={stats?.grantedSessions ?? 0}
+          subtext="Sessions completed & granted"
           accent="amber"
           icon={
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           }
         />
@@ -159,8 +165,8 @@ export default function AdminDashboardPage() {
       <div className="glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-sm font-semibold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>Revenue Over Time</h2>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Confirmed payments over the last 30 days</p>
+            <h2 className="text-xs font-semibold tracking-wider text-white uppercase mb-1">Revenue Over Time</h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Confirmed payments over the last 30 days</p>
           </div>
           <span
             className="text-[10px] px-2.5 py-1 rounded-lg tracking-wider font-semibold"
@@ -227,8 +233,8 @@ export default function AdminDashboardPage() {
       <div className="glass-card overflow-hidden">
         <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--border)" }}>
           <div>
-            <h2 className="text-sm font-semibold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>Recent Bookings</h2>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Latest checkout activities</p>
+            <h2 className="text-xs font-semibold tracking-wider text-white uppercase mb-1">Recent Bookings</h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Latest checkout activities</p>
           </div>
           <Link
             href="/admin/bookings"

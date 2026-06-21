@@ -13,11 +13,11 @@ export async function GET() {
   }
 
   try {
-    const [totalBookings, confirmedBookings, pendingPayments, revenueAgg] =
+    const [totalBookings, confirmedBookings, grantedSessions, revenueAgg] =
       await Promise.all([
         prisma.booking.count(),
         prisma.booking.count({ where: { status: "CONFIRMED" } }),
-        prisma.booking.count({ where: { paystackStatus: "PENDING" } }),
+        prisma.booking.count({ where: { isDelivered: true } }),
         prisma.booking.aggregate({
           _sum: { amountGHS: true },
           where: { status: "CONFIRMED" },
@@ -79,7 +79,7 @@ export async function GET() {
     return NextResponse.json({
       totalBookings,
       confirmedBookings,
-      pendingPayments,
+      grantedSessions,
       revenueGHS: (revenueAgg._sum.amountGHS ?? 0) / 100,
       revenueByDay,
       recentBookings: recentBookingsList.map((b: any) => ({

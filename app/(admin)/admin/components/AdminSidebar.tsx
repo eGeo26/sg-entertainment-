@@ -87,6 +87,7 @@ export default function AdminSidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [systemStatus, setSystemStatus] = useState({ isPlaceholderDb: true })
 
@@ -138,24 +139,17 @@ export default function AdminSidebar() {
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href)
 
-  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
-    const isCollapsed = collapsed && !isMobile
+  const SidebarContent = ({ isMobile = false, isHoveredState = false }: { isMobile?: boolean; isHoveredState?: boolean }) => {
+    const isCollapsed = collapsed && !isMobile && !isHoveredState
     return (
       <div className="flex flex-col h-full">
-        {/* Brand */}
+        {/* Brand without SG logo, collapse toggle at the top */}
         <div
-          className={`py-5 transition-all duration-300 ${isCollapsed ? "px-3" : "px-5"}`}
+          className={`py-4 transition-all duration-300 ${isCollapsed ? "px-3" : "px-5"}`}
           style={{ borderBottom: "1px solid var(--border)" }}
         >
-          <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
-            {/* Logo mark */}
-            <div
-              className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-black font-black text-xs"
-              style={{ background: "linear-gradient(135deg, var(--sg-gold), var(--sg-gold-dark))" }}
-            >
-              SG
-            </div>
-            {!isCollapsed && (
+          <div className="flex items-center justify-between gap-2">
+            {!isCollapsed ? (
               <div className="whitespace-nowrap overflow-hidden">
                 <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
                   S&amp;G Studios
@@ -171,6 +165,31 @@ export default function AdminSidebar() {
                   </span>
                 </div>
               </div>
+            ) : (
+              <div className="flex-1 flex justify-center py-1">
+                <span
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
+                  }`}
+                  title={systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
+                />
+              </div>
+            )}
+
+            {!isMobile && !isCollapsed && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleCollapse()
+                }}
+                className="p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
+                style={{ color: "var(--text-muted)" }}
+                title="Collapse sidebar"
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+                </svg>
+              </button>
             )}
           </div>
         </div>
@@ -188,7 +207,6 @@ export default function AdminSidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                title={isCollapsed ? item.label : undefined}
                 className={`flex items-center rounded-xl text-sm transition-all duration-150 group relative ${
                   isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
                 }`}
@@ -230,72 +248,24 @@ export default function AdminSidebar() {
                     {item.label}
                   </span>
                 )}
+
+                {/* Floating tooltip label when collapsed */}
+                {isCollapsed && (
+                  <div className="absolute left-full ml-3 px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                    {item.label}
+                  </div>
+                )}
               </Link>
             )
           })}
         </nav>
 
-        {/* Collapse toggle (desktop only) */}
-        {!isMobile && (
-          <div className="hidden md:block p-3" style={{ borderTop: "1px solid var(--border)" }}>
-            <button
-              onClick={toggleCollapse}
-              className={`flex items-center rounded-xl text-xs w-full transition-all duration-150 ${
-                isCollapsed ? "justify-center py-2" : "gap-3 px-3 py-2"
-              }`}
-              style={{ color: "var(--text-muted)" }}
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              id="admin-sidebar-toggle"
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
-                ;(e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "transparent"
-                ;(e.currentTarget as HTMLElement).style.color = "var(--text-muted)"
-              }}
-            >
-              <span className="flex-shrink-0">
-                {isCollapsed ? (
-                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
-                  </svg>
-                ) : (
-                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-                  </svg>
-                )}
-              </span>
-              {!isCollapsed && <span className="font-medium tracking-wide">Collapse</span>}
-            </button>
-          </div>
-        )}
-
-        {/* Footer */}
+        {/* Footer with version only (single Sign Out in header) */}
         <div
           className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2 text-center" : "px-5"}`}
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <button
-            onClick={() => signOut({ callbackUrl: "/admin/login" })}
-            className={`flex items-center text-xs font-semibold uppercase tracking-wider py-1.5 rounded-xl w-full transition-colors ${
-              isCollapsed ? "justify-center" : "gap-2 px-2"
-            }`}
-            style={{ color: "var(--sg-crimson)" }}
-            id="admin-logout"
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent"
-            }}
-          >
-            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-            </svg>
-            {!isCollapsed && <span>Log Out</span>}
-          </button>
-          <p className="text-[9px] tracking-widest uppercase mt-3" style={{ color: "var(--text-muted)" }}>
+          <p className="text-[9px] tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>
             {isCollapsed ? "v1" : "S&G Admin v1.0"}
           </p>
         </div>
@@ -307,11 +277,36 @@ export default function AdminSidebar() {
     <>
       {/* Desktop sidebar */}
       <aside
-        className={`glass-sidebar hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out ${
+        className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out relative z-30 ${
           isMounted && collapsed ? "w-[68px]" : "w-60"
         }`}
+        onMouseEnter={() => collapsed && setIsHovered(true)}
+        onMouseLeave={() => collapsed && setIsHovered(false)}
       >
-        <SidebarContent />
+        {/* Toggle overlay lock button visible at top right of collapsed sidebar when hovered */}
+        {isMounted && collapsed && isHovered && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleCollapse()
+            }}
+            className="absolute top-4 right-4 z-40 p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
+            style={{ color: "var(--text-muted)" }}
+            title="Pin sidebar"
+          >
+            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        )}
+
+        <div
+          className={`glass-sidebar h-full flex flex-col transition-all duration-300 ease-in-out ${
+            isMounted && collapsed && !isHovered ? "w-[68px]" : "w-60"
+          } ${collapsed && isHovered ? "absolute top-0 left-0 shadow-2xl border-r border-neutral-800" : ""}`}
+        >
+          <SidebarContent isHoveredState={isHovered} />
+        </div>
       </aside>
 
       {/* Mobile hamburger */}

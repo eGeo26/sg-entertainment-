@@ -12,19 +12,24 @@ type StatusType =
   | "ABANDONED"
   | "REVERSED"
   | "NO_SHOW"
+  | "REVIEWED"
+  | "GRANTED"
 
+// Neutral, low-saturation palette — no loud red/green/yellow
 const STATUS_STYLES: Record<StatusType, { bg: string; text: string; dot: string; label: string }> = {
-  AWAITING_PAYMENT: { bg: "bg-amber-500/10", text: "text-amber-400", dot: "bg-amber-400", label: "Awaiting Payment" },
-  CONFIRMED:        { bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-400", label: "Confirmed" },
-  CANCELLED:        { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-400", label: "Cancelled" },
-  REFUNDED:         { bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-400", label: "Refunded" },
-  FAILED:           { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-400", label: "Failed" },
-  EXPIRED:          { bg: "bg-white/10", text: "text-white/40", dot: "bg-white/30", label: "Expired" },
-  PENDING:          { bg: "bg-amber-500/10", text: "text-amber-400", dot: "bg-amber-400", label: "Pending" },
-  SUCCESS:          { bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-400", label: "Success" },
-  ABANDONED:        { bg: "bg-white/10", text: "text-white/40", dot: "bg-white/30", label: "Abandoned" },
-  REVERSED:         { bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-400", label: "Reversed" },
-  NO_SHOW:          { bg: "bg-orange-500/10", text: "text-orange-400", dot: "bg-orange-400", label: "No Show" },
+  AWAITING_PAYMENT: { bg: "bg-white/5",  text: "text-white/50",  dot: "bg-white/40",  label: "Pending Payment" },
+  CONFIRMED:        { bg: "bg-white/8",  text: "text-white/80",  dot: "bg-white/60",  label: "Confirmed" },
+  CANCELLED:        { bg: "bg-white/5",  text: "text-white/35",  dot: "bg-white/25",  label: "Cancelled" },
+  REFUNDED:         { bg: "bg-white/5",  text: "text-white/45",  dot: "bg-white/30",  label: "Refunded" },
+  FAILED:           { bg: "bg-white/5",  text: "text-white/35",  dot: "bg-white/20",  label: "Failed" },
+  EXPIRED:          { bg: "bg-white/[0.03]", text: "text-white/30", dot: "bg-white/20", label: "Expired" },
+  PENDING:          { bg: "bg-white/5",  text: "text-white/50",  dot: "bg-white/40",  label: "Pending" },
+  SUCCESS:          { bg: "bg-white/8",  text: "text-white/80",  dot: "bg-white/60",  label: "Success" },
+  ABANDONED:        { bg: "bg-white/[0.03]", text: "text-white/30", dot: "bg-white/20", label: "Abandoned" },
+  REVERSED:         { bg: "bg-white/5",  text: "text-white/45",  dot: "bg-white/30",  label: "Reversed" },
+  NO_SHOW:          { bg: "bg-white/5",  text: "text-white/40",  dot: "bg-white/25",  label: "No Show" },
+  REVIEWED:         { bg: "bg-white/8",  text: "text-white/70",  dot: "bg-white/50",  label: "Reviewed" },
+  GRANTED:          { bg: "bg-white/8",  text: "text-white/85",  dot: "bg-white/65",  label: "Granted" },
 }
 
 interface StatusBadgeProps {

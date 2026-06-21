@@ -13,18 +13,19 @@ export default function StepIndicator({ steps, currentStep }: Props) {
   const currentIndex = steps.findIndex((s) => s.id === currentStep)
 
   return (
-    <div className="flex items-center gap-0">
-      {steps.map((step, i) => {
-        const isDone = i < currentIndex
-        const isActive = i === currentIndex
+    <div className="w-full">
+      {/* Top row: circles + connectors, all vertically centred */}
+      <div className="flex items-center">
+        {steps.map((step, i) => {
+          const isDone = i < currentIndex
+          const isActive = i === currentIndex
 
-        return (
-          <div key={step.id} className="flex items-center flex-1 last:flex-none">
-            {/* Node */}
-            <div className="flex flex-col items-center">
+          return (
+            <div key={step.id} className="flex items-center flex-1 last:flex-none">
+              {/* Circle node */}
               <div
                 className={clsx(
-                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200",
+                  "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200",
                   isDone && "text-black",
                   isActive && "border-2 border-studio-gold text-studio-gold",
                   !isDone && !isActive && "bg-white/5 border border-white/10 text-white/25"
@@ -37,28 +38,41 @@ export default function StepIndicator({ steps, currentStep }: Props) {
                   </svg>
                 ) : i + 1}
               </div>
+
+              {/* Connector line — same row as circles, vertically centred */}
+              {i < steps.length - 1 && (
+                <div
+                  className={clsx(
+                    "flex-1 h-px mx-1.5 transition-all duration-300",
+                    i < currentIndex ? "bg-studio-gold" : "bg-white/10"
+                  )}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Bottom row: labels, only visible on sm+ */}
+      <div className="hidden sm:flex items-start mt-1.5">
+        {steps.map((step, i) => {
+          const isDone = i < currentIndex
+          const isActive = i === currentIndex
+
+          return (
+            <div key={step.id} className="flex-1 last:flex-none flex justify-center last:justify-center">
               <span
                 className={clsx(
-                  "text-xs mt-1 font-medium whitespace-nowrap hidden sm:block",
+                  "text-xs font-medium whitespace-nowrap",
                   isActive ? "text-studio-gold" : isDone ? "text-white/60" : "text-white/20"
                 )}
               >
                 {step.label}
               </span>
             </div>
- 
-            {/* Connector */}
-            {i < steps.length - 1 && (
-              <div
-                className={clsx(
-                  "h-px flex-1 mx-1.5 mb-3 sm:mb-5 transition-all duration-300",
-                  i < currentIndex ? "bg-studio-gold" : "bg-white/10"
-                )}
-              />
-            )}
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }

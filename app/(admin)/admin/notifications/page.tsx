@@ -60,9 +60,9 @@ export default function NotificationsWebhookPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-white uppercase">Integration Logs</h1>
-        <p className="text-xs text-white/40 mt-1">
-          Inspect webhook payloads from Hubtel and Anolla to audit system automation
+        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Integration Logs</h1>
+        <p className="text-xs text-white/40 mt-1.5">
+          Inspect webhook payloads from Hubtel to audit system automation
         </p>
       </div>
 

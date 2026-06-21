@@ -45,13 +45,7 @@ export default function SuccessContent() {
         if (!res.ok) throw new Error("Booking not found")
         const data = await res.json()
         setBooking(data)
-
-        if (data.status === "AWAITING_PAYMENT" && pollCount < 10) {
-          setPollCount((c) => c + 1)
-          setTimeout(poll, 2000)
-        } else {
-          setLoading(false)
-        }
+        setLoading(false)
       } catch {
         setError("Could not retrieve booking details")
         setLoading(false)

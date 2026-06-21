@@ -41,7 +41,7 @@ interface Booking {
 interface StatsData {
   totalRevenueGHS: number
   activeBookings: number
-  pendingPayments: number
+  grantedSessions: number
 }
 
 interface FetchBookingsResponse {
@@ -417,8 +417,6 @@ function BookingsContent() {
   }
 
   // Alerts checkers
-  const isAwaitingDelivery = (b: Booking) => b.isPaid && b.isPacked && !b.isDispatched
-  
   const hasDuplicateWarning = (b: Booking, list: Booking[]) => {
     return list.some(item => item.id !== b.id && item.customerPhone === b.customerPhone)
   }
@@ -427,31 +425,31 @@ function BookingsContent() {
     <div className="space-y-6">
       {/* Metrics widgets */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">Total Confirmed Revenue</p>
-          <h3 className="text-xl font-bold text-[#FFFFFF] mt-1">
+        <div className="glass-card p-5">
+          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Total Confirmed Revenue</p>
+          <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
             GH₵ {data?.stats?.totalRevenueGHS?.toLocaleString("en-GH", { minimumFractionDigits: 2 }) ?? "0.00"}
-          </h3>
+          </p>
         </div>
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">Active Confirmed Bookings</p>
-          <h3 className="text-xl font-bold text-white mt-1">
+        <div className="glass-card p-5">
+          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Active Confirmed Bookings</p>
+          <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
             {data?.stats?.activeBookings ?? 0} Sessions
-          </h3>
+          </p>
         </div>
-        <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">Pending Payments</p>
-          <h3 className="text-xl font-bold text-white mt-1">
-            {data?.stats?.pendingPayments ?? 0} Awaiting
-          </h3>
+        <div className="glass-card p-5">
+          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Granted Sessions</p>
+          <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
+            {data?.stats?.grantedSessions ?? 0} Granted
+          </p>
         </div>
       </div>
 
       {/* Action panel */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-white uppercase">Bookings Log Console</h1>
-          <p className="text-xs text-white/40 mt-0.5">Manage session bookings, pipeline logistics, and print invoices</p>
+          <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Bookings Log Console</h1>
+          <p className="text-xs text-white/40 mt-1.5">Manage session bookings, pipeline logistics, and print invoices</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
@@ -499,7 +497,6 @@ function BookingsContent() {
             className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
           >
             <option className="bg-[#111]" value="ALL">All Statuses</option>
-            <option className="bg-[#111]" value="AWAITING_PAYMENT">Awaiting Payment</option>
             <option className="bg-[#111]" value="CONFIRMED">Confirmed</option>
             <option className="bg-[#111]" value="CANCELLED">Cancelled</option>
             <option className="bg-[#111]" value="REFUNDED">Refunded</option>
@@ -567,7 +564,6 @@ function BookingsContent() {
                 ))
               ) : data?.bookings && data.bookings.length > 0 ? (
                 data.bookings.map((b) => {
-                  const awaitingDel = isAwaitingDelivery(b)
                   const isDuplicate = hasDuplicateWarning(b, data.bookings)
                   return (
                     <tr key={b.id} className="hover:bg-white/[0.01] transition-colors text-xs">
@@ -583,31 +579,26 @@ function BookingsContent() {
                         <div>
                           <p className="font-semibold text-white/95">{b.customerName}</p>
                           <p className="text-[10px] text-white/40 mt-0.5">{b.customerEmail} · {b.customerPhone}</p>
-                          {/* Alert pill badges */}
-                          <div className="flex gap-1.5 mt-1.5">
-                            {awaitingDel && (
-                              <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                Awaiting Delivery
-                              </span>
-                            )}
-                            {isDuplicate && (
-                              <span className="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse">
+                          {/* Alert: duplicate only */}
+                          {isDuplicate && (
+                            <div className="mt-1.5">
+                              <span className="text-[8px] bg-white/5 text-white/50 border border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 Duplicate Submission
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-white/80">
                         <p className="font-medium">
-                          {new Date(b.sessionDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {(() => {
+                            const d = b.sessionDate.slice(0, 10)
+                            const [yr, mo, dy] = d.split("-").map(Number)
+                            return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          })()}
                         </p>
                         <p className="text-[10px] text-white/40 mt-0.5">
-                          {b.startTime} - {b.endTime} ({b.durationHours} hrs)
+                          {b.startTime} – {b.endTime} ({b.durationHours} hrs)
                         </p>
                       </td>
                       <td className="px-4 py-4 font-semibold text-[#FFFFFF]">
@@ -632,16 +623,7 @@ function BookingsContent() {
                               onChange={() => handleToggleLogisticsField(b, "isPacked")}
                               className="accent-emerald-500 rounded"
                             />
-                            Packed
-                          </label>
-                          <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] text-white/50 hover:text-white">
-                            <input
-                              type="checkbox"
-                              checked={b.isDispatched}
-                              onChange={() => handleToggleLogisticsField(b, "isDispatched")}
-                              className="accent-emerald-500 rounded"
-                            />
-                            Disp
+                            Reviewed
                           </label>
                           <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] text-white/50 hover:text-white">
                             <input
@@ -650,7 +632,7 @@ function BookingsContent() {
                               onChange={() => handleToggleLogisticsField(b, "isDelivered")}
                               className="accent-emerald-500 rounded"
                             />
-                            Deli
+                            Granted
                           </label>
                         </div>
                       </td>
@@ -724,7 +706,7 @@ function BookingsContent() {
           <div className="bg-[#0F0F0F]/95 border border-white/10 backdrop-blur-2xl rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/5">
               <div>
-                <h3 className="text-xs font-bold tracking-widest text-[#FFFFFF] uppercase">Booking Logistics &amp; Info</h3>
+                <h3 className="text-xs font-bold tracking-widest text-[#FFFFFF] uppercase">Session Details</h3>
                 <p className="text-[9px] text-white/30 font-mono mt-0.5">{inspectedBooking.id}</p>
               </div>
               <button
@@ -747,11 +729,11 @@ function BookingsContent() {
                 <div>
                   <span className="block text-[9px] text-white/35 uppercase tracking-wider mb-1 font-bold">Schedule</span>
                   <p className="text-white text-sm font-semibold">
-                    {new Date(inspectedBooking.sessionDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {(() => {
+                      const d = inspectedBooking.sessionDate.slice(0, 10)
+                      const [yr, mo, dy] = d.split("-").map(Number)
+                      return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    })()}
                   </p>
                   <p className="text-white/50 text-[10px] mt-0.5">{inspectedBooking.startTime} - {inspectedBooking.endTime}</p>
                   <p className="text-white/50 text-[10px] mt-0.5">({inspectedBooking.durationHours} hours)</p>
@@ -787,8 +769,8 @@ function BookingsContent() {
                 </div>
               </div>
 
-              {/* Integration keys details */}
-              <div className="grid grid-cols-3 gap-4 border-t border-white/5 pt-4">
+              {/* System status details */}
+              <div className="grid grid-cols-1 gap-4 border-t border-white/5 pt-4">
                 {/* Booking status */}
                 <div className="space-y-1">
                   <label className="text-[10px] text-white/50 uppercase tracking-wider">System Status</label>
@@ -797,39 +779,10 @@ function BookingsContent() {
                     onChange={(e) => setEditStatus(e.target.value)}
                     className="w-full bg-white/5 border border-white/8 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
                   >
-                    <option className="bg-[#111]" value="AWAITING_PAYMENT">Awaiting Payment</option>
                     <option className="bg-[#111]" value="CONFIRMED">Confirmed</option>
                     <option className="bg-[#111]" value="CANCELLED">Cancelled</option>
                     <option className="bg-[#111]" value="REFUNDED">Refunded</option>
                     <option className="bg-[#111]" value="FAILED">Failed</option>
-                  </select>
-                </div>
-                {/* Anolla */}
-                <div className="space-y-1">
-                  <label className="text-[10px] text-white/50 uppercase tracking-wider">Anolla State</label>
-                  <select
-                    value={editAnollaStatus}
-                    onChange={(e) => setEditAnollaStatus(e.target.value)}
-                    className="w-full bg-white/5 border border-white/8 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
-                  >
-                    <option className="bg-[#111]" value="PENDING">Pending</option>
-                    <option className="bg-[#111]" value="CONFIRMED">Confirmed</option>
-                    <option className="bg-[#111]" value="CANCELLED">Cancelled</option>
-                    <option className="bg-[#111]" value="NO_SHOW">No Show</option>
-                  </select>
-                </div>
-                {/* Paystack */}
-                <div className="space-y-1">
-                  <label className="text-[10px] text-white/50 uppercase tracking-wider">Paystack State</label>
-                  <select
-                    value={editPaystackStatus}
-                    onChange={(e) => setEditPaystackStatus(e.target.value)}
-                    className="w-full bg-white/5 border border-white/8 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
-                  >
-                    <option className="bg-[#111]" value="PENDING">Pending</option>
-                    <option className="bg-[#111]" value="SUCCESS">Success</option>
-                    <option className="bg-[#111]" value="FAILED">Failed</option>
-                    <option className="bg-[#111]" value="REVERSED">Reversed</option>
                   </select>
                 </div>
               </div>
@@ -839,7 +792,7 @@ function BookingsContent() {
               <button
                 onClick={() => handleSendWhatsapp(inspectedBooking)}
                 disabled={sendingWhatsapp}
-                className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
               >
                 Send WhatsApp
               </button>
