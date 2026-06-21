@@ -1,3 +1,4 @@
+"use client"
 // components/Footer.tsx — Universal footer with social media links
 
 export default function Footer() {
