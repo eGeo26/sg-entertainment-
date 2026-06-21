@@ -119,11 +119,28 @@ export function normalizePhone(phone: string): string {
   return cleaned
 }
 
-// ── Reference generation ──────────────────────────────────────────────────────
+// ── Reference / booking code generation ──────────────────────────────────────
 
+/**
+ * Generates a unique booking code in the format SG-YYXXXXXX
+ * e.g. SG-26A3F9KQ
+ * YY = 2-digit year, XXXXXX = 6 random uppercase alphanumeric characters
+ */
+export function generateBookingCode(): string {
+  const year = new Date().getFullYear().toString().slice(-2) // "26"
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no ambiguous I/1/O/0
+  let suffix = ""
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return `SG-${year}${suffix}`
+}
+
+/**
+ * @deprecated Use generateBookingCode() instead.
+ * Retained for backwards-compatibility during migration.
+ */
 export function generatePaystackReference(bookingId: string): string {
-  const shortId = bookingId.slice(0, 5).toUpperCase()
-  const randomSuffix = Math.floor(100 + Math.random() * 900) // 3 digits
-  return `SG-${shortId}-${randomSuffix}`
+  return generateBookingCode()
 }
 

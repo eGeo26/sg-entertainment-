@@ -2,8 +2,9 @@
 // app/admin/components/AdminHeader.tsx
 
 import { usePathname } from "next/navigation"
-import { signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 
 const BREADCRUMBS: Record<string, string> = {
   "/admin": "Overview",
@@ -18,10 +19,18 @@ const BREADCRUMBS: Record<string, string> = {
 
 export default function AdminHeader() {
   const pathname = usePathname()
+  const router = useRouter()
   const title = BREADCRUMBS[pathname] ?? "Admin"
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
+
+  const handleSignOut = async () => {
+    const supabase = createBrowserSupabaseClient()
+    await supabase.auth.signOut()
+    router.push("/admin/login")
+    router.refresh()
+  }
 
   if (!mounted) return (
     <header className="glass-header flex-shrink-0 h-14 flex items-center px-4 md:px-6 pl-16 md:pl-6" />
@@ -77,7 +86,7 @@ export default function AdminHeader() {
 
         {/* Sign out */}
         <button
-          onClick={() => signOut({ callbackUrl: "/admin/login" })}
+          onClick={handleSignOut}
           className="btn-glass px-2.5 py-1.5"
           title="Sign out"
           id="admin-signout"

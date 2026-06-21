@@ -4,7 +4,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 
 const NAV_ITEMS = [
@@ -83,8 +84,165 @@ const NAV_ITEMS = [
   },
 ]
 
+// ── Extracted to module scope so React Rules of Hooks is satisfied ──────────
+interface SidebarContentProps {
+  collapsed: boolean
+  isMobile: boolean
+  isHoveredState: boolean
+  systemStatus: { isPlaceholderDb: boolean }
+  pathname: string
+  onNavClick: () => void
+  onToggleCollapse: () => void
+}
+
+function SidebarContent({
+  collapsed,
+  isMobile,
+  isHoveredState,
+  systemStatus,
+  pathname,
+  onNavClick,
+  onToggleCollapse,
+}: SidebarContentProps) {
+  const isCollapsed = collapsed && !isMobile && !isHoveredState
+
+  const isActive = (href: string) =>
+    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href)
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Brand / collapse toggle */}
+      <div
+        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-3" : "px-5"}`}
+        style={{ borderBottom: "1px solid var(--border)" }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          {!isCollapsed ? (
+            <div className="whitespace-nowrap overflow-hidden">
+              <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
+                S&amp;G Studios
+              </p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                    systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
+                  }`}
+                />
+                <span className="text-[9px] tracking-wider uppercase font-semibold" style={{ color: "var(--text-muted)" }}>
+                  {systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex justify-center py-1">
+              <span
+                className={`w-2 h-2 rounded-full animate-pulse ${
+                  systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
+                }`}
+                title={systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
+              />
+            </div>
+          )}
+
+          {!isMobile && !isCollapsed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleCollapse()
+              }}
+              className="p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
+              style={{ color: "var(--text-muted)" }}
+              title="Collapse sidebar"
+            >
+              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav
+        className={`flex-1 py-3 space-y-0.5 overflow-y-auto transition-all duration-300 ${
+          isCollapsed ? "px-2" : "px-3"
+        }`}
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.href)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavClick}
+              className={`flex items-center rounded-xl text-sm transition-all duration-150 group relative ${
+                isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
+              }`}
+              style={{
+                background: active ? "var(--bg-active)" : "transparent",
+                color: active ? "var(--text-primary)" : "var(--text-muted)",
+                border: active ? "1px solid var(--border-hover)" : "1px solid transparent",
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
+                  ;(e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  (e.currentTarget as HTMLElement).style.background = "transparent"
+                  ;(e.currentTarget as HTMLElement).style.color = "var(--text-muted)"
+                }
+              }}
+            >
+              {active && !isCollapsed && (
+                <span
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
+                  style={{ background: "var(--sg-gold)" }}
+                />
+              )}
+
+              <span
+                className="flex-shrink-0 transition-colors duration-150"
+                style={{ color: active ? "var(--sg-gold)" : "var(--text-muted)" }}
+              >
+                {item.icon}
+              </span>
+
+              {!isCollapsed && (
+                <span className="font-medium tracking-wide text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                  {item.label}
+                </span>
+              )}
+
+              {isCollapsed && (
+                <div className="absolute left-full ml-3 px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                  {item.label}
+                </div>
+              )}
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div
+        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2 text-center" : "px-5"}`}
+        style={{ borderTop: "1px solid var(--border)" }}
+      >
+        <p className="text-[9px] tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>
+          {isCollapsed ? "v1" : "S&G Admin v1.0"}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Main exported component ──────────────────────────────────────────────────
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -105,30 +263,17 @@ export default function AdminSidebar() {
     fetchStatus()
   }, [])
 
-  useEffect(() => {
-    const INACTIVITY_TIMEOUT = 8 * 60 * 60 * 1000
-    const checkInactivity = () => {
-      const sessionStart = localStorage.getItem("slay_admin_session")
-      if (sessionStart) {
-        const elapsed = Date.now() - parseInt(sessionStart)
-        if (elapsed > INACTIVITY_TIMEOUT) {
-          localStorage.removeItem("slay_admin_session")
-          localStorage.removeItem("slay_admin_password")
-          toast.warning("Session expired due to inactivity. Logging out…")
-          signOut({ callbackUrl: "/admin/login" })
-        }
-      }
+  const handleSignOut = async () => {
+    try {
+      const supabase = createBrowserSupabaseClient()
+      await supabase.auth.signOut()
+      router.push("/admin/login")
+      router.refresh()
+    } catch (err) {
+      console.error("[SignOut Error]:", err)
+      toast.error("Sign out failed. Please try again.")
     }
-    const resetTimer = () => localStorage.setItem("slay_admin_session", Date.now().toString())
-    checkInactivity()
-    const events = ["mousemove", "mousedown", "keypress", "scroll", "touchstart"]
-    events.forEach((e) => window.addEventListener(e, resetTimer))
-    const interval = setInterval(checkInactivity, 60000)
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, resetTimer))
-      clearInterval(interval)
-    }
-  }, [])
+  }
 
   const toggleCollapse = () => {
     const next = !collapsed
@@ -136,145 +281,65 @@ export default function AdminSidebar() {
     localStorage.setItem("admin-sidebar-collapsed", String(next))
   }
 
-  const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href)
-
-  const SidebarContent = ({ isMobile = false, isHoveredState = false }: { isMobile?: boolean; isHoveredState?: boolean }) => {
-    const isCollapsed = collapsed && !isMobile && !isHoveredState
-    return (
-      <div className="flex flex-col h-full">
-        {/* Brand without SG logo, collapse toggle at the top */}
-        <div
-          className={`py-4 transition-all duration-300 ${isCollapsed ? "px-3" : "px-5"}`}
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          <div className="flex items-center justify-between gap-2">
-            {!isCollapsed ? (
-              <div className="whitespace-nowrap overflow-hidden">
-                <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
-                  S&amp;G Studios
-                </p>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                      systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
-                    }`}
-                  />
-                  <span className="text-[9px] tracking-wider uppercase font-semibold" style={{ color: "var(--text-muted)" }}>
-                    {systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex justify-center py-1">
-                <span
-                  className={`w-2 h-2 rounded-full animate-pulse ${
-                    systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
-                  }`}
-                  title={systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
-                />
-              </div>
-            )}
-
-            {!isMobile && !isCollapsed && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleCollapse()
-                }}
-                className="p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
-                style={{ color: "var(--text-muted)" }}
-                title="Collapse sidebar"
-              >
-                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav
-          className={`flex-1 py-3 space-y-0.5 overflow-y-auto transition-all duration-300 ${
-            isCollapsed ? "px-2" : "px-3"
-          }`}
-        >
-          {NAV_ITEMS.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center rounded-xl text-sm transition-all duration-150 group relative ${
-                  isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
-                }`}
-                style={{
-                  background: active ? "var(--bg-active)" : "transparent",
-                  color: active ? "var(--text-primary)" : "var(--text-muted)",
-                  border: active ? "1px solid var(--border-hover)" : "1px solid transparent",
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
-                    ;(e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    (e.currentTarget as HTMLElement).style.background = "transparent"
-                    ;(e.currentTarget as HTMLElement).style.color = "var(--text-muted)"
-                  }
-                }}
-              >
-                {/* Gold accent bar on active */}
-                {active && !isCollapsed && (
-                  <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
-                    style={{ background: "var(--sg-gold)" }}
-                  />
-                )}
-
-                <span
-                  className="flex-shrink-0 transition-colors duration-150"
-                  style={{ color: active ? "var(--sg-gold)" : "var(--text-muted)" }}
-                >
-                  {item.icon}
-                </span>
-
-                {!isCollapsed && (
-                  <span className="font-medium tracking-wide text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-                    {item.label}
-                  </span>
-                )}
-
-                {/* Floating tooltip label when collapsed */}
-                {isCollapsed && (
-                  <div className="absolute left-full ml-3 px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                    {item.label}
-                  </div>
-                )}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Footer with version only (single Sign Out in header) */}
-        <div
-          className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2 text-center" : "px-5"}`}
-          style={{ borderTop: "1px solid var(--border)" }}
-        >
-          <p className="text-[9px] tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>
-            {isCollapsed ? "v1" : "S&G Admin v1.0"}
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const closeMobile = () => setMobileOpen(false)
 
   return (
     <>
+      {/* Mobile hamburger button */}
+      <button
+        className="md:hidden fixed top-3 left-3 z-50 w-8 h-8 flex items-center justify-center rounded-lg"
+        style={{ background: "var(--bg-overlay)", border: "1px solid var(--border)" }}
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation"
+      >
+        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+        </svg>
+      </button>
+
+      {/* Mobile overlay drawer */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={closeMobile}
+          />
+          {/* Drawer */}
+          <div className="relative w-64 glass-sidebar h-full flex flex-col z-10 shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+              <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
+                S&amp;G Studios
+              </span>
+              <button
+                onClick={closeMobile}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <SidebarContent
+              collapsed={false}
+              isMobile={true}
+              isHoveredState={false}
+              systemStatus={systemStatus}
+              pathname={pathname}
+              onNavClick={closeMobile}
+              onToggleCollapse={toggleCollapse}
+            />
+            <button
+              onClick={handleSignOut}
+              className="mx-3 mb-4 py-2.5 btn-glass text-xs font-semibold uppercase tracking-wider"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Desktop sidebar */}
       <aside
         className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out relative z-30 ${
@@ -283,7 +348,7 @@ export default function AdminSidebar() {
         onMouseEnter={() => collapsed && setIsHovered(true)}
         onMouseLeave={() => collapsed && setIsHovered(false)}
       >
-        {/* Toggle overlay lock button visible at top right of collapsed sidebar when hovered */}
+        {/* Pin button when hovered-collapsed */}
         {isMounted && collapsed && isHovered && (
           <button
             onClick={(e) => {
@@ -305,61 +370,16 @@ export default function AdminSidebar() {
             isMounted && collapsed && !isHovered ? "w-[68px]" : "w-60"
           } ${collapsed && isHovered ? "absolute top-0 left-0 shadow-2xl border-r border-neutral-800" : ""}`}
         >
-          <SidebarContent isHoveredState={isHovered} />
+          <SidebarContent
+            collapsed={collapsed}
+            isMobile={false}
+            isHoveredState={isHovered}
+            systemStatus={systemStatus}
+            pathname={pathname}
+            onNavClick={closeMobile}
+            onToggleCollapse={toggleCollapse}
+          />
         </div>
-      </aside>
-
-      {/* Mobile hamburger */}
-      <button
-        className="md:hidden fixed top-3.5 left-4 z-50 w-9 h-9 rounded-xl flex items-center justify-center transition-all"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          backdropFilter: "blur(12px)",
-          color: "var(--text-secondary)",
-        }}
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open menu"
-        id="admin-mobile-menu"
-      >
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
-      </button>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40"
-          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile drawer */}
-      <aside
-        className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 flex flex-col transform transition-transform duration-300 glass-sidebar ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div
-          className="flex items-center justify-between px-4 py-4"
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          <span className="text-sm font-bold tracking-wider uppercase" style={{ color: "var(--text-primary)" }}>
-            S&amp;G Admin
-          </span>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <SidebarContent isMobile />
       </aside>
     </>
   )

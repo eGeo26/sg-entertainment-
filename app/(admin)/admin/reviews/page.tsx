@@ -30,10 +30,7 @@ export default function ReviewsConsolePage() {
     approved: true
   })
 
-  // Password Gate Action protection
-  const [showPasswordGate, setShowPasswordGate] = useState(false)
-  const [passwordGateAction, setPasswordGateAction] = useState<() => void>(() => {})
-  const [gatePasswordInput, setGatePasswordInput] = useState("")
+
 
   const fetchReviews = async () => {
     try {
@@ -52,22 +49,7 @@ export default function ReviewsConsolePage() {
     fetchReviews()
   }, [])
 
-  const triggerGate = (action: () => void) => {
-    setGatePasswordInput("")
-    setPasswordGateAction(() => action)
-    setShowPasswordGate(true)
-  }
 
-  const handlePasswordGateSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const realPassword = localStorage.getItem("slay_admin_password") || "admin"
-    if (gatePasswordInput === realPassword) {
-      setShowPasswordGate(false)
-      passwordGateAction()
-    } else {
-      toast.error("Invalid verification password!")
-    }
-  }
 
   const handleOpenAddModal = () => {
     setEditReview(null)
@@ -134,17 +116,18 @@ export default function ReviewsConsolePage() {
     }
   }
 
-  const handleDeleteReview = (id: string) => {
-    triggerGate(async () => {
-      try {
-        const res = await fetch(`/api/admin/reviews/${id}`, { method: "DELETE" })
-        if (!res.ok) throw new Error()
-        toast.success("Review permanently deleted.")
-        fetchReviews()
-      } catch {
-        toast.error("Failed to delete review.")
-      }
-    })
+  const handleDeleteReview = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this testimonial review?")) {
+      return
+    }
+    try {
+      const res = await fetch(`/api/admin/reviews/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error()
+      toast.success("Review permanently deleted.")
+      fetchReviews()
+    } catch {
+      toast.error("Failed to delete review.")
+    }
   }
 
   return (
@@ -343,42 +326,7 @@ export default function ReviewsConsolePage() {
         </div>
       )}
 
-      {/* Password Gate Verification Modal */}
-      {showPasswordGate && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-          <div className="bg-[#111111] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Secondary Password Gate</h3>
-            <p className="text-xs text-white/45 mb-4 leading-relaxed">
-              This is a critical operation (deleting testimonials). Please enter the admin password to verify.
-            </p>
-            <form onSubmit={handlePasswordGateSubmit} className="space-y-4">
-              <input
-                type="password"
-                required
-                value={gatePasswordInput}
-                onChange={(e) => setGatePasswordInput(e.target.value)}
-                placeholder="Enter password..."
-                className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-white/50"
-              />
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordGate(false)}
-                  className="px-4 py-2 bg-white/5 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider"
-                >
-                  Verify Gate
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }

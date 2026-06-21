@@ -7,8 +7,8 @@ import StatusBadge from "../components/StatusBadge"
 
 interface Payment {
   id: string
-  paystackReference: string
-  paystackStatus: string
+  hubtelReference: string
+  hubtelStatus: string
   customerName: string
   customerEmail: string
   customerPhone: string
@@ -50,7 +50,7 @@ export default function PaymentsLedgerPage() {
   const filteredPayments = payments.filter(
     (p) =>
       p.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      (p.paystackReference && p.paystackReference.toLowerCase().includes(search.toLowerCase())) ||
+      (p.hubtelReference && p.hubtelReference.toLowerCase().includes(search.toLowerCase())) ||
       p.customerEmail.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -171,13 +171,13 @@ export default function PaymentsLedgerPage() {
                       <div>
                         <p
                           className="font-semibold text-white/95 font-mono text-[10px] cursor-pointer hover:text-white transition-colors"
-                          title={`Hubtel Reference: ${p.paystackReference}\nClick to copy`}
+                          title={`Hubtel Reference: ${p.hubtelReference}\nClick to copy`}
                           onClick={() => {
-                            navigator.clipboard.writeText(p.paystackReference)
+                            navigator.clipboard.writeText(p.hubtelReference)
                             toast.success("Copied transaction reference!")
                           }}
                         >
-                          {truncateRef(p.paystackReference)}
+                          {truncateRef(p.hubtelReference)}
                         </p>
                         <p
                           className="text-[10px] text-white/30 font-mono mt-0.5 cursor-pointer hover:text-white/60 transition-colors"
@@ -198,7 +198,7 @@ export default function PaymentsLedgerPage() {
                       GH₵ {p.amountGHS.toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={p.paystackStatus} />
+                      <StatusBadge status={p.hubtelStatus} />
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={p.status} />
@@ -207,7 +207,7 @@ export default function PaymentsLedgerPage() {
                       {formatDate(p.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {p.paystackStatus === "SUCCESS" && p.status !== "REFUNDED" ? (
+                      {p.hubtelStatus === "SUCCESS" && p.status !== "REFUNDED" ? (
                         <button
                           onClick={() => setRefundTarget(p)}
                           className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-md text-[10px] font-semibold transition-all"
@@ -251,7 +251,7 @@ export default function PaymentsLedgerPage() {
             <form onSubmit={handleRefund}>
               <div className="p-6 space-y-4">
                 <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 text-xs text-red-400/90 leading-relaxed">
-                  <strong>Warning:</strong> This will trigger an official refund through the Hubtel API for reference <strong>{refundTarget.paystackReference}</strong>. This action is irreversible.
+                  <strong>Warning:</strong> This will trigger an official refund through the Hubtel API for reference <strong>{refundTarget.hubtelReference}</strong>. This action is irreversible.
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-xs">

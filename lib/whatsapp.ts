@@ -1,13 +1,12 @@
 // lib/whatsapp.ts
-// WhatsApp notifications via Twilio for S&G Entertainment
+// WhatsApp notifications via Meta Cloud Graph API for S&G Entertainment
 // Sends booking confirmations to both customer and studio owner
 
 const formatGHS = (amount: number) =>
   new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(amount)
 
-const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID!
-const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN!
-const FROM = process.env.TWILIO_WHATSAPP_FROM ?? "whatsapp:+14155238886"
+const META_ACCESS_TOKEN = process.env.META_WHATSAPP_ACCESS_TOKEN!
+const PHONE_NUMBER_ID = process.env.META_WHATSAPP_PHONE_NUMBER_ID!
 const OWNER_NUMBER = process.env.STUDIO_OWNER_WHATSAPP!
 
 export interface BookingNotificationData {
@@ -26,33 +25,59 @@ export interface BookingNotificationData {
   notes?: string
 }
 
-// ── Twilio API call ───────────────────────────────────────────────────────────
+// Helper to clean phone number for Meta WhatsApp Cloud API (expects raw digits, e.g., 233XXXXXXXXX)
+function cleanPhoneForMeta(phone: string): string {
+  let cleaned = phone.trim()
+  if (cleaned.startsWith("whatsapp:")) {
+    cleaned = cleaned.substring(9)
+  }
+  // Strip non-digits
+  cleaned = cleaned.replace(/\D/g, "")
+  return cleaned
+}
 
+// ── Meta WhatsApp Cloud API call ───────────────────────────────────────────────
 async function sendWhatsApp(to: string, body: string): Promise<void> {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`
-  const params = new URLSearchParams({ From: FROM, To: to, Body: body })
+  const cleanTo = cleanPhoneForMeta(to)
+
+  if (!META_ACCESS_TOKEN || !PHONE_NUMBER_ID) {
+    console.warn(`[Meta WhatsApp Simulation] To: ${cleanTo} | Body:\n${body}`)
+    return // Skip actual API call if keys are not set
+  }
+
+  const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`
+
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: cleanTo,
+    type: "text",
+    text: {
+      preview_url: false,
+      body: body,
+    },
+  }
 
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization:
-        "Basic " + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString("base64"),
-      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${META_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
     },
-    body: params.toString(),
+    body: JSON.stringify(payload),
   })
 
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(`Twilio error ${res.status}: ${err.message}`)
+    const err = await res.json().catch(() => ({}))
+    const errMsg = err?.error?.message ?? `HTTP Status ${res.status}`
+    throw new Error(`Meta WhatsApp API error: ${errMsg}`)
   }
 
   const data = await res.json()
-  console.log(`[WhatsApp] Message sent to ${to}. SID: ${data.sid}`)
+  console.log(`[Meta WhatsApp] Message sent to ${cleanTo}. Message ID: ${data.messages?.[0]?.id ?? "unknown"}`)
 }
 
 // ── Message templates ─────────────────────────────────────────────────────────
-
 export function customerConfirmationMessage(d: BookingNotificationData): string {
   const equipmentList =
     d.equipment.length > 0 ? d.equipment.join(", ") : "None"
@@ -69,6 +94,7 @@ Hi ${d.customerName}! Your studio session is confirmed. Here are your booking de
 💰 *Amount Paid:* ${formatGHS(d.amountGHS)}
 🔖 *Reference:* ${d.bookingId.slice(0, 8).toUpperCase()}
 
+Custom Booking ID: ${d.paystackReference}
 📍 *Location:* Taifa, Accra, Ghana
 📞 *Studio:* ${process.env.NEXT_PUBLIC_STUDIO_PHONE}
 
@@ -124,54 +150,42 @@ S&G Entertainment Team
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
-
-/**
- * Send booking confirmation to customer + owner.
- * Called after successful Hubtel payment confirmation.
- */
 export async function sendBookingConfirmationNotifications(
   data: BookingNotificationData
 ): Promise<{ customerSent: boolean; ownerSent: boolean }> {
   let customerSent = false
   let ownerSent = false
 
-  const customerWA = `whatsapp:${data.customerPhone}`
-
   try {
-    await sendWhatsApp(customerWA, customerConfirmationMessage(data))
+    await sendWhatsApp(data.customerPhone, customerConfirmationMessage(data))
     customerSent = true
   } catch (err) {
-    console.error("[WhatsApp] Failed to notify customer:", err)
+    console.error("[Meta WhatsApp] Failed to notify customer:", err)
   }
 
   try {
     await sendWhatsApp(OWNER_NUMBER, ownerNewBookingMessage(data))
     ownerSent = true
   } catch (err) {
-    console.error("[WhatsApp] Failed to notify owner:", err)
+    console.error("[Meta WhatsApp] Failed to notify owner:", err)
   }
 
   return { customerSent, ownerSent }
 }
 
-/**
- * Send cancellation notification.
- */
 export async function sendCancellationNotifications(
   data: BookingNotificationData
 ): Promise<void> {
-  const customerWA = `whatsapp:${data.customerPhone}`
-
   try {
-    await sendWhatsApp(customerWA, customerCancellationMessage(data))
+    await sendWhatsApp(data.customerPhone, customerCancellationMessage(data))
   } catch (err) {
-    console.error("[WhatsApp] Failed to send cancellation to customer:", err)
+    console.error("[Meta WhatsApp] Failed to send cancellation to customer:", err)
   }
 
   try {
     const ownerMsg = `❌ *Booking Cancelled*\nClient: ${data.customerName}\nDate: ${data.sessionDate} ${data.startTime}–${data.endTime}\nRef: ${data.bookingId.slice(0, 8).toUpperCase()}`
     await sendWhatsApp(OWNER_NUMBER, ownerMsg)
   } catch (err) {
-    console.error("[WhatsApp] Failed to send cancellation to owner:", err)
+    console.error("[Meta WhatsApp] Failed to send cancellation to owner:", err)
   }
 }

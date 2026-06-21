@@ -1,10 +1,29 @@
 // lib/hubtel.ts
 // Hubtel REST API client for S&G Entertainment booking system
 
-const MERCHANT_ACCOUNT = process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER!
-const CLIENT_ID = process.env.HUBTEL_CLIENT_ID!
-const CLIENT_SECRET = process.env.HUBTEL_CLIENT_SECRET!
-const BASE_URL = "https://api-merchant.hubtel.com/v2"
+// Environment configuration - defaults to sandbox for safety
+const HUBTEL_ENV = (process.env.HUBTEL_ENV || "sandbox").toLowerCase()
+const IS_SANDBOX = HUBTEL_ENV === "sandbox"
+
+// Sandbox configuration
+const SANDBOX_BASE_URL = "https://api-merchant.hubtel.com/v2/sandbox"
+const SANDBOX_MERCHANT_ACCOUNT = process.env.HUBTEL_SANDBOX_MERCHANT_ACCOUNT_NUMBER || process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER
+const SANDBOX_CLIENT_ID = process.env.HUBTEL_SANDBOX_CLIENT_ID || process.env.HUBTEL_CLIENT_ID
+const SANDBOX_CLIENT_SECRET = process.env.HUBTEL_SANDBOX_CLIENT_SECRET || process.env.HUBTEL_CLIENT_SECRET
+
+// Production configuration
+const PRODUCTION_BASE_URL = "https://api-merchant.hubtel.com/v2"
+const PRODUCTION_MERCHANT_ACCOUNT = process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER
+const PRODUCTION_CLIENT_ID = process.env.HUBTEL_CLIENT_ID
+const PRODUCTION_CLIENT_SECRET = process.env.HUBTEL_CLIENT_SECRET
+
+// Use appropriate configuration based on environment
+const BASE_URL = IS_SANDBOX ? SANDBOX_BASE_URL : PRODUCTION_BASE_URL
+const MERCHANT_ACCOUNT = IS_SANDBOX ? SANDBOX_MERCHANT_ACCOUNT : PRODUCTION_MERCHANT_ACCOUNT
+const CLIENT_ID = IS_SANDBOX ? SANDBOX_CLIENT_ID : PRODUCTION_CLIENT_ID
+const CLIENT_SECRET = IS_SANDBOX ? SANDBOX_CLIENT_SECRET : PRODUCTION_CLIENT_SECRET
+
+console.log(`[Hubtel] Using ${HUBTEL_ENV.toUpperCase()} environment (Base URL: ${BASE_URL})`)
 
 function hubtelHeaders() {
   const auth = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64")

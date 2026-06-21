@@ -6,11 +6,10 @@
 // admin panel reflects the change immediately after processing in Hubtel.
 
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { bookingId, reason } = await req.json()
@@ -19,17 +18,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bookingId is required" }, { status: 400 })
   }
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
-  if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+  const supabase = createServiceClient()
 
-  if (booking.paystackStatus !== "SUCCESS") {
+  const { data: booking, error: selectError } = await (supabase as any)
+    .from("bookings")
+    .select("*")
+    .eq("id", bookingId)
+    .maybeSingle()
+
+  if (selectError || !booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+
+  if (booking.paystack_status !== "SUCCESS") {
     return NextResponse.json(
       { error: "Booking has no successful payment to refund" },
       { status: 400 }
     )
   }
 
-  if (!booking.paystackReference) {
+  if (!booking.paystack_reference) {
     return NextResponse.json(
       { error: "No Hubtel client reference on this booking" },
       { status: 400 }
@@ -39,19 +45,46 @@ export async function POST(req: NextRequest) {
   try {
     // Mark the booking as refunded in the database.
     // The actual refund must be processed via the Hubtel merchant dashboard
-    // using clientReference: booking.paystackReference
-    const updated = await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        paystackStatus: "REVERSED",
+    // using clientReference: booking.paystack_reference
+    const { data: updated, error: updateError } = await (supabase as any)
+      .from("bookings")
+      .update({
+        paystack_status: "REVERSED",
         status: "REFUNDED",
-      },
-    })
+      })
+      .eq("id", bookingId)
+      .select()
+      .single()
+
+    if (updateError || !updated) throw updateError ?? new Error("Failed to update status")
+
+    // Map DB row to camelCase response format
+    const formattedBooking = {
+      id: updated.id,
+      customerName: updated.customer_name,
+      customerEmail: updated.customer_email,
+      customerPhone: updated.customer_phone,
+      sessionDate: updated.session_date,
+      startTime: updated.start_time,
+      endTime: updated.end_time,
+      durationHours: Number(updated.duration_hours),
+      studio: updated.studio,
+      equipment: updated.equipment ?? [],
+      notes: updated.notes,
+      amountGHS: updated.amount_ghs / 100,
+      status: updated.status,
+      paystackReference: updated.paystack_reference,
+      paystackStatus: updated.paystack_status,
+      isPaid: updated.is_paid,
+      isPacked: updated.is_packed,
+      isDelivered: updated.is_delivered,
+      createdAt: updated.created_at,
+    }
 
     return NextResponse.json({
       success: true,
-      booking: updated,
-      message: `Booking marked as refunded. Please complete the refund in the Hubtel dashboard using reference: ${booking.paystackReference}`,
+      booking: formattedBooking,
+      message: `Booking marked as refunded. Please complete the refund in the Hubtel dashboard using reference: ${booking.paystack_reference}`,
     })
   } catch (err) {
     console.error("[Admin Refund] Error:", err)

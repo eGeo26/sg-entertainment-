@@ -1,7 +1,6 @@
 // app/api/admin/reviews/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { z } from "zod"
 
 const ReviewSchema = z.object({
@@ -12,12 +11,29 @@ const ReviewSchema = z.object({
   approved: z.boolean().optional()
 })
 
+function mapDbToCamel(r: any) {
+  return {
+    id: r.id,
+    createdAt: r.created_at,
+    name: r.name,
+    socialHandle: r.social_handle,
+    rating: r.rating,
+    text: r.text,
+    approved: r.approved
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
-    const reviews = await prisma.review.findMany({
-      orderBy: { createdAt: "desc" }
-    })
-    return NextResponse.json({ reviews })
+    const supabase = createServiceClient()
+    const { data: reviews, error } = await (supabase as any)
+      .from("reviews")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (error) throw error
+
+    return NextResponse.json({ reviews: (reviews ?? []).map(mapDbToCamel) })
   } catch (err) {
     console.error("[Reviews API GET]:", err)
     return NextResponse.json({ error: "Failed to fetch reviews" }, { status: 500 })
@@ -25,7 +41,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
@@ -35,17 +51,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid data", details: parsed.error.flatten() }, { status: 400 })
     }
 
-    const review = await prisma.review.create({
-      data: {
+    const supabase = createServiceClient()
+    const { data: review, error } = await (supabase as any)
+      .from("reviews")
+      .insert({
         name: parsed.data.name,
-        socialHandle: parsed.data.socialHandle,
+        social_handle: parsed.data.socialHandle ?? null,
         rating: parsed.data.rating,
         text: parsed.data.text,
         approved: parsed.data.approved !== undefined ? parsed.data.approved : true
-      }
-    })
+      })
+      .select()
+      .single()
 
-    return NextResponse.json(review)
+    if (error || !review) throw error ?? new Error("Failed to insert review")
+
+    return NextResponse.json(mapDbToCamel(review))
   } catch (err) {
     console.error("[Reviews API POST]:", err)
     return NextResponse.json({ error: "Failed to create review" }, { status: 500 })

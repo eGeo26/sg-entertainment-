@@ -2,7 +2,7 @@
 // GET /api/bookings/:id — fetch booking details (used on success page)
 
 import { NextRequest, NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
+import { createServiceClient } from "@/lib/supabase"
 import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
 
 const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
@@ -11,41 +11,67 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
-    select: {
-      id: true,
-      customerName: true,
-      customerEmail: true,
-      customerPhone: true,
-      sessionDate: true,
-      startTime: true,
-      endTime: true,
-      durationHours: true,
-      studio: true,
-      equipment: true,
-      notes: true,
-      amountGHS: true,
-      status: true,
-      paystackReference: true,
-      isPaid: true,
-      isPacked: true,
-      isDelivered: true,
-      createdAt: true,
-    },
-  })
+  try {
+    const supabase = createServiceClient()
+    const { data: booking, error } = await (supabase as any)
+      .from("bookings")
+      .select(`
+        id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        studio,
+        equipment,
+        notes,
+        amount_ghs,
+        status,
+        paystack_reference,
+        is_paid,
+        is_packed,
+        is_delivered,
+        created_at
+      `)
+      .eq("id", params.id)
+      .single()
 
-  if (!booking) {
-    return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+    if (error || !booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+    }
+
+    const dateStr = new Date(booking.session_date).toISOString().slice(0, 10)
+
+    // Map database columns to camelCase expected by the front end
+    const formattedBooking = {
+      id: booking.id,
+      customerName: booking.customer_name,
+      customerEmail: booking.customer_email,
+      customerPhone: booking.customer_phone,
+      sessionDate: booking.session_date,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      durationHours: booking.duration_hours,
+      studio: booking.studio,
+      equipment: booking.equipment,
+      notes: booking.notes,
+      amountGHS: pesewasToGhs(booking.amount_ghs),
+      status: booking.status,
+      paystackReference: booking.paystack_reference,
+      isPaid: booking.is_paid,
+      isPacked: booking.is_packed,
+      isDelivered: booking.is_delivered,
+      createdAt: booking.created_at,
+      displayDate: formatDisplayDate(dateStr),
+      displayStartTime: formatDisplayTime(booking.start_time),
+      displayEndTime: formatDisplayTime(booking.end_time),
+    }
+
+    return NextResponse.json(formattedBooking)
+  } catch (err) {
+    console.error("[Booking Lookup] Error:", err)
+    return NextResponse.json({ error: "Failed to fetch booking details" }, { status: 500 })
   }
-
-  const dateStr = booking.sessionDate.toISOString().slice(0, 10)
-
-  return NextResponse.json({
-    ...booking,
-    amountGHS: pesewasToGhs(booking.amountGHS),
-    displayDate: formatDisplayDate(dateStr),
-    displayStartTime: formatDisplayTime(booking.startTime),
-    displayEndTime: formatDisplayTime(booking.endTime),
-  })
 }

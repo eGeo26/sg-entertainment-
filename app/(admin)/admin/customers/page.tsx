@@ -13,7 +13,7 @@ interface Booking {
   durationHours: number
   amountGHS: number
   status: string
-  paystackStatus: string
+  hubtelStatus: string
   createdAt: string
 }
 

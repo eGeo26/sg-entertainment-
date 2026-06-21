@@ -36,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             loop
             muted
             playsInline
+            poster="/assets/studio-poster.jpg"
             className="w-full h-full object-cover"
           >
             <source src="/assets/studio-bg.mp4" type="video/mp4" />

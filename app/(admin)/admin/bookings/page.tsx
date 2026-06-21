@@ -24,12 +24,10 @@ interface Booking {
   notes: string | null
   amountGHS: number
   currency: string
-  anollaBookingId: string | null
-  anollaStatus: string
-  paystackReference: string | null
-  paystackStatus: string
+  hubtelReference: string | null
+  hubtelStatus: string
   status: string
-  // New pipeline logistics fields
+  // Pipeline logistics fields
   isPaid: boolean
   isPacked: boolean
   isDispatched: boolean
@@ -73,8 +71,6 @@ function BookingsContent() {
   // Modal / Inspector States
   const [inspectedBooking, setInspectedBooking] = useState<Booking | null>(null)
   const [editStatus, setEditStatus] = useState("")
-  const [editAnollaStatus, setEditAnollaStatus] = useState("")
-  const [editPaystackStatus, setEditPaystackStatus] = useState("")
   
   // Logistics local states in inspector
   const [editAdminNotes, setEditAdminNotes] = useState("")
@@ -83,11 +79,6 @@ function BookingsContent() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
   const [showManualModal, setShowManualModal] = useState(false)
-  
-  // Password Gate
-  const [showPasswordGate, setShowPasswordGate] = useState(false)
-  const [passwordGateAction, setPasswordGateAction] = useState<() => void>(() => {})
-  const [gatePasswordInput, setGatePasswordInput] = useState("")
 
   // Receipt Modal
   const [receiptBooking, setReceiptBooking] = useState<Booking | null>(null)
@@ -153,28 +144,8 @@ function BookingsContent() {
   const openInspection = (booking: Booking) => {
     setInspectedBooking(booking)
     setEditStatus(booking.status)
-    setEditAnollaStatus(booking.anollaStatus)
-    setEditPaystackStatus(booking.paystackStatus)
     setEditAdminNotes(booking.adminNotes || "")
     setEditEstDeliveryTime(booking.estimatedDeliveryTime || "")
-  }
-
-  // Trigger Password check
-  const triggerGate = (action: () => void) => {
-    setGatePasswordInput("")
-    setPasswordGateAction(() => action)
-    setShowPasswordGate(true)
-  }
-
-  const handlePasswordGateSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const realPassword = localStorage.getItem("slay_admin_password") || "admin"
-    if (gatePasswordInput === realPassword) {
-      setShowPasswordGate(false)
-      passwordGateAction()
-    } else {
-      toast.error("Invalid verification password!")
-    }
   }
 
   // Save changes in inspector
@@ -187,8 +158,6 @@ function BookingsContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: editStatus,
-          anollaStatus: editAnollaStatus,
-          paystackStatus: editPaystackStatus,
           adminNotes: editAdminNotes,
           estimatedDeliveryTime: editEstDeliveryTime
         }),
@@ -234,8 +203,8 @@ function BookingsContent() {
   }
 
   const handleCancelBooking = async (id: string) => {
-    triggerGate(async () => {
-      try {
+    if (!window.confirm("Cancel this booking? This cannot be undone.")) return
+    try {
         const res = await fetch(`/api/admin/bookings/${id}`, { method: "DELETE" })
         if (!res.ok) throw new Error("Failed to cancel booking")
         const updated = await res.json()
@@ -244,31 +213,29 @@ function BookingsContent() {
           setInspectedBooking(updated)
         }
         fetchBookings()
-      } catch (err) {
-        console.error(err)
-        toast.error("Could not cancel booking")
-      }
-    })
+    } catch (err) {
+      console.error(err)
+      toast.error("Could not cancel booking")
+    }
   }
 
   // Deletions
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
-    triggerGate(async () => {
-      try {
+    if (!window.confirm(`Delete ${selectedIds.length} booking(s)? This cannot be undone.`)) return
+    try {
         const res = await fetch("/api/admin/bookings", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: selectedIds }),
         })
         if (!res.ok) throw new Error()
-        toast.success(`Successfully deleted ${selectedIds.length} bookings.`)
-        setSelectedIds([])
-        fetchBookings()
-      } catch {
-        toast.error("Failed to delete bookings.")
-      }
-    })
+      toast.success(`Successfully deleted ${selectedIds.length} bookings.`)
+      setSelectedIds([])
+      fetchBookings()
+    } catch {
+      toast.error("Failed to delete bookings.")
+    }
   }
 
   const handleSendWhatsapp = async (booking: Booking) => {
@@ -1018,41 +985,6 @@ function BookingsContent() {
       )}
 
       {/* Password Gate Verification Modal */}
-      {showPasswordGate && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-          <div className="bg-[#111111] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Secondary Password Gate</h3>
-            <p className="text-xs text-white/45 mb-4 leading-relaxed">
-              This is a critical operation (deleting/cancelling items). Please enter the admin password to verify.
-            </p>
-            <form onSubmit={handlePasswordGateSubmit} className="space-y-4">
-              <input
-                type="password"
-                required
-                value={gatePasswordInput}
-                onChange={(e) => setGatePasswordInput(e.target.value)}
-                placeholder="Enter password..."
-                className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
-              />
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordGate(false)}
-                  className="px-4 py-2 bg-white/5 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider"
-                >
-                  Verify Gate
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Receipt Invoice Modal */}
       {receiptBooking && (

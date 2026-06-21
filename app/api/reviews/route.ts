@@ -1,6 +1,6 @@
 // app/api/reviews/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
+import { createServiceClient } from "@/lib/supabase"
 import { z } from "zod"
 
 const ReviewSchema = z.object({
@@ -10,13 +10,30 @@ const ReviewSchema = z.object({
   text: z.string().min(10).max(1000)
 })
 
+function mapDbToCamel(r: any) {
+  return {
+    id: r.id,
+    createdAt: r.created_at,
+    name: r.name,
+    socialHandle: r.social_handle,
+    rating: r.rating,
+    text: r.text,
+    approved: r.approved
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
-    const reviews = await prisma.review.findMany({
-      where: { approved: true },
-      orderBy: { createdAt: "desc" }
-    })
-    return NextResponse.json({ reviews })
+    const supabase = createServiceClient()
+    const { data: reviews, error } = await (supabase as any)
+      .from("reviews")
+      .select("*")
+      .eq("approved", true)
+      .order("created_at", { ascending: false })
+
+    if (error) throw error
+
+    return NextResponse.json({ reviews: (reviews ?? []).map(mapDbToCamel) })
   } catch (err) {
     console.error("[Storefront Reviews API GET]:", err)
     return NextResponse.json({ error: "Failed to fetch testimonials" }, { status: 500 })
@@ -35,17 +52,22 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    const review = await prisma.review.create({
-      data: {
+    const supabase = createServiceClient()
+    const { data: review, error } = await (supabase as any)
+      .from("reviews")
+      .insert({
         name: parsed.data.name,
-        socialHandle: parsed.data.socialHandle || "",
+        social_handle: parsed.data.socialHandle || "",
         rating: parsed.data.rating,
         text: parsed.data.text,
         approved: false // explicitly draft by default
-      }
-    })
+      })
+      .select()
+      .single()
 
-    return NextResponse.json(review)
+    if (error || !review) throw error ?? new Error("Failed to insert review")
+
+    return NextResponse.json(mapDbToCamel(review))
   } catch (err) {
     console.error("[Storefront Reviews API POST]:", err)
     return NextResponse.json({ error: "Failed to submit testimonial" }, { status: 500 })

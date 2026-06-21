@@ -1,20 +1,19 @@
 // app/api/admin/bookings/route.ts
 // GET  /api/admin/bookings — list all bookings (with filters)
 // POST /api/admin/bookings — create a manual booking
+// DELETE /api/admin/bookings — bulk delete bookings
 
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
-import { getEndTime, generatePaystackReference, normalizePhone } from "@/lib/booking"
-import { Prisma } from "@prisma/client"
+import { getEndTime, generateBookingCode, normalizePhone } from "@/lib/booking"
 
 const ghsToPesewas = (ghs: number) => Math.round(ghs * 100)
 const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = req.nextUrl
@@ -25,57 +24,104 @@ export async function GET(req: NextRequest) {
   const page = parseInt(searchParams.get("page") ?? "1")
   const limit = parseInt(searchParams.get("limit") ?? "50")
 
-  const where: Prisma.BookingWhereInput = {}
+  try {
+    const supabase = createServiceClient()
 
-  if (status && status !== "ALL") {
-    where.status = status as Prisma.EnumBookingStatusFilter
-  }
-  if (from || to) {
-    where.sessionDate = {
-      ...(from ? { gte: new Date(from) } : {}),
-      ...(to ? { lte: new Date(to + "T23:59:59Z") } : {}),
+    // 1. Build filtering query for the requested page
+    let query = (supabase as any)
+      .from("bookings")
+      .select("*", { count: "exact" })
+
+    if (status && status !== "ALL") {
+      query = query.eq("status", status)
     }
-  }
-  if (search) {
-    where.OR = [
-      { customerName: { contains: search, mode: "insensitive" } },
-      { customerEmail: { contains: search, mode: "insensitive" } },
-      { customerPhone: { contains: search, mode: "insensitive" } },
-      { id: { contains: search, mode: "insensitive" } },
-    ]
-  }
+    if (from) {
+      query = query.gte("session_date", `${from}T00:00:00Z`)
+    }
+    if (to) {
+      query = query.lte("session_date", `${to}T23:59:59Z`)
+    }
+    if (search) {
+      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(search)
+      if (looksLikeUuid) {
+        query = query.eq("id", search)
+      } else {
+        query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,customer_phone.ilike.%${search}%,booking_code.ilike.%${search}%`)
+      }
+    }
 
-  const [bookings, total, totalRevenueAgg, activeCount, pendingCount] = await Promise.all([
-    prisma.booking.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.booking.count({ where }),
-    prisma.booking.aggregate({
-      _sum: { amountGHS: true },
-      where: { status: "CONFIRMED" }
-    }),
-    prisma.booking.count({
-      where: { status: "CONFIRMED" }
-    }),
-    prisma.booking.count({
-      where: { isDelivered: true }
+    const startRange = (page - 1) * limit
+    const endRange = page * limit - 1
+
+    const { data: bookings, count, error } = await query
+      .order("created_at", { ascending: false })
+      .range(startRange, endRange)
+
+    if (error) throw error
+
+    // 2. Fetch stats
+    const { data: revenueData } = await (supabase as any)
+      .from("bookings")
+      .select("amount_ghs")
+      .eq("status", "CONFIRMED")
+
+    const totalRevenue = (revenueData ?? []).reduce((sum: number, item: any) => sum + item.amount_ghs, 0)
+
+    const { count: activeCount } = await (supabase as any)
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "CONFIRMED")
+
+    const { count: deliveredCount } = await (supabase as any)
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .eq("is_delivered", true)
+
+    const total = count ?? 0
+
+    // Map DB rows to camelCase
+    const formattedBookings = (bookings ?? []).map((b: any) => ({
+      id: b.id,
+      customerName: b.customer_name,
+      customerEmail: b.customer_email,
+      customerPhone: b.customer_phone,
+      sessionDate: b.session_date,
+      startTime: b.start_time,
+      endTime: b.end_time,
+      durationHours: Number(b.duration_hours),
+      studio: b.studio,
+      equipment: b.equipment ?? [],
+      notes: b.notes,
+      amountGHS: pesewasToGhs(b.amount_ghs),
+      currency: b.currency ?? "GHS",
+      hubtelReference: b.paystack_reference,
+      hubtelStatus: b.paystack_status,
+      status: b.status,
+      isPaid: b.is_paid,
+      isPacked: b.is_packed,
+      isDispatched: b.is_dispatched,
+      isDelivered: b.is_delivered,
+      adminNotes: b.admin_notes,
+      estimatedDeliveryTime: b.estimated_delivery_time,
+      createdAt: b.created_at,
+      updatedAt: b.updated_at,
+    }))
+
+    return NextResponse.json({
+      bookings: formattedBookings,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      stats: {
+        totalRevenueGHS: totalRevenue / 100,
+        activeBookings: activeCount ?? 0,
+        grantedSessions: deliveredCount ?? 0
+      }
     })
-  ])
-
-  return NextResponse.json({
-    bookings: bookings.map((b: any) => ({ ...b, amountGHS: pesewasToGhs(b.amountGHS) })),
-    total,
-    page,
-    pages: Math.ceil(total / limit),
-    stats: {
-      totalRevenueGHS: (totalRevenueAgg._sum.amountGHS ?? 0) / 100,
-      activeBookings: activeCount,
-      grantedSessions: pendingCount
-    }
-  })
+  } catch (err) {
+    console.error("[Admin Bookings GET] Error:", err)
+    return NextResponse.json({ error: "Failed to list bookings" }, { status: 500 })
+  }
 }
 
 const ManualBookingSchema = z.object({
@@ -92,7 +138,7 @@ const ManualBookingSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
@@ -106,37 +152,71 @@ export async function POST(req: NextRequest) {
     const phone = normalizePhone(data.customerPhone)
     const endTime = getEndTime(data.sessionDate, data.startTime, data.durationHours)
     const bookingId = uuidv4()
-    const paystackRef = generatePaystackReference(bookingId)
+    const bookingCode = generateBookingCode()
 
-    const booking = await prisma.booking.create({
-      data: {
+    const supabase = createServiceClient()
+
+    const { data: booking, error } = await (supabase as any)
+      .from("bookings")
+      .insert({
         id: bookingId,
-        customerName: data.customerName,
-        customerEmail: data.customerEmail,
-        customerPhone: phone,
-        sessionDate: new Date(`${data.sessionDate}T${data.startTime}:00Z`),
-        startTime: data.startTime,
-        endTime,
-        durationHours: data.durationHours,
+        booking_code: bookingCode,
+        customer_name: data.customerName,
+        customer_email: data.customerEmail,
+        customer_phone: phone,
+        session_date: new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString(),
+        start_time: data.startTime,
+        end_time: endTime,
+        duration_hours: data.durationHours,
         studio: data.studio,
         equipment: data.equipment,
-        notes: data.notes,
-        amountGHS: ghsToPesewas(data.amountGHS),
-        paystackReference: paystackRef,
+        notes: data.notes ?? null,
+        amount_ghs: ghsToPesewas(data.amountGHS),
+        paystack_reference: bookingCode,
         status: "CONFIRMED", // Manual bookings are auto-confirmed
-        paystackStatus: "SUCCESS",
-      },
-    })
+        paystack_status: "SUCCESS",
+        is_paid: true,
+      })
+      .select()
+      .single()
 
-    return NextResponse.json({ ...booking, amountGHS: pesewasToGhs(booking.amountGHS) })
+    if (error || !booking) {
+      throw error ?? new Error("Failed to insert manual booking")
+    }
+
+    return NextResponse.json({
+      id: booking.id,
+      customerName: booking.customer_name,
+      customerEmail: booking.customer_email,
+      customerPhone: booking.customer_phone,
+      sessionDate: booking.session_date,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      durationHours: Number(booking.duration_hours),
+      studio: booking.studio,
+      equipment: booking.equipment ?? [],
+      notes: booking.notes,
+      amountGHS: pesewasToGhs(booking.amount_ghs),
+      currency: booking.currency ?? "GHS",
+      hubtelReference: booking.paystack_reference,
+      hubtelStatus: booking.paystack_status,
+      status: booking.status,
+      isPaid: booking.is_paid,
+      isPacked: booking.is_packed,
+      isDispatched: booking.is_dispatched,
+      isDelivered: booking.is_delivered,
+      adminNotes: booking.admin_notes,
+      estimatedDeliveryTime: booking.estimated_delivery_time,
+      createdAt: booking.created_at,
+    })
   } catch (err) {
-    console.error("[Admin Bookings] Create error:", err)
+    console.error("[Admin Bookings POST] Create error:", err)
     return NextResponse.json({ error: "Failed to create booking" }, { status: 500 })
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
@@ -145,15 +225,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 })
     }
 
-    const deleteCount = await prisma.booking.deleteMany({
-      where: {
-        id: { in: ids }
-      }
-    })
+    const supabase = createServiceClient()
+    const { error } = await (supabase as any)
+      .from("bookings")
+      .delete()
+      .in("id", ids)
 
-    return NextResponse.json({ success: true, count: deleteCount.count })
+    if (error) throw error
+
+    return NextResponse.json({ success: true, count: ids.length })
   } catch (err) {
-    console.error("[Admin Bookings] Bulk Delete error:", err)
+    console.error("[Admin Bookings DELETE] Bulk Delete error:", err)
     return NextResponse.json({ error: "Failed to delete bookings" }, { status: 500 })
   }
 }

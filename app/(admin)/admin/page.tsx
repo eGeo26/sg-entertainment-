@@ -1,7 +1,7 @@
 "use client"
 // app/(admin)/admin/page.tsx
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import StatCard from "./components/StatCard"
 import StatusBadge from "./components/StatusBadge"
@@ -15,6 +15,12 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts"
+import {
+  subscribeToBookingEvents,
+  markEventDelivered,
+  catchUpMissedEvents,
+  type SyncEvent,
+} from "@/lib/realtimeBookings"
 
 interface Booking {
   id: string
@@ -27,8 +33,7 @@ interface Booking {
   studio: string
   amountGHS: number
   status: string
-  paystackStatus: string
-  paystackReference: string | null
+  hubtelReference: string | null
   createdAt: string
 }
 
@@ -69,6 +74,75 @@ export default function AdminDashboardPage() {
       }
     }
     fetchStats()
+  }, [])
+
+  // Handle sync events from realtime subscription
+  const handleSyncEvent = async (event: SyncEvent) => {
+    console.log("[Admin Dashboard] Received sync event:", event.event_type, event.booking_code)
+    
+    // Refresh stats when we receive a booking event
+    try {
+      const res = await fetch("/api/admin/stats")
+      if (res.ok) {
+        const data = await res.json()
+        setStats(data)
+        
+        // Show toast notification for new bookings
+        if (event.event_type === "booking_created") {
+          toast.success(`New booking: ${event.booking_code}`)
+        } else if (event.event_type === "status_changed") {
+          const payload = event.payload as any
+          toast.info(`Booking ${event.booking_code} status changed to ${payload.status}`)
+        }
+      }
+    } catch (err) {
+      console.error("[Admin Dashboard] Failed to refresh stats after sync event:", err)
+    }
+
+    // Mark event as delivered
+    try {
+      await markEventDelivered(event.id)
+    } catch (err) {
+      console.error("[Admin Dashboard] Failed to mark event as delivered:", err)
+    }
+  }
+
+  // Subscribe to realtime booking events
+  useEffect(() => {
+    const unsubscribeRef = useRef<(() => void) | null>(null)
+    const isMountedRef = useRef(true)
+
+    async function setupRealtime() {
+      // Clean up any existing subscription before creating a new one
+      if (unsubscribeRef.current) {
+        console.log("[Admin Dashboard] Cleaning up previous subscription before creating new one")
+        unsubscribeRef.current()
+        unsubscribeRef.current = null
+      }
+
+      // First, catch up on any missed events
+      try {
+        await catchUpMissedEvents(handleSyncEvent)
+      } catch (err) {
+        console.error("[Admin Dashboard] Failed to catch up on missed events:", err)
+      }
+
+      // Only subscribe if component is still mounted
+      if (isMountedRef.current) {
+        unsubscribeRef.current = subscribeToBookingEvents(handleSyncEvent)
+      }
+    }
+
+    setupRealtime()
+
+    return () => {
+      console.log("[Admin Dashboard] Component unmounting, cleaning up subscription")
+      isMountedRef.current = false
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current()
+        unsubscribeRef.current = null
+      }
+    }
   }, [])
 
   const formatDate = (dateStr: string) => {
@@ -373,8 +447,8 @@ export default function AdminDashboardPage() {
 
               {/* Hubtel reference */}
               <div>
-                <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Hubtel Client Reference</span>
-                <span className="font-mono text-xs break-all" style={{ color: "var(--text-secondary)" }}>{selectedBooking.paystackReference ?? "None"}</span>
+                <span className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Hubtel Reference</span>
+                <span className="font-mono text-xs break-all" style={{ color: "var(--text-secondary)" }}>{selectedBooking.hubtelReference ?? "—"}</span>
               </div>
             </div>
 

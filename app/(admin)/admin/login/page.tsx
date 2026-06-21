@@ -2,38 +2,38 @@
 // app/(admin)/admin/login/page.tsx
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
+import PasswordInput from "../components/PasswordInput"
 
 export default function AdminLoginPage() {
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!password) {
-      toast.error("Please enter the password")
+    if (!email || !password) {
+      toast.error("Please enter your email and password")
       return
     }
 
     setLoading(true)
     try {
-      const result = await signIn("credentials", {
-        password,
-        redirect: false,
-      })
+      const supabase = createBrowserSupabaseClient()
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-      if (result?.error) {
-        toast.error("Invalid admin password")
-      } else {
-        localStorage.setItem("slay_admin_session", Date.now().toString())
-        localStorage.setItem("slay_admin_password", password)
-        toast.success("Successfully logged in!")
-        router.push("/admin")
-        router.refresh()
+      if (error) {
+        // Don't leak whether the email exists — always show a generic message
+        toast.error("Invalid credentials. Please try again.")
+        return
       }
+
+      toast.success("Signed in successfully")
+      router.push("/admin")
+      router.refresh()
     } catch (err) {
       console.error("[Login Error]:", err)
       toast.error("An unexpected error occurred. Please try again.")
@@ -47,9 +47,9 @@ export default function AdminLoginPage() {
       {/* Subtle background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-neutral-900 rounded-full blur-3xl opacity-30 pointer-events-none" />
 
-      {/* Main Login Card - Sleek dark glass card */}
+      {/* Main Login Card */}
       <div className="w-full max-w-md bg-[#0F0F0F]/90 border border-white/10 backdrop-blur-2xl rounded-2xl p-8 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative z-10 text-white">
-        
+
         {/* Header */}
         <div className="flex flex-col items-center mb-8">
           <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">S&amp;G Studios</h1>
@@ -57,25 +57,43 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[10px] text-white/50 mb-2 font-medium uppercase tracking-wider">
-              Admin Password
+              Email Address
             </label>
             <input
-              type="password"
+              id="admin-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="owner@sgentertainment.com.gh"
+              disabled={loading}
+              autoComplete="email"
+              required
+              className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3.5 text-white placeholder-white/20 text-sm focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white transition-all disabled:opacity-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] text-white/50 mb-2 font-medium uppercase tracking-wider">
+              Password
+            </label>
+            <PasswordInput
+              id="admin-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               placeholder="••••••••••••"
               disabled={loading}
-              className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white transition-all disabled:opacity-50"
+              className="bg-white/5 border border-white/8 rounded-xl px-4 py-3.5 placeholder-white/30 text-sm focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white transition-all"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center font-bold px-5 py-3.5 rounded-xl transition-all duration-200 hover:bg-neutral-200 bg-white text-black text-sm relative overflow-hidden group"
+            id="admin-signin-btn"
+            className="w-full flex items-center justify-center font-bold px-5 py-3.5 rounded-xl transition-all duration-200 hover:bg-neutral-200 bg-white text-black text-sm relative overflow-hidden group mt-2"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -83,7 +101,7 @@ export default function AdminLoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Verifying...
+                Signing in...
               </span>
             ) : (
               "Sign In to Dashboard"
@@ -91,7 +109,7 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        {/* Footer info */}
+        {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-[10px] text-white/30 tracking-wider uppercase">
             Secure Session · Authorized Personnel Only

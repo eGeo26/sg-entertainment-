@@ -1,21 +1,24 @@
 // app/api/admin/status/route.ts
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 
 export async function GET() {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const isPlaceholderDb = !process.env.DATABASE_URL || 
-    process.env.DATABASE_URL.includes("user:password") ||
-    process.env.DATABASE_URL.includes("host:5432")
+  const isPlaceholderDb = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("localhost")
 
   let paymentSimulationMode = true
   try {
-    const simSetting = await prisma.setting.findUnique({
-      where: { key: "payment_simulation_mode" }
-    })
+    const supabase = createServiceClient()
+    const { data: simSetting } = await (supabase as any)
+      .from("settings")
+      .select("value")
+      .eq("key", "payment_simulation_mode")
+      .single()
+
     if (simSetting) {
       paymentSimulationMode = simSetting.value === "true"
     }

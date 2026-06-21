@@ -2,81 +2,103 @@
 // GET /api/admin/customers — CRM view, derived from bookings grouped by email
 
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 
 export async function GET() {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Get all bookings with customer fields
-  const bookings = await prisma.booking.findMany({
-    select: {
-      id: true,
-      customerName: true,
-      customerEmail: true,
-      customerPhone: true,
-      amountGHS: true,
-      status: true,
-      paystackStatus: true,
-      sessionDate: true,
-      startTime: true,
-      endTime: true,
-      durationHours: true,
-      studio: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-  })
+  try {
+    const supabase = createServiceClient()
 
-  // Group by email to build customer records
-  const customerMap = new Map<
-    string,
-    {
-      name: string
-      email: string
-      phone: string
-      bookings: typeof bookings
-      totalSpentPesewas: number
-      lastBookingDate: Date
-    }
-  >()
+    // Get all bookings with customer fields
+    const { data: bookings, error } = await (supabase as any)
+      .from("bookings")
+      .select(`
+        id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        amount_ghs,
+        status,
+        paystack_status,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        studio,
+        created_at
+      `)
+      .order("created_at", { ascending: false })
 
-  for (const b of bookings) {
-    const existing = customerMap.get(b.customerEmail)
-    if (existing) {
-      existing.bookings.push(b)
-      existing.totalSpentPesewas +=
-        b.paystackStatus === "SUCCESS" ? b.amountGHS : 0
-      if (b.createdAt > existing.lastBookingDate) {
-        existing.lastBookingDate = b.createdAt
+    if (error) throw error
+
+    // Group by email to build customer records
+    const customerMap = new Map<
+      string,
+      {
+        name: string
+        email: string
+        phone: string
+        bookings: any[]
+        totalSpentPesewas: number
+        lastBookingDate: Date
       }
-    } else {
-      customerMap.set(b.customerEmail, {
-        name: b.customerName,
-        email: b.customerEmail,
-        phone: b.customerPhone,
-        bookings: [b],
-        totalSpentPesewas: b.paystackStatus === "SUCCESS" ? b.amountGHS : 0,
-        lastBookingDate: b.createdAt,
-      })
+    >()
+
+    for (const b of (bookings ?? [])) {
+      const bDate = new Date(b.created_at)
+      
+      const formattedBooking = {
+        id: b.id,
+        customerName: b.customer_name,
+        customerEmail: b.customer_email,
+        customerPhone: b.customer_phone,
+        amountGHS: b.amount_ghs / 100,
+        status: b.status,
+        paystackStatus: b.paystack_status,
+        sessionDate: b.session_date,
+        startTime: b.start_time,
+        endTime: b.end_time,
+        durationHours: Number(b.duration_hours),
+        studio: b.studio,
+        createdAt: b.created_at,
+      }
+
+      const existing = customerMap.get(b.customer_email)
+      if (existing) {
+        existing.bookings.push(formattedBooking)
+        existing.totalSpentPesewas += b.paystack_status === "SUCCESS" ? b.amount_ghs : 0
+        if (bDate > existing.lastBookingDate) {
+          existing.lastBookingDate = bDate
+        }
+      } else {
+        customerMap.set(b.customer_email, {
+          name: b.customer_name,
+          email: b.customer_email,
+          phone: b.customer_phone,
+          bookings: [formattedBooking],
+          totalSpentPesewas: b.paystack_status === "SUCCESS" ? b.amount_ghs : 0,
+          lastBookingDate: bDate,
+        })
+      }
     }
+
+    const customers = Array.from(customerMap.values())
+      .map((c) => ({
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        totalBookings: c.bookings.length,
+        totalSpentGHS: c.totalSpentPesewas / 100,
+        lastBooking: c.lastBookingDate,
+        bookings: c.bookings,
+      }))
+      .sort((a, b) => b.totalBookings - a.totalBookings)
+
+    return NextResponse.json({ customers })
+  } catch (err) {
+    console.error("[Admin Customers GET Error]:", err)
+    return NextResponse.json({ error: "Failed to fetch customers" }, { status: 500 })
   }
-
-  const customers = Array.from(customerMap.values())
-    .map((c) => ({
-      name: c.name,
-      email: c.email,
-      phone: c.phone,
-      totalBookings: c.bookings.length,
-      totalSpentGHS: c.totalSpentPesewas / 100,
-      lastBooking: c.lastBookingDate,
-      bookings: c.bookings.map((b: any) => ({
-        ...b,
-        amountGHS: b.amountGHS / 100,
-      })),
-    }))
-    .sort((a, b) => b.totalBookings - a.totalBookings)
-
-  return NextResponse.json({ customers })
 }

@@ -74,7 +74,7 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
   const fetchAvailability = useCallback(async (date: string) => {
     setLoadingSlots(true)
     try {
-      const res = await fetch(`/api/anolla/availability?date=${date}&duration=${DURATION_MINUTES}`)
+      const res = await fetch(`/api/availability?date=${date}&duration=${DURATION_MINUTES}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       const statusMap: Record<string, SlotStatus> = {}

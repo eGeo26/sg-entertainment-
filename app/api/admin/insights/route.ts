@@ -1,30 +1,35 @@
 // app/api/admin/insights/route.ts
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { startOfMonth, subMonths, endOfMonth } from "date-fns"
 
 export async function GET() {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    // 1. Confirmed vs. Pending Revenue
-    const [confirmedAgg, pendingAgg, confirmedCount, pendingCount] = await Promise.all([
-      prisma.booking.aggregate({
-        _sum: { amountGHS: true },
-        where: { status: "CONFIRMED" }
-      }),
-      prisma.booking.aggregate({
-        _sum: { amountGHS: true },
-        where: { status: "AWAITING_PAYMENT" }
-      }),
-      prisma.booking.count({ where: { status: "CONFIRMED" } }),
-      prisma.booking.count({ where: { status: "AWAITING_PAYMENT" } })
-    ])
+    const supabase = createServiceClient()
 
-    const confirmedRev = (confirmedAgg._sum.amountGHS ?? 0) / 100
-    const pendingRev = (pendingAgg._sum.amountGHS ?? 0) / 100
+    // 1. Confirmed vs. Pending Revenue
+    const { data: confirmedBookingsData, error: confirmedError } = await (supabase as any)
+      .from("bookings")
+      .select("amount_ghs, duration_hours, equipment")
+      .eq("status", "CONFIRMED")
+
+    if (confirmedError) throw confirmedError
+
+    const { data: pendingBookingsData, error: pendingError } = await (supabase as any)
+      .from("bookings")
+      .select("amount_ghs")
+      .eq("status", "AWAITING_PAYMENT")
+
+    if (pendingError) throw pendingError
+
+    const confirmedCount = confirmedBookingsData?.length ?? 0
+    const pendingCount = pendingBookingsData?.length ?? 0
+
+    const confirmedRev = (confirmedBookingsData ?? []).reduce((sum: number, item: any) => sum + item.amount_ghs, 0) / 100
+    const pendingRev = (pendingBookingsData ?? []).reduce((sum: number, item: any) => sum + item.amount_ghs, 0) / 100
 
     // 2. Month-over-Month Revenue
     const now = new Date()
@@ -33,35 +38,26 @@ export async function GET() {
     const prevMonthStart = startOfMonth(subMonths(now, 1))
     const prevMonthEnd = endOfMonth(subMonths(now, 1))
 
-    const [currentMonthAgg, prevMonthAgg] = await Promise.all([
-      prisma.booking.aggregate({
-        _sum: { amountGHS: true },
-        where: {
-          status: "CONFIRMED",
-          sessionDate: { gte: currentMonthStart, lte: currentMonthEnd }
-        }
-      }),
-      prisma.booking.aggregate({
-        _sum: { amountGHS: true },
-        where: {
-          status: "CONFIRMED",
-          sessionDate: { gte: prevMonthStart, lte: prevMonthEnd }
-        }
-      })
-    ])
+    const { data: currentMonthData } = await (supabase as any)
+      .from("bookings")
+      .select("amount_ghs")
+      .eq("status", "CONFIRMED")
+      .gte("session_date", currentMonthStart.toISOString())
+      .lte("session_date", currentMonthEnd.toISOString())
 
-    const currentMonthRev = (currentMonthAgg._sum.amountGHS ?? 0) / 100
-    const prevMonthRev = (prevMonthAgg._sum.amountGHS ?? 0) / 100
+    const { data: prevMonthData } = await (supabase as any)
+      .from("bookings")
+      .select("amount_ghs")
+      .eq("status", "CONFIRMED")
+      .gte("session_date", prevMonthStart.toISOString())
+      .lte("session_date", prevMonthEnd.toISOString())
+
+    const currentMonthRev = (currentMonthData ?? []).reduce((sum: number, item: any) => sum + item.amount_ghs, 0) / 100
+    const prevMonthRev = (prevMonthData ?? []).reduce((sum: number, item: any) => sum + item.amount_ghs, 0) / 100
 
     // 3. Business metrics
     const aov = confirmedCount > 0 ? confirmedRev / confirmedCount : 0
-    
-    // 3. Business metrics: total session hours booked
-    const totalHoursAgg = await prisma.booking.aggregate({
-      _sum: { durationHours: true },
-      where: { status: "CONFIRMED" }
-    })
-    const totalHoursBooked = totalHoursAgg._sum.durationHours ?? 0
+    const totalHoursBooked = (confirmedBookingsData ?? []).reduce((sum: number, item: any) => sum + Number(item.duration_hours), 0)
 
     // 4. Equipment performance ranking
     const EQUIPMENT_PRICES: Record<string, { label: string; price: number }> = {
@@ -72,10 +68,6 @@ export async function GET() {
       keyboard: { label: "MIDI Keyboard", price: 60 },
       mixing_engineer: { label: "In-house Mixing Engineer", price: 150 }
     }
-
-    const allConfirmed = await prisma.booking.findMany({
-      where: { status: "CONFIRMED" }
-    })
 
     const rankMap = new Map<string, { name: string; brand: string; category: string; units: number; rev: number }>()
 
@@ -90,7 +82,7 @@ export async function GET() {
     })
 
     let totalEquipmentRentals = 0
-    for (const b of allConfirmed) {
+    for (const b of (confirmedBookingsData ?? [])) {
       if (b.equipment && Array.isArray(b.equipment)) {
         for (const eqId of b.equipment) {
           const existing = rankMap.get(eqId)
@@ -120,7 +112,13 @@ export async function GET() {
     // 5. Pipeline status distribution
     const statuses = ["AWAITING_PAYMENT", "CONFIRMED", "CANCELLED", "REFUNDED", "FAILED"]
     const statusCounts = await Promise.all(
-      statuses.map(s => prisma.booking.count({ where: { status: s } }))
+      statuses.map(async (s) => {
+        const { count } = await (supabase as any)
+          .from("bookings")
+          .select("*", { count: "exact", head: true })
+          .eq("status", s)
+        return count ?? 0
+      })
     )
     const pipelineDistribution = statuses.map((s, idx) => ({
       status: s,

@@ -1,6 +1,6 @@
 // app/api/bookings/simulate-callback/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
+import { createServiceClient } from "@/lib/supabase"
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,28 +10,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId }
-    })
+    const supabase = createServiceClient()
 
-    if (!booking) {
+    const { data: booking, error: selectError } = await (supabase as any)
+      .from("bookings")
+      .select("*")
+      .eq("id", bookingId)
+      .maybeSingle()
+
+    if (selectError || !booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 
     if (action === "SUCCESS") {
-      console.log(`[Simulated Payment] Triggering success webhook for reference: ${booking.paystackReference}`)
+      console.log(`[Simulated Payment] Triggering success webhook for reference: ${booking.paystack_reference}`)
       
       try {
         const webhookRes = await fetch(`${appUrl}/api/hubtel/webhook`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clientReference: booking.paystackReference,
+            clientReference: booking.paystack_reference,
             transactionId: `sim-tx-${Date.now()}`,
             status: "Success",
-            amount: booking.amountGHS / 100,
+            amount: booking.amount_ghs / 100,
           }),
         })
 
@@ -41,23 +45,23 @@ export async function POST(req: NextRequest) {
       } catch (webhookErr) {
         console.error("[Simulated Payment] Webhook simulation failed, falling back to direct DB update:", webhookErr)
         
-        await prisma.booking.update({
-          where: { id: bookingId },
-          data: {
+        await (supabase as any)
+          .from("bookings")
+          .update({
             status: "CONFIRMED",
-            paystackStatus: "SUCCESS",
-            isPaid: true,
-          }
-        })
+            paystack_status: "SUCCESS",
+            is_paid: true,
+          })
+          .eq("id", bookingId)
       }
     } else {
-      await prisma.booking.update({
-        where: { id: bookingId },
-        data: {
+      await (supabase as any)
+        .from("bookings")
+        .update({
           status: "FAILED",
-          paystackStatus: "FAILED",
-        }
-      })
+          paystack_status: "FAILED",
+        })
+        .eq("id", bookingId)
       console.log(`[Simulated Payment] Booking ${bookingId} marked as failed via simulation.`)
     }
 

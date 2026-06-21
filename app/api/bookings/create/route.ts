@@ -1,16 +1,16 @@
 // app/api/bookings/create/route.ts
 // POST /api/bookings/create
-// Creates a pending booking in DB + initializes Hubtel payment
+// Creates a pending booking in Supabase + initializes Hubtel payment
 
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
-import prisma from "@/lib/prisma"
+import { createServiceClient } from "@/lib/supabase"
 import { initializeHubtelTransaction } from "@/lib/hubtel"
 import {
   calculateTotal,
   getEndTime,
-  generatePaystackReference,
+  generateBookingCode,
   normalizePhone,
 } from "@/lib/booking"
 
@@ -50,37 +50,48 @@ export async function POST(req: NextRequest) {
     const pesewas = ghsToPesewas(total)
 
     // 1. Create booking record in our DB (status: AWAITING_PAYMENT)
-    // We reuse paystackReference and amountGHS column to avoid breaking database schema.
     const bookingId = uuidv4()
-    const reference = generatePaystackReference(bookingId)
+    const reference = generateBookingCode()
 
-    const booking = await prisma.booking.create({
-      data: {
+    const supabase = createServiceClient()
+
+    const { data: booking, error: insertError } = await (supabase as any)
+      .from("bookings")
+      .insert({
         id: bookingId,
-        customerName: data.customerName,
-        customerEmail: data.customerEmail,
-        customerPhone: phone,
-        sessionDate: new Date(`${data.sessionDate}T${data.startTime}:00Z`),
-        startTime: data.startTime,
-        endTime,
-        durationHours: data.durationHours,
+        booking_code: reference,
+        customer_name: data.customerName,
+        customer_email: data.customerEmail,
+        customer_phone: phone,
+        session_date: new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString(),
+        start_time: data.startTime,
+        end_time: endTime,
+        duration_hours: data.durationHours,
         studio: data.studio,
         equipment: data.equipment,
-        notes: data.notes,
-        amountGHS: pesewas,
-        paystackReference: reference,
+        notes: data.notes ?? null,
+        amount_ghs: pesewas,
+        paystack_reference: reference,
         status: "AWAITING_PAYMENT",
-      },
-    })
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error("[Booking] Insert error:", insertError)
+      return NextResponse.json({ error: "Failed to save booking to database" }, { status: 500 })
+    }
 
     // 2. Initialize payment transaction (Simulation vs Hubtel)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 
     let isSimulationMode = true
     try {
-      const simSetting = await prisma.setting.findUnique({
-        where: { key: "payment_simulation_mode" }
-      })
+      const { data: simSetting } = await (supabase as any)
+        .from("settings")
+        .select("value")
+        .eq("key", "payment_simulation_mode")
+        .single()
       if (simSetting) {
         isSimulationMode = simSetting.value === "true"
       }

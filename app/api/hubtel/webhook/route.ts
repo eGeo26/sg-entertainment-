@@ -3,7 +3,7 @@
 // Handles secure status updates from the Hubtel gateway.
 
 import { NextRequest, NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
+import { createServiceClient } from "@/lib/supabase"
 import { verifyHubtelTransaction } from "@/lib/hubtel"
 import { sendBookingConfirmationNotifications } from "@/lib/whatsapp"
 import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
 
   // Support both lowercase and uppercase formats for Hubtel webhooks
   const reference = payload.clientReference ?? payload.ClientReference ?? payload.Reference ?? ""
-  const transactionId = payload.transactionId ?? payload.TransactionId ?? ""
   const status = payload.status ?? payload.Status ?? ""
 
   if (!reference) {
@@ -37,20 +36,29 @@ export async function POST(req: NextRequest) {
 
   console.log(`[Hubtel Webhook] Received status notification for ref: ${reference} | status: ${status}`)
 
+  const supabase = createServiceClient()
+
   // 1. Idempotency Check
   const eventId = `hubtel-success-${reference}`
-  const existing = await prisma.webhookEvent.findUnique({ where: { eventId } })
-  if (existing) {
+  const { data: existingEvent } = await (supabase as any)
+    .from("webhook_events")
+    .select("id")
+    .eq("event_id", eventId)
+    .maybeSingle()
+
+  if (existingEvent) {
     console.log(`[Hubtel Webhook] Event already processed: ${eventId}`)
     return NextResponse.json({ ok: true, duplicate: true })
   }
 
   // 2. Fetch the corresponding booking from DB
-  const booking = await prisma.booking.findUnique({
-    where: { paystackReference: reference },
-  })
+  const { data: booking, error: bookingError } = await (supabase as any)
+    .from("bookings")
+    .select("*")
+    .eq("paystack_reference", reference)
+    .maybeSingle()
 
-  if (!booking) {
+  if (bookingError || !booking) {
     console.error(`[Hubtel Webhook] Booking not found for reference: ${reference}`)
     return NextResponse.json({ error: "Booking not found" }, { status: 404 })
   }
@@ -61,7 +69,6 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. SECURE VERIFICATION: Query Hubtel API directly to confirm status
-  // Webhooks can be spoofed; server-to-server validation is critical
   let verified
   try {
     verified = await verifyHubtelTransaction(reference)
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. Amount Verification (prevent underpayment attacks)
-  const expectedGHS = booking.amountGHS / 100
+  const expectedGHS = booking.amount_ghs / 100
   const tolerance = 0.01
   if (Math.abs(verified.amount - expectedGHS) > tolerance) {
     console.error(`[Hubtel Webhook] Amount mismatch for ${reference}. Expected: GHS ${expectedGHS}, Got: GHS ${verified.amount}`)
@@ -90,54 +97,63 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Update Database Booking Status to CONFIRMED
-  await prisma.booking.update({
-    where: { id: booking.id },
-    data: {
-      paystackStatus: "SUCCESS", // Maps to Success/Paid status
+  const { error: updateError } = await (supabase as any)
+    .from("bookings")
+    .update({
+      paystack_status: "SUCCESS",
       status: "CONFIRMED",
-      isPaid: true,
-    },
-  })
+      is_paid: true,
+    })
+    .eq("id", booking.id)
+
+  if (updateError) {
+    console.error("[Hubtel Webhook] Failed to update booking status:", updateError)
+    return NextResponse.json({ error: "Failed to update booking status" }, { status: 500 })
+  }
 
   // 6. Record the webhook event for idempotency
-  await prisma.webhookEvent.create({
-    data: {
+  const { error: insertEventError } = await (supabase as any)
+    .from("webhook_events")
+    .insert({
       source: "hubtel",
-      eventId,
-      eventType: "transaction.success",
-      payload: payload as object,
-    },
-  })
+      event_id: eventId,
+      event_type: "transaction.success",
+      payload: payload,
+    })
 
-  // 7. Trigger Twilio WhatsApp notifications
-  const dateStr = formatDisplayDate(booking.sessionDate.toISOString().slice(0, 10))
-  const startTimeStr = formatDisplayTime(booking.startTime)
-  const endTimeStr = formatDisplayTime(booking.endTime)
+  if (insertEventError) {
+    console.error("[Hubtel Webhook] Failed to insert webhook event:", insertEventError)
+  }
+
+  // 7. Trigger WhatsApp notifications
+  const dateStr = formatDisplayDate(new Date(booking.session_date).toISOString().slice(0, 10))
+  const startTimeStr = formatDisplayTime(booking.start_time)
+  const endTimeStr = formatDisplayTime(booking.end_time)
 
   try {
     const { customerSent, ownerSent } = await sendBookingConfirmationNotifications({
       bookingId: booking.id,
-      customerName: booking.customerName,
-      customerPhone: booking.customerPhone,
-      customerEmail: booking.customerEmail,
+      customerName: booking.customer_name,
+      customerPhone: booking.customer_phone,
+      customerEmail: booking.customer_email,
       sessionDate: dateStr,
       startTime: startTimeStr,
       endTime: endTimeStr,
-      durationHours: booking.durationHours,
+      durationHours: Number(booking.duration_hours),
       studio: booking.studio,
-      equipment: booking.equipment,
+      equipment: booking.equipment ?? [],
       amountGHS: expectedGHS,
       paystackReference: reference,
       notes: booking.notes ?? undefined,
     })
 
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        customerNotified: customerSent,
-        ownerNotified: ownerSent,
-      },
-    })
+    await (supabase as any)
+      .from("bookings")
+      .update({
+        customer_notified: customerSent,
+        owner_notified: ownerSent,
+      })
+      .eq("id", booking.id)
   } catch (err) {
     console.error("[Hubtel Webhook] WhatsApp notifications dispatch error:", err)
   }

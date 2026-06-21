@@ -117,12 +117,14 @@ export default function NotificationsWebhookPage() {
                     <td className="px-6 py-4 font-semibold">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold tracking-widest uppercase ${
-                          e.source === "paystack"
+                          e.source === "hubtel"
                             ? "bg-[#3AC6F4]/10 text-[#3AC6F4]"
+                            : e.source === "meta" || e.source === "whatsapp"
+                            ? "bg-green-500/10 text-green-400"
                             : "bg-white/10 text-white"
                         }`}
                       >
-                        {e.source === "paystack" ? "hubtel" : e.source}
+                        {e.source}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-semibold text-white/85">

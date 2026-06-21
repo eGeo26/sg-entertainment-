@@ -3,120 +3,112 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
+import PasswordInput from "@/app/(admin)/admin/components/PasswordInput"
 
 export default function SettingsConsolePage() {
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [adminPassword, setAdminPassword] = useState("admin")
-
-  // Password fields
+  const [loading, setLoading] = useState(false)
+  const [confirmWipe, setConfirmWipe] = useState(false)
+  
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [passwordSuccess, setPasswordSuccess] = useState("")
+  const [changingPassword, setChangingPassword] = useState(false)
 
-  // Password Gate Action protection
-  const [showPasswordGate, setShowPasswordGate] = useState(false)
-  const [passwordGateAction, setPasswordGateAction] = useState<() => void>(() => {})
-  const [gatePasswordInput, setGatePasswordInput] = useState("")
+  const handleWipeDatabase = async () => {
+    if (!confirmWipe) {
+      setConfirmWipe(true)
+      return
+    }
 
-  const fetchSettings = async () => {
+    setConfirmWipe(false)
+    toast.loading("Purging database records...", { id: "wipe-toast" })
     try {
-      const res = await fetch("/api/admin/settings")
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "WIPE_DATABASE" }),
+      })
       if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAdminPassword(data.admin_password || "admin")
+      toast.success("All data entries wiped successfully.", { id: "wipe-toast" })
     } catch {
-      toast.error("Failed to load settings.")
+      toast.error("Wipe operation failed.", { id: "wipe-toast" })
+    }
+  }
+
+  const handleSignOut = async () => {
+    const supabase = createBrowserSupabaseClient()
+    await supabase.auth.signOut()
+    window.location.href = "/admin/login"
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError("")
+    setPasswordSuccess("")
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All fields are required")
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match")
+      return
+    }
+
+    setChangingPassword(true)
+    try {
+      const supabase = createBrowserSupabaseClient()
+      
+      // First verify current password by attempting to sign in
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user?.email) {
+        throw new Error("Could not verify user session")
+      }
+
+      // Verify current password by attempting to re-authenticate
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      })
+
+      if (signInError) {
+        setPasswordError("Current password is incorrect")
+        return
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (updateError) {
+        throw new Error(updateError.message)
+      }
+
+      // Success
+      setPasswordSuccess("Password updated successfully")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setShowPasswordForm(false)
+      toast.success("Password changed successfully")
+    } catch (err: any) {
+      setPasswordError(err.message || "Failed to change password")
     } finally {
-      setLoading(false)
+      setChangingPassword(false)
     }
-  }
-
-  useEffect(() => {
-    fetchSettings()
-  }, [])
-
-  const triggerGate = (action: () => void) => {
-    setGatePasswordInput("")
-    setPasswordGateAction(() => action)
-    setShowPasswordGate(true)
-  }
-
-  const handlePasswordGateSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const realPassword = localStorage.getItem("slay_admin_password") || "admin"
-    if (gatePasswordInput === realPassword) {
-      setShowPasswordGate(false)
-      passwordGateAction()
-    } else {
-      toast.error("Invalid verification password!")
-    }
-  }
-
-  const handleUpdatePassword = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newPassword || newPassword !== confirmPassword) {
-      toast.error("Passwords do not match!")
-      return
-    }
-    if (newPassword.length < 4) {
-      toast.error("Password must be at least 4 characters long.")
-      return
-    }
-
-    triggerGate(async () => {
-      setSaving(true)
-      try {
-        const res = await fetch("/api/admin/settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "UPDATE_SETTINGS",
-            settings: {
-              admin_password: newPassword
-            }
-          })
-        })
-
-        if (!res.ok) throw new Error()
-        setAdminPassword(newPassword)
-        localStorage.setItem("slay_admin_password", newPassword)
-        toast.success("Administrator password updated successfully.")
-        setNewPassword("")
-        setConfirmPassword("")
-      } catch {
-        toast.error("Failed to update password.")
-      } finally {
-        setSaving(false)
-      }
-    })
-  }
-
-  const handleWipeDatabase = () => {
-    triggerGate(async () => {
-      toast.loading("Purging database records...", { id: "wipe-toast" })
-      try {
-        const res = await fetch("/api/admin/settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "WIPE_DATABASE" })
-        })
-        if (!res.ok) throw new Error()
-        toast.success("All data entries wiped successfully.", { id: "wipe-toast" })
-        fetchSettings()
-      } catch {
-        toast.error("Wipe operation failed.", { id: "wipe-toast" })
-      }
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse p-4 max-w-xl mx-auto">
-        <div className="h-8 bg-white/10 rounded w-1/4 mb-4" />
-        <div className="h-44 bg-white/5 rounded-xl mb-4" />
-        <div className="h-44 bg-white/5 rounded-xl" />
-      </div>
-    )
   }
 
   return (
@@ -124,11 +116,11 @@ export default function SettingsConsolePage() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Admin Settings</h1>
-        <p className="text-xs text-white/40 mt-1.5">Control security credentials, view studio details, and reset database</p>
+        <p className="text-xs text-white/40 mt-1.5">Studio details and system management</p>
       </div>
 
       <div className="space-y-6">
-        {/* Studio Information (Display only) */}
+        {/* Studio Information */}
         <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
           <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Studio Information</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -151,93 +143,145 @@ export default function SettingsConsolePage() {
           </div>
         </div>
 
-        {/* Credential update */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Change Administrator Password</h3>
-          <form onSubmit={handleUpdatePassword} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-[10px] text-white/40 uppercase tracking-widest font-bold">New Password</label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-white/50"
-              />
+        {/* Authentication Info */}
+        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-3">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Authentication</h3>
+          
+          {!showPasswordForm ? (
+            <div className="space-y-3">
+              <p className="text-[10px] text-white/40 leading-relaxed">
+                Manage your admin account security settings.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => setShowPasswordForm(true)}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/8 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider transition-all"
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/8 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider transition-all"
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="block text-[10px] text-white/40 uppercase tracking-widest font-bold">Confirm Password</label>
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-white/50"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-white hover:bg-neutral-200 text-black font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all sm:col-span-2 disabled:opacity-50"
-            >
-              {saving ? "Updating..." : "Verify & Change Password"}
-            </button>
-          </form>
-        </div>
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-white/45 mb-1.5 font-bold">
+                    Current Password
+                  </label>
+                  <PasswordInput
+                    value={currentPassword}
+                    onChange={setCurrentPassword}
+                    placeholder="Enter current password"
+                    disabled={changingPassword}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-white/45 mb-1.5 font-bold">
+                    New Password
+                  </label>
+                  <PasswordInput
+                    value={newPassword}
+                    onChange={setNewPassword}
+                    placeholder="Enter new password (min 6 characters)"
+                    disabled={changingPassword}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-white/45 mb-1.5 font-bold">
+                    Confirm New Password
+                  </label>
+                  <PasswordInput
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    placeholder="Confirm new password"
+                    disabled={changingPassword}
+                  />
+                </div>
+              </div>
 
-        {/* Database resets */}
-        <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-5 space-y-3.5">
-          <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider border-b border-red-500/10 pb-2">Destructive Zone</h3>
-          <p className="text-[10px] text-red-200/50 leading-relaxed">
-            Wipes all listings (bookings and customer reviews testimonials). Wiped data is permanent.
-          </p>
-          <button
-            onClick={handleWipeDatabase}
-            className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
-          >
-            Reset / Wipe All Storage
-          </button>
-        </div>
-      </div>
+              {passwordError && (
+                <div className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  {passwordError}
+                </div>
+              )}
 
-      {/* Password Gate Verification Modal */}
-      {showPasswordGate && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-          <div className="bg-[#111111] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Confirm Action</h3>
-            <p className="text-xs text-white/45 mb-4 leading-relaxed">
-              This is a critical operation (credential updates or database wipe). Please enter the admin password to verify.
-            </p>
-            <form onSubmit={handlePasswordGateSubmit} className="space-y-4">
-              <input
-                type="password"
-                required
-                value={gatePasswordInput}
-                onChange={(e) => setGatePasswordInput(e.target.value)}
-                placeholder="Enter password..."
-                className="w-full bg-white/5 border border-white/8 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-white/50"
-              />
-              <div className="flex gap-2 justify-end">
+              {passwordSuccess && (
+                <div className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="flex-1 py-2.5 bg-white/10 hover:bg-white/15 text-white border border-white/10 rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+                >
+                  {changingPassword ? "Updating..." : "Update Password"}
+                </button>
                 <button
                   type="button"
-                  onClick={() => setShowPasswordGate(false)}
-                  className="px-4 py-2 bg-white/5 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider"
+                  onClick={() => {
+                    setShowPasswordForm(false)
+                    setCurrentPassword("")
+                    setNewPassword("")
+                    setConfirmPassword("")
+                    setPasswordError("")
+                    setPasswordSuccess("")
+                  }}
+                  disabled={changingPassword}
+                  className="flex-1 py-2.5 bg-white/5 text-white/60 border border-white/10 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider"
-                >
-                  Verify
-                </button>
               </div>
             </form>
-          </div>
+          )}
         </div>
-      )}
+
+        {/* Destructive Zone */}
+        <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-5 space-y-3.5">
+          <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider border-b border-red-500/10 pb-2">Destructive Zone</h3>
+          <p className="text-[10px] text-red-200/50 leading-relaxed">
+            Wipes all bookings and customer reviews. This action is permanent and cannot be undone.
+          </p>
+          {confirmWipe ? (
+            <div className="space-y-2">
+              <p className="text-[10px] text-red-300 font-semibold">
+                Are you sure? Click again to confirm. This will permanently delete all records.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleWipeDatabase}
+                  disabled={loading}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white border border-red-500 rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+                >
+                  Yes, Wipe All Data
+                </button>
+                <button
+                  onClick={() => setConfirmWipe(false)}
+                  className="flex-1 py-2.5 bg-white/5 text-white/60 border border-white/10 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleWipeDatabase}
+              className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+            >
+              Reset / Wipe All Storage
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

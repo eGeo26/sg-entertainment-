@@ -2,41 +2,43 @@
 // GET /api/admin/stats — dashboard overview aggregates
 
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
-import { subDays, startOfDay, format } from "date-fns"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
+import { subDays, format } from "date-fns"
 
 export async function GET() {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
-    const [totalBookings, confirmedBookings, grantedSessions, revenueAgg] =
-      await Promise.all([
-        prisma.booking.count(),
-        prisma.booking.count({ where: { status: "CONFIRMED" } }),
-        prisma.booking.count({ where: { isDelivered: true } }),
-        prisma.booking.aggregate({
-          _sum: { amountGHS: true },
-          where: { status: "CONFIRMED" },
-        }),
-      ])
+    const supabase = createServiceClient()
+
+    // 1. Fetch counts
+    const [
+      { count: totalBookings },
+      { count: confirmedBookings },
+      { count: grantedSessions },
+      { data: revenueData }
+    ] = await Promise.all([
+      (supabase as any).from("bookings").select("*", { count: "exact", head: true }),
+      (supabase as any).from("bookings").select("*", { count: "exact", head: true }).eq("status", "CONFIRMED"),
+      (supabase as any).from("bookings").select("*", { count: "exact", head: true }).eq("is_delivered", true),
+      (supabase as any).from("bookings").select("amount_ghs").eq("status", "CONFIRMED")
+    ])
+
+    const totalRevenue = (revenueData ?? []).reduce((sum: number, item: any) => sum + item.amount_ghs, 0)
 
     // Revenue by day — last 30 days
-    const thirtyDaysAgo = subDays(new Date(), 30)
-    const recentBookings = await prisma.booking.findMany({
-      where: {
-        status: "CONFIRMED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: {
-        createdAt: true,
-        amountGHS: true,
-      },
-      orderBy: { createdAt: "asc" },
-    })
+    const thirtyDaysAgo = subDays(new Date(), 30).toISOString()
+    const { data: recentBookings, error: recentError } = await (supabase as any)
+      .from("bookings")
+      .select("created_at, amount_ghs")
+      .eq("status", "CONFIRMED")
+      .gte("created_at", thirtyDaysAgo)
+      .order("created_at", { ascending: true })
+
+    if (recentError) throw recentError
 
     // Group by day
     const dayMap = new Map<string, number>()
@@ -44,9 +46,9 @@ export async function GET() {
       const d = format(subDays(new Date(), i), "yyyy-MM-dd")
       dayMap.set(d, 0)
     }
-    for (const b of recentBookings) {
-      const d = format(b.createdAt, "yyyy-MM-dd")
-      dayMap.set(d, (dayMap.get(d) ?? 0) + b.amountGHS / 100)
+    for (const b of (recentBookings ?? [])) {
+      const d = format(new Date(b.created_at), "yyyy-MM-dd")
+      dayMap.set(d, (dayMap.get(d) ?? 0) + b.amount_ghs / 100)
     }
     const revenueByDay = Array.from(dayMap.entries()).map(([date, revenue]) => ({
       date,
@@ -54,38 +56,49 @@ export async function GET() {
     }))
 
     // Recent bookings (last 10)
-    const recentBookingsList = await prisma.booking.findMany({
-      take: 10,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        customerName: true,
-        customerEmail: true,
-        sessionDate: true,
-        startTime: true,
-        endTime: true,
-        durationHours: true,
-        studio: true,
-        amountGHS: true,
-        status: true,
-        paystackStatus: true,
-        anollaStatus: true,
-        anollaBookingId: true,
-        paystackReference: true,
-        createdAt: true,
-      },
-    })
+    const { data: recentBookingsList, error: listError } = await (supabase as any)
+      .from("bookings")
+      .select(`
+        id,
+        customer_name,
+        customer_email,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        studio,
+        amount_ghs,
+        status,
+        paystack_reference,
+        created_at
+      `)
+      .order("created_at", { ascending: false })
+      .limit(10)
+
+    if (listError) throw listError
+
+    const formattedRecentBookingsList = (recentBookingsList ?? []).map((b: any) => ({
+      id: b.id,
+      customerName: b.customer_name,
+      customerEmail: b.customer_email,
+      sessionDate: b.session_date,
+      startTime: b.start_time,
+      endTime: b.end_time,
+      durationHours: Number(b.duration_hours),
+      studio: b.studio,
+      amountGHS: b.amount_ghs / 100,
+      status: b.status,
+      hubtelReference: b.paystack_reference,
+      createdAt: b.created_at,
+    }))
 
     return NextResponse.json({
-      totalBookings,
-      confirmedBookings,
-      grantedSessions,
-      revenueGHS: (revenueAgg._sum.amountGHS ?? 0) / 100,
+      totalBookings: totalBookings ?? 0,
+      confirmedBookings: confirmedBookings ?? 0,
+      grantedSessions: grantedSessions ?? 0,
+      revenueGHS: totalRevenue / 100,
       revenueByDay,
-      recentBookings: recentBookingsList.map((b: any) => ({
-        ...b,
-        amountGHS: b.amountGHS / 100,
-      })),
+      recentBookings: formattedRecentBookingsList,
     })
   } catch (err) {
     console.error("[Admin Stats] Error:", err)

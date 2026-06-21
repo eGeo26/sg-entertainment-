@@ -1,37 +1,51 @@
 // app/api/admin/payments/route.ts
-// GET /api/admin/payments — Paystack transaction log from Booking table
+// GET /api/admin/payments — Payment transaction log from Booking table
 
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAdminSession, createServiceClient } from "@/lib/supabase"
 
 export async function GET() {
-  const session = await auth()
+  const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      paystackReference: { not: null },
-    },
-    select: {
-      id: true,
-      paystackReference: true,
-      paystackStatus: true,
-      customerName: true,
-      customerEmail: true,
-      customerPhone: true,
-      amountGHS: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-  })
+  try {
+    const supabase = createServiceClient()
 
-  return NextResponse.json({
-    payments: bookings.map((b: any) => ({
-      ...b,
-      amountGHS: b.amountGHS / 100,
-    })),
-  })
+    const { data: bookings, error } = await (supabase as any)
+      .from("bookings")
+      .select(`
+        id,
+        paystack_reference,
+        paystack_status,
+        customer_name,
+        customer_email,
+        customer_phone,
+        amount_ghs,
+        status,
+        created_at,
+        updated_at
+      `)
+      .not("paystack_reference", "is", null)
+      .order("created_at", { ascending: false })
+
+    if (error) throw error
+
+    const payments = (bookings ?? []).map((b: any) => ({
+      id: b.id,
+      hubtelReference: b.paystack_reference,
+      hubtelStatus: b.paystack_status,
+      customerName: b.customer_name,
+      customerEmail: b.customer_email,
+      customerPhone: b.customer_phone,
+      amountGHS: b.amount_ghs / 100,
+      status: b.status,
+      createdAt: b.created_at,
+      updatedAt: b.updated_at,
+    }))
+
+    return NextResponse.json({ payments })
+  } catch (err) {
+    console.error("[Admin Payments GET Error]:", err)
+    return NextResponse.json({ error: "Failed to fetch payments" }, { status: 500 })
+  }
 }
