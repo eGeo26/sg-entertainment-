@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const { data: booking, error: selectError } = await (supabase as any)
     .from("bookings")
     .select("*")
-    .eq("id", bookingId)
+    .or(`id.eq.${bookingId},booking_code.eq.${bookingId}`)
     .maybeSingle()
 
   if (selectError || !booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 })
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         paystack_status: "REVERSED",
         status: "REFUNDED",
       })
-      .eq("id", bookingId)
+      .eq("id", booking.id)
       .select()
       .single()
 

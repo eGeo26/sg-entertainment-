@@ -24,6 +24,7 @@ import {
 
 interface Booking {
   id: string
+  bookingCode: string
   customerName: string
   customerEmail: string
   sessionDate: string
@@ -53,6 +54,11 @@ export default function AdminDashboardPage() {
 
   // Avoid recharts hydration mismatch
   const [mounted, setMounted] = useState(false)
+
+  // Realtime subscription refs (must be at top level per React Rules of Hooks)
+  const unsubscribeRef = useRef<(() => void) | null>(null)
+  const isMountedRef = useRef(true)
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -109,9 +115,6 @@ export default function AdminDashboardPage() {
 
   // Subscribe to realtime booking events
   useEffect(() => {
-    const unsubscribeRef = useRef<(() => void) | null>(null)
-    const isMountedRef = useRef(true)
-
     async function setupRealtime() {
       // Clean up any existing subscription before creating a new one
       if (unsubscribeRef.current) {
@@ -454,7 +457,7 @@ export default function AdminDashboardPage() {
 
             <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-overlay)" }}>
               <Link
-                href={`/admin/bookings?search=${selectedBooking.id}`}
+                href={`/admin/bookings?search=${selectedBooking.bookingCode}`}
                 className="btn-gold text-xs uppercase tracking-wider"
               >
                 Manage Booking

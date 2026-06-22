@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 
 interface BookingData {
   id: string
+  bookingCode: string
   customerName: string
   customerPhone: string
   customerEmail: string
@@ -20,7 +21,27 @@ interface BookingData {
   isPaid: boolean
   isPacked: boolean
   isDelivered: boolean
+  createdAt?: string
+  created_at?: string
+  updated_at?: string
+  statusReceived?: boolean
+  statusReceivedAt?: string
+  statusPayment?: boolean
+  statusPaymentAt?: string
+  statusReviewed?: boolean
+  statusReviewedAt?: string
+  statusConfirmed?: boolean
+  statusConfirmedAt?: string
 }
+
+
+// Fixed stages for the progress stepper
+const PROGRESS_STAGES = [
+  { key: 'booking_received', label: 'Booking Received' },
+  { key: 'payment_confirmed', label: 'Payment Confirmed' },
+  { key: 'reviewed', label: 'Reviewed' },
+  { key: 'session_confirmed', label: 'Session Confirmed' },
+] as const
 
 export default function TrackBookingStatus() {
   const searchParams = useSearchParams()
@@ -28,13 +49,17 @@ export default function TrackBookingStatus() {
   const [booking, setBooking] = useState<BookingData | null>(null)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  const isMountedRef = useRef(true)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const idParam = searchParams.get("id")
     if (idParam) {
       const trimmed = idParam.trim()
       setBookingId(trimmed)
-      
+
       const fetchDirectly = async (id: string) => {
         setLoading(true)
         setSearched(true)
@@ -44,6 +69,7 @@ export default function TrackBookingStatus() {
           if (!res.ok) throw new Error("Booking not found")
           const data = await res.json()
           setBooking(data)
+          setLastUpdated(new Date())
         } catch (err) {
           console.error(err)
           toast.error("Could not retrieve booking details. Please verify the ID.")
@@ -54,6 +80,51 @@ export default function TrackBookingStatus() {
       fetchDirectly(trimmed)
     }
   }, [searchParams])
+
+  // Simple polling for booking updates (every 3000ms)
+  useEffect(() => {
+    if (!booking) return
+
+    const pollBooking = async () => {
+      if (!isMountedRef.current) return
+
+      try {
+        const res = await fetch(`/api/bookings/${booking.bookingCode}`)
+        if (res.ok) {
+          const data = await res.json()
+          setBooking(data)
+          setLastUpdated(new Date())
+        }
+      } catch (err) {
+        console.error("[Customer Tracking] Polling error:", err)
+      }
+    }
+
+    // Initial poll after 1 second
+    const initialPoll = setTimeout(pollBooking, 1000)
+
+    // Set up recurring poll every 3 seconds
+    pollingIntervalRef.current = setInterval(pollBooking, 3000)
+
+    return () => {
+      clearTimeout(initialPoll)
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [booking])
+
+  // Update relative timestamp every second
+  useEffect(() => {
+    if (!lastUpdated) return
+
+    const interval = setInterval(() => {
+      // This triggers a re-render to update the relative time display
+      setLastUpdated(prev => prev)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [lastUpdated])
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,6 +143,7 @@ export default function TrackBookingStatus() {
       }
       const data = await res.json()
       setBooking(data)
+      setLastUpdated(new Date())
       toast.success("Booking retrieved successfully")
     } catch (err: any) {
       console.error(err)
@@ -83,9 +155,86 @@ export default function TrackBookingStatus() {
 
   const handleCopyId = () => {
     if (booking) {
-      navigator.clipboard.writeText(booking.id)
+      navigator.clipboard.writeText(booking.bookingCode)
       toast.success("Booking ID copied to clipboard!")
     }
+  }
+
+  const getRelativeTime = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
+    if (seconds < 60) return `${seconds}s ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    return `${Math.floor(seconds / 3600)}h ago`
+  }
+
+  // Get timestamp for each stage from boolean columns
+  const getStageTimestamp = (stageKey: string): string | null => {
+    if (!booking) return null
+
+    switch (stageKey) {
+      case 'booking_received':
+        // Step 1: status_received_at
+        return booking.statusReceivedAt || booking.createdAt || booking.created_at || null
+      case 'payment_confirmed':
+        // Step 2: status_payment_at
+        return booking.statusPaymentAt || null
+      case 'reviewed':
+        // Step 3: status_reviewed_at
+        return booking.statusReviewedAt || null
+      case 'session_confirmed':
+        // Step 4: status_confirmed_at
+        return booking.statusConfirmedAt || null
+      default:
+        return null
+    }
+  }
+
+  // Check if a stage has been reached (boolean is true)
+  const isStageReached = (stageKey: string): boolean => {
+    if (!booking) return false
+
+    switch (stageKey) {
+      case 'booking_received':
+        return booking.statusReceived === true
+      case 'payment_confirmed':
+        return booking.statusPayment === true
+      case 'reviewed':
+        return booking.statusReviewed === true
+      case 'session_confirmed':
+        return booking.statusConfirmed === true
+      default:
+        return false
+    }
+  }
+
+  // Determine which stage is currently active (first unreached stage)
+  const getActiveStageIndex = (): number => {
+    for (let i = 0; i < PROGRESS_STAGES.length; i++) {
+      if (!isStageReached(PROGRESS_STAGES[i].key)) {
+        return i
+      }
+    }
+    return PROGRESS_STAGES.length - 1 // All stages reached, last one is active
+  }
+
+  // Calculate progress line fill percentage
+  const getProgressFillPercentage = (): number => {
+    const completedCount = PROGRESS_STAGES.filter(stage => isStageReached(stage.key)).length
+    if (completedCount <= 1) return 0
+    return ((completedCount - 1) / (PROGRESS_STAGES.length - 1)) * 100
+  }
+
+  // Format timestamp as "20 Jun, 03:35 am"
+  const formatStageTimestamp = (timestamp: string | null): string => {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    const day = date.getDate()
+    const month = date.toLocaleString('en-US', { month: 'short' })
+    const hours = date.getHours()
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    const ampm = hours >= 12 ? 'pm' : 'am'
+    const displayHours = hours % 12 || 12
+    return `${day} ${month}, ${displayHours}:${minutes} ${ampm}`
   }
 
   return (
@@ -134,13 +283,26 @@ export default function TrackBookingStatus() {
           
           {/* Header & Copy block */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "#C5A880" }}>Booking Details</p>
-              <div className="mt-1 flex items-center gap-2.5">
-                <span className="font-mono text-sm font-semibold" style={{ color: "#C5A880" }}>
-                  {booking.id.replace(/-/g, "").slice(0, 8).toUpperCase()}
-                </span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "#C5A880" }}>Booking Details</p>
+                <div className="mt-1 flex items-center gap-2.5">
+                  <span className="font-mono text-sm font-semibold" style={{ color: "#C5A880" }}>
+                    {booking.bookingCode}
+                  </span>
+                </div>
               </div>
+              {lastUpdated && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-[9px] text-white/40 uppercase tracking-wider">
+                    Live
+                  </span>
+                  <span className="text-[9px] text-white/30">
+                    Updated {getRelativeTime(lastUpdated)}
+                  </span>
+                </div>
+              )}
             </div>
             <button
               onClick={handleCopyId}
@@ -154,100 +316,88 @@ export default function TrackBookingStatus() {
             </button>
           </div>
 
-          {/* Session Progress — matches booking StepIndicator layout */}
+          {/* Session Progress — 4-stage stepper based on booking_status_history */}
           <div className="py-2">
             <h4 className="text-[10px] uppercase tracking-widest font-bold mb-5 text-center" style={{ color: "#C5A880" }}>Session Progress</h4>
 
             {/* Row 1: circles + connectors */}
             <div className="flex items-center">
+              {PROGRESS_STAGES.map((stage, index) => {
+                const isReached = isStageReached(stage.key)
+                const timestamp = getStageTimestamp(stage.key)
+                const activeStageIndex = getActiveStageIndex()
+                const isActive = index === activeStageIndex
+                const isLast = index === PROGRESS_STAGES.length - 1
+                // Connector is filled if the current step is reached (meaning path to next step is complete)
+                const connectorFilled = isReached
 
-              {/* Step 1: Paid */}
-              <div className="flex items-center flex-1 last:flex-none">
-                <div
-                  className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200"
-                  style={
-                    booking.isPaid
-                      ? { background: "#C5A880", color: "#000" }
-                      : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.25)" }
-                  }
-                >
-                  {booking.isPaid ? (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : 1}
-                </div>
-                {/* Connector to step 2 */}
-                <div
-                  className="flex-1 h-px mx-1.5 transition-all duration-300"
-                  style={{ background: booking.isPaid ? "#C5A880" : "rgba(255,255,255,0.10)" }}
-                />
-              </div>
-
-              {/* Step 2: Reviewed */}
-              <div className="flex items-center flex-1 last:flex-none">
-                <div
-                  className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200"
-                  style={
-                    booking.isPacked
-                      ? { background: "#C5A880", color: "#000" }
-                      : booking.isPaid
-                      ? { background: "rgba(255,255,255,0.08)", border: "2px solid #C5A880", color: "#C5A880" }
-                      : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.25)" }
-                  }
-                >
-                  {booking.isPacked ? (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : 2}
-                </div>
-                {/* Connector to step 3 */}
-                <div
-                  className="flex-1 h-px mx-1.5 transition-all duration-300"
-                  style={{ background: booking.isPacked ? "#C5A880" : "rgba(255,255,255,0.10)" }}
-                />
-              </div>
-
-              {/* Step 3: Granted */}
-              <div className="flex items-center last:flex-none">
-                <div
-                  className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200"
-                  style={
-                    booking.isDelivered
-                      ? { background: "#C5A880", color: "#000" }
-                      : booking.isPacked
-                      ? { background: "rgba(255,255,255,0.08)", border: "2px solid #C5A880", color: "#C5A880" }
-                      : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.25)" }
-                  }
-                >
-                  {booking.isDelivered ? (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : 3}
-                </div>
-              </div>
-
+                return (
+                  <div key={stage.key} className="flex items-center flex-1 last:flex-none">
+                    {/* Circle */}
+                    <div
+                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
+                      style={
+                        isReached
+                          ? { background: "#C5A880", color: "#000" }
+                          : isActive
+                          ? { background: "transparent", border: "2px solid #C5A880", color: "#C5A880" }
+                          : { background: "transparent", border: "2px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.3)" }
+                      }
+                    >
+                      {isReached ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : index + 1}
+                    </div>
+                    {/* Connector to next step */}
+                    {!isLast && (
+                      <div
+                        className="flex-1 h-0.5 mx-2 transition-all duration-300"
+                        style={{
+                          background: connectorFilled ? "#C5A880" : "rgba(255,255,255,0.15)"
+                        }}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
-            {/* Row 2: labels — pinned to circle positions via grid */}
-            <div className="grid mt-2" style={{ gridTemplateColumns: "28px 1fr 28px" }}>
-              <div className="flex justify-center">
-                <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: booking.isPaid ? "#C5A880" : "rgba(255,255,255,0.25)" }}>
-                  Paid
-                </span>
-              </div>
-              <div className="flex justify-center">
-                <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: booking.isPacked ? "#C5A880" : booking.isPaid ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)" }}>
-                  Reviewed
-                </span>
-              </div>
-              <div className="flex justify-center">
-                <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: booking.isDelivered ? "#C5A880" : booking.isPacked ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)" }}>
-                  Granted
-                </span>
-              </div>
+            {/* Row 2: labels */}
+            <div className="grid mt-3" style={{ gridTemplateColumns: `repeat(${PROGRESS_STAGES.length}, 1fr)` }}>
+              {PROGRESS_STAGES.map((stage, index) => {
+                const isReached = isStageReached(stage.key)
+                const timestamp = getStageTimestamp(stage.key)
+                const activeStageIndex = getActiveStageIndex()
+                const isActive = index === activeStageIndex
+
+                return (
+                  <div key={stage.key} className="flex flex-col items-center">
+                    <span
+                      className="text-[10px] font-semibold whitespace-nowrap"
+                      style={{
+                        color: isReached
+                          ? "#C5A880"
+                          : isActive
+                          ? "#C5A880"
+                          : "rgba(255,255,255,0.3)"
+                      }}
+                    >
+                      {stage.label}
+                    </span>
+                    {/* Timestamp underneath for completed steps */}
+                    {isReached && timestamp && (
+                      <span
+                        className="text-[9px] font-medium mt-1 whitespace-nowrap"
+                        style={{ color: "#C5A880" }}
+                      >
+                        {formatStageTimestamp(timestamp)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
           </div>

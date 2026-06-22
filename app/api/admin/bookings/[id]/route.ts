@@ -98,6 +98,24 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update booking" }, { status: 500 })
   }
 
+  // If customer message is provided, save it to booking_status_history
+  if (body.customerMessage && body.customerMessage.trim()) {
+    try {
+      await (supabase as any)
+        .from("booking_status_history")
+        .insert({
+          booking_id: params.id,
+          status: body.status || updated.status,
+          label: body.customerMessage.trim(),
+          is_admin_message: true,          // ← marks this as an explicit admin-written message
+          created_at: new Date().toISOString()
+        })
+    } catch (historyError) {
+      console.error("[Admin Booking PATCH] Failed to save customer message to history:", historyError)
+      // Don't fail the whole request if history insert fails
+    }
+  }
+
   return NextResponse.json(mapDbToCamel(updated))
 }
 

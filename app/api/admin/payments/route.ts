@@ -15,6 +15,7 @@ export async function GET() {
       .from("bookings")
       .select(`
         id,
+        booking_code,
         paystack_reference,
         paystack_status,
         customer_name,
@@ -32,6 +33,7 @@ export async function GET() {
 
     const payments = (bookings ?? []).map((b: any) => ({
       id: b.id,
+      bookingCode: b.booking_code,
       hubtelReference: b.paystack_reference,
       hubtelStatus: b.paystack_status,
       customerName: b.customer_name,

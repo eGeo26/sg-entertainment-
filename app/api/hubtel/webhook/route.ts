@@ -96,13 +96,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Amount mismatch" }, { status: 400 })
   }
 
-  // 5. Update Database Booking Status to CONFIRMED
+  // 5. Update Database Booking Status to CONFIRMED and set payment status columns
   const { error: updateError } = await (supabase as any)
     .from("bookings")
     .update({
       paystack_status: "SUCCESS",
       status: "CONFIRMED",
       is_paid: true,
+      status_payment: true,
+      status_payment_at: new Date().toISOString(),
     })
     .eq("id", booking.id)
 

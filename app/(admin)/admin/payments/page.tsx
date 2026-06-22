@@ -7,6 +7,7 @@ import StatusBadge from "../components/StatusBadge"
 
 interface Payment {
   id: string
+  bookingCode: string
   hubtelReference: string
   hubtelStatus: string
   customerName: string
@@ -64,7 +65,7 @@ export default function PaymentsLedgerPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bookingId: refundTarget.id,
+          bookingId: refundTarget.bookingCode,
           reason: refundReason || "Admin requested refund",
         }),
       })
@@ -105,7 +106,7 @@ export default function PaymentsLedgerPage() {
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id)
-    toast.success(`Copied ID: ${id.slice(0, 8)}`)
+    toast.success(`Copied ID: ${id}`)
   }
 
   return (
@@ -181,10 +182,10 @@ export default function PaymentsLedgerPage() {
                         </p>
                         <p
                           className="text-[10px] text-white/30 font-mono mt-0.5 cursor-pointer hover:text-white/60 transition-colors"
-                          onClick={() => handleCopyId(p.id)}
+                          onClick={() => handleCopyId(p.bookingCode)}
                           title="Click to copy full Booking ID"
                         >
-                          Booking: {p.id.slice(0, 8)}
+                          Booking: {p.bookingCode}
                         </p>
                       </div>
                     </td>

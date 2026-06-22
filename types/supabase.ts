@@ -116,6 +116,8 @@ export interface Database {
           created_at: string
           status: string
           notes: string | null
+          label: string | null
+          is_admin_message: boolean
         }
         Insert: {
           id?: string
@@ -123,6 +125,8 @@ export interface Database {
           created_at?: string
           status: string
           notes?: string | null
+          label?: string | null
+          is_admin_message?: boolean
         }
         Update: {
           id?: string
@@ -130,6 +134,8 @@ export interface Database {
           created_at?: string
           status?: string
           notes?: string | null
+          label?: string | null
+          is_admin_message?: boolean
         }
       }
       blocked_slots: {

@@ -76,7 +76,7 @@ export default function BookingFlow() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Failed to create booking")
       
-      // Store initiated ID for floating tracking bar
+      // Store initiated booking code for floating tracking bar
       localStorage.setItem("last_initiated_booking_id", json.bookingId)
 
       window.location.href = json.authorizationUrl

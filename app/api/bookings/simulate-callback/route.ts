@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const { data: booking, error: selectError } = await (supabase as any)
       .from("bookings")
       .select("*")
-      .eq("id", bookingId)
+      .eq("booking_code", bookingId)
       .maybeSingle()
 
     if (selectError || !booking) {
@@ -44,15 +44,17 @@ export async function POST(req: NextRequest) {
         }
       } catch (webhookErr) {
         console.error("[Simulated Payment] Webhook simulation failed, falling back to direct DB update:", webhookErr)
-        
+
         await (supabase as any)
           .from("bookings")
           .update({
             status: "CONFIRMED",
             paystack_status: "SUCCESS",
             is_paid: true,
+            status_payment: true,
+            status_payment_at: new Date().toISOString(),
           })
-          .eq("id", bookingId)
+          .eq("booking_code", bookingId)
       }
     } else {
       await (supabase as any)
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
           status: "FAILED",
           paystack_status: "FAILED",
         })
-        .eq("id", bookingId)
+        .eq("booking_code", bookingId)
       console.log(`[Simulated Payment] Booking ${bookingId} marked as failed via simulation.`)
     }
 

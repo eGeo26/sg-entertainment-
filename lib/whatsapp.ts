@@ -92,7 +92,7 @@ Hi ${d.customerName}! Your studio session is confirmed. Here are your booking de
 🎙️ *Studio:* ${d.studio}
 🎛️ *Equipment:* ${equipmentList}
 💰 *Amount Paid:* ${formatGHS(d.amountGHS)}
-🔖 *Reference:* ${d.bookingId.slice(0, 8).toUpperCase()}
+🔖 *Reference:* ${d.bookingId}
 
 Custom Booking ID: ${d.paystackReference}
 📍 *Location:* Taifa, Accra, Ghana
@@ -125,7 +125,7 @@ A new paid booking has been confirmed!
 🎛️ *Equipment:* ${equipmentList}
 💰 *Revenue:* ${formatGHS(d.amountGHS)}
 💳 *Hubtel Ref:* ${d.paystackReference}
-🆔 *Booking ID:* ${d.bookingId.slice(0, 8).toUpperCase()}
+🆔 *Booking ID:* ${d.bookingId}
 
 ${d.notes ? `📝 *Client notes:* ${d.notes}` : ""}
 `.trim()
@@ -139,7 +139,7 @@ Hi ${d.customerName}, your booking has been cancelled.
 
 📅 *Date:* ${d.sessionDate}
 ⏰ *Time:* ${d.startTime} – ${d.endTime}
-🔖 *Reference:* ${d.bookingId.slice(0, 8).toUpperCase()}
+🔖 *Reference:* ${d.bookingId}
 
 Your refund of *${formatGHS(d.amountGHS)}* will be processed within 3–5 business days.
 
@@ -183,7 +183,7 @@ export async function sendCancellationNotifications(
   }
 
   try {
-    const ownerMsg = `❌ *Booking Cancelled*\nClient: ${data.customerName}\nDate: ${data.sessionDate} ${data.startTime}–${data.endTime}\nRef: ${data.bookingId.slice(0, 8).toUpperCase()}`
+    const ownerMsg = `❌ *Booking Cancelled*\nClient: ${data.customerName}\nDate: ${data.sessionDate} ${data.startTime}–${data.endTime}\nRef: ${data.bookingId}`
     await sendWhatsApp(OWNER_NUMBER, ownerMsg)
   } catch (err) {
     console.error("[Meta WhatsApp] Failed to send cancellation to owner:", err)

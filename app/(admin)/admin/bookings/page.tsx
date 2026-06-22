@@ -10,6 +10,7 @@ import { toast } from "sonner"
 
 interface Booking {
   id: string
+  bookingCode: string
   createdAt: string
   updatedAt: string
   customerName: string
@@ -64,6 +65,9 @@ function BookingsContent() {
   // Data States
   const [data, setData] = useState<FetchBookingsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("disconnected")
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [newBookingIds, setNewBookingIds] = useState<Set<string>>(new Set())
 
   // Selection States
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -75,10 +79,15 @@ function BookingsContent() {
   // Logistics local states in inspector
   const [editAdminNotes, setEditAdminNotes] = useState("")
   const [editEstDeliveryTime, setEditEstDeliveryTime] = useState("")
+  const [editCustomerMessage, setEditCustomerMessage] = useState("")
 
   const [isUpdating, setIsUpdating] = useState(false)
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
+  const [markingReviewed, setMarkingReviewed] = useState(false)
   const [showManualModal, setShowManualModal] = useState(false)
+
+  // Mutating lock - suppress polling for 8 seconds after admin makes a change
+  const [mutationLock, setMutationLock] = useState(false)
 
   // Receipt Modal
   const [receiptBooking, setReceiptBooking] = useState<Booking | null>(null)
@@ -130,6 +139,79 @@ function BookingsContent() {
     fetchBookings()
   }, [fetchBookings])
 
+  // Polling safety net - every 3 seconds check for new bookings
+  useEffect(() => {
+    const pollBookings = async () => {
+      // Skip polling if mutation lock is active (admin just made a change)
+      if (mutationLock) return
+
+      try {
+        const q = new URLSearchParams()
+        if (search) q.set("search", search)
+        if (status !== "ALL") q.set("status", status)
+        if (fromDate) q.set("from", fromDate)
+        if (toDate) q.set("to", toDate)
+        q.set("page", page.toString())
+        q.set("limit", "25")
+
+        const res = await fetch(`/api/admin/bookings?${q.toString()}`)
+        if (res.ok) {
+          const result = await res.json()
+
+          // Deduplication: Only add bookings that don't already exist by ID
+          const existingIds = data?.bookings ? new Set(data.bookings.map(b => b.id)) : new Set()
+          const newBookings = result.bookings.filter((b: Booking) => !existingIds.has(b.id))
+
+          if (newBookings.length > 0) {
+            console.log("[Admin Dashboard] Polling found new bookings:", newBookings.length)
+            setData(result)
+            const newIds = newBookings.map((b: Booking) => b.id as string)
+            setNewBookingIds(prev => {
+              const updated = new Set(prev)
+              newIds.forEach((id: string) => updated.add(id))
+              return updated
+            })
+            setLastUpdated(new Date())
+          }
+        }
+      } catch (err) {
+        console.error("[Admin Dashboard] Polling error:", err)
+      }
+    }
+
+    // Initial poll after initial load
+    const initialPoll = setTimeout(pollBookings, 1000)
+
+    // Set up recurring poll every 3 seconds
+    const pollingInterval = setInterval(pollBookings, 3000)
+
+    return () => {
+      clearTimeout(initialPoll)
+      clearInterval(pollingInterval)
+    }
+  }, [search, status, fromDate, toDate, page, data])
+
+  // Clear new booking highlight after 5 seconds
+  useEffect(() => {
+    if (newBookingIds.size > 0) {
+      const timeout = setTimeout(() => {
+        setNewBookingIds(new Set())
+      }, 5000)
+      return () => clearTimeout(timeout)
+    }
+  }, [newBookingIds])
+
+  // Update relative timestamp every second
+  useEffect(() => {
+    if (!lastUpdated) return
+
+    const interval = setInterval(() => {
+      setLastUpdated(prev => prev)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [lastUpdated])
+
   // Recalculate manual booking price on change
   useEffect(() => {
     if (!manualForm.isPriceOverridden) {
@@ -140,6 +222,13 @@ function BookingsContent() {
       setManualForm((prev) => ({ ...prev, amountGHS: total }))
     }
   }, [manualForm.durationHours, manualForm.equipment, manualForm.isPriceOverridden])
+
+  const getRelativeTime = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
+    if (seconds < 60) return `${seconds}s ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    return `${Math.floor(seconds / 3600)}h ago`
+  }
 
   const openInspection = (booking: Booking) => {
     setInspectedBooking(booking)
@@ -159,7 +248,8 @@ function BookingsContent() {
         body: JSON.stringify({
           status: editStatus,
           adminNotes: editAdminNotes,
-          estimatedDeliveryTime: editEstDeliveryTime
+          estimatedDeliveryTime: editEstDeliveryTime,
+          customerMessage: editCustomerMessage
         }),
       })
 
@@ -168,6 +258,7 @@ function BookingsContent() {
 
       toast.success("Booking changes saved successfully")
       setInspectedBooking(updated)
+      setEditCustomerMessage("") // Clear customer message after sending
       fetchBookings()
     } catch (err) {
       console.error(err)
@@ -215,7 +306,37 @@ function BookingsContent() {
         fetchBookings()
     } catch (err) {
       console.error(err)
-      toast.error("Could not cancel booking")
+      toast.error("Failed to cancel booking")
+    }
+  }
+
+  const handleMarkAsReviewed = async () => {
+    if (!inspectedBooking) return
+    setMarkingReviewed(true)
+    // Set mutation lock to suppress polling for 8 seconds
+    setMutationLock(true)
+    try {
+      const res = await fetch(`/api/admin/bookings/${inspectedBooking.id}/review`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        if (error.error === "Booking already reviewed") {
+          toast.error("This booking has already been reviewed")
+        } else {
+          throw new Error("Failed to mark as reviewed")
+        }
+        return
+      }
+      toast.success("Booking marked as reviewed")
+      fetchBookings()
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to mark booking as reviewed")
+    } finally {
+      setMarkingReviewed(false)
+      // Clear mutation lock after 8 seconds
+      setTimeout(() => setMutationLock(false), 8000)
     }
   }
 
@@ -348,7 +469,7 @@ function BookingsContent() {
     }
     const headers = ["Booking ID", "Created At", "Customer Name", "Customer Email", "Customer Phone", "Session Date", "Start Time", "End Time", "Duration (Hrs)", "Paid GHS", "Fulfillment Status", "Simulation Status"]
     const rows = data.bookings.map(b => [
-      b.id,
+      b.bookingCode,
       b.createdAt,
       b.customerName,
       b.customerEmail,
@@ -414,9 +535,21 @@ function BookingsContent() {
 
       {/* Action panel */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Bookings Log Console</h1>
-          <p className="text-xs text-white/40 mt-1.5">Manage session bookings, pipeline logistics, and print invoices</p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div>
+            <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Bookings Log Console</h1>
+            <p className="text-xs text-white/40 mt-1.5">Manage session bookings, pipeline logistics, and print invoices</p>
+          </div>
+          {/* Live indicator */}
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[9px] text-white/40 uppercase tracking-wider">Live</span>
+            {lastUpdated && (
+              <span className="text-[9px] text-white/30">
+                Updated {getRelativeTime(lastUpdated)}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
@@ -533,7 +666,14 @@ function BookingsContent() {
                 data.bookings.map((b) => {
                   const isDuplicate = hasDuplicateWarning(b, data.bookings)
                   return (
-                    <tr key={b.id} className="hover:bg-white/[0.01] transition-colors text-xs">
+                    <tr 
+                      key={b.id} 
+                      className={`hover:bg-white/[0.01] transition-colors text-xs ${
+                        newBookingIds.has(b.id) 
+                          ? "bg-white/[0.08] animate-in slide-in-from-top-2 fade-in duration-300" 
+                          : ""
+                      }`}
+                    >
                       <td className="px-4 py-4 text-center">
                         <input
                           type="checkbox"
@@ -674,7 +814,7 @@ function BookingsContent() {
             <div className="flex items-center justify-between p-5 border-b border-white/5">
               <div>
                 <h3 className="text-xs font-bold tracking-widest text-[#FFFFFF] uppercase">Session Details</h3>
-                <p className="text-[9px] text-white/30 font-mono mt-0.5">{inspectedBooking.id}</p>
+                <p className="text-[9px] text-white/30 font-mono mt-0.5">{inspectedBooking.bookingCode}</p>
               </div>
               <button
                 onClick={() => setInspectedBooking(null)}
@@ -710,6 +850,27 @@ function BookingsContent() {
                   <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
                   <div className="mt-1"><StatusBadge status={inspectedBooking.status} /></div>
                 </div>
+              </div>
+
+              {/* Customer Note */}
+              {inspectedBooking.notes && (
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                  <span className="block text-[9px] text-white/40 uppercase tracking-widest font-bold mb-2">Customer Note</span>
+                  <p className="text-white/70 text-xs leading-relaxed">{inspectedBooking.notes}</p>
+                </div>
+              )}
+
+              {/* Customer-facing status message */}
+              <div className="space-y-1.5">
+                <span className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Customer Status Message (optional)</span>
+                <textarea
+                  value={editCustomerMessage}
+                  onChange={(e) => setEditCustomerMessage(e.target.value)}
+                  placeholder="Add a message for the customer (e.g., 'Confirmed — see you Thursday at 2PM')"
+                  rows={2}
+                  className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF] resize-none"
+                />
+                <p className="text-[9px] text-white/30">This message will be visible to the customer on their tracking page</p>
               </div>
 
               {/* Delivery / Session controls */}
@@ -762,6 +923,13 @@ function BookingsContent() {
                 className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
               >
                 Send WhatsApp
+              </button>
+              <button
+                onClick={handleMarkAsReviewed}
+                disabled={markingReviewed}
+                className="px-4 py-2 bg-[#C5A880] hover:bg-[#b0936b] text-black text-xs font-bold rounded-xl transition-all disabled:opacity-50 uppercase tracking-wider"
+              >
+                {markingReviewed ? "Marking..." : "Mark as Reviewed"}
               </button>
               <button
                 onClick={handleUpdateStatuses}
@@ -1013,7 +1181,7 @@ function BookingsContent() {
               <div className="space-y-1.5 text-[11px]">
                 <div className="flex justify-between">
                   <span>RECEIPT ID:</span>
-                  <span className="font-bold">{receiptBooking.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="font-bold">{receiptBooking.bookingCode}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>DATE:</span>

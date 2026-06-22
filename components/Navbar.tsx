@@ -97,7 +97,7 @@ export default function Navbar() {
           <span className="text-white/60">
             Payment initiated! Reference ID:{" "}
             <span className="font-mono font-bold text-[#C5A880]">
-              {lastBookingId.replace(/-/g, "").slice(0, 8).toUpperCase()}
+              {lastBookingId}
             </span>
           </span>
           <div className="flex items-center gap-2">

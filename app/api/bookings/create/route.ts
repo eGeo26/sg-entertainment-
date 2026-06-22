@@ -101,10 +101,10 @@ export async function POST(req: NextRequest) {
 
     if (isSimulationMode || !process.env.HUBTEL_CLIENT_ID) {
       console.log("[Booking] Payment simulation active. Routing to simulated payment portal.")
-      const simulateUrl = `${appUrl}/booking/simulate-payment?reference=${reference}&booking_id=${bookingId}`
+      const simulateUrl = `${appUrl}/booking/simulate-payment?reference=${reference}&booking_id=${reference}`
       
       return NextResponse.json({
-        bookingId,
+        bookingId: reference,
         paystackReference: reference,
         authorizationUrl: simulateUrl,
         amount: pesewas,
@@ -117,11 +117,11 @@ export async function POST(req: NextRequest) {
       description: `Studio Session: ${data.sessionDate} (${data.startTime} - ${endTime})`,
       clientReference: reference,
       callbackUrl: `${appUrl}/api/hubtel/webhook`,
-      returnUrl: `${appUrl}/success?reference=${reference}&booking_id=${bookingId}`,
+      returnUrl: `${appUrl}/success?reference=${reference}&booking_id=${reference}`,
     })
 
     return NextResponse.json({
-      bookingId,
+      bookingId: reference,
       paystackReference: reference,
       authorizationUrl: hubtelData.checkoutUrl,
       amount: pesewas,

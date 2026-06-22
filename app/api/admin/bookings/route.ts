@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
     // Map DB rows to camelCase
     const formattedBookings = (bookings ?? []).map((b: any) => ({
       id: b.id,
+      bookingCode: b.booking_code,
       customerName: b.customer_name,
       customerEmail: b.customer_email,
       customerPhone: b.customer_phone,

@@ -18,6 +18,13 @@ export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+  // Server-side logging to verify service role key is being used (never exposed to browser)
+  console.log("[Supabase Service Client] Configuration check:")
+  console.log("  - NEXT_PUBLIC_SUPABASE_URL defined:", !!url)
+  console.log("  - SUPABASE_SERVICE_ROLE_KEY defined:", !!key)
+  console.log("  - SUPABASE_SERVICE_ROLE_KEY type:", typeof key)
+  console.log("  - SUPABASE_SERVICE_ROLE_KEY length:", key?.length || 0)
+
   if (!url || !key) {
     throw new Error(
       "[Supabase] NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set. " +
