@@ -43,6 +43,14 @@ export interface Database {
           is_delivered: boolean
           admin_notes: string | null
           estimated_delivery_time: string | null
+          status_received: boolean | null
+          status_received_at: string | null
+          status_payment: boolean | null
+          status_payment_at: string | null
+          status_reviewed: boolean | null
+          status_reviewed_at: string | null
+          status_confirmed: boolean | null
+          status_confirmed_at: string | null
         }
         Insert: {
           id?: string
@@ -75,6 +83,14 @@ export interface Database {
           is_delivered?: boolean
           admin_notes?: string | null
           estimated_delivery_time?: string | null
+          status_received?: boolean | null
+          status_received_at?: string | null
+          status_payment?: boolean | null
+          status_payment_at?: string | null
+          status_reviewed?: boolean | null
+          status_reviewed_at?: string | null
+          status_confirmed?: boolean | null
+          status_confirmed_at?: string | null
         }
         Update: {
           id?: string
@@ -107,6 +123,14 @@ export interface Database {
           is_delivered?: boolean
           admin_notes?: string | null
           estimated_delivery_time?: string | null
+          status_received?: boolean | null
+          status_received_at?: string | null
+          status_payment?: boolean | null
+          status_payment_at?: string | null
+          status_reviewed?: boolean | null
+          status_reviewed_at?: string | null
+          status_confirmed?: boolean | null
+          status_confirmed_at?: string | null
         }
       }
       booking_status_history: {

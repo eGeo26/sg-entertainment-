@@ -4,6 +4,7 @@
 // Refunds must be initiated manually through the Hubtel merchant dashboard.
 // This route updates the booking status in the database to REFUNDED so the
 // admin panel reflects the change immediately after processing in Hubtel.
+export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"

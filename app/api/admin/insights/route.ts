@@ -1,4 +1,5 @@
 // app/api/admin/insights/route.ts
+export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { startOfMonth, subMonths, endOfMonth } from "date-fns"

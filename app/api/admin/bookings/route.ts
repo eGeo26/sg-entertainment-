@@ -2,6 +2,7 @@
 // GET  /api/admin/bookings — list all bookings (with filters)
 // POST /api/admin/bookings — create a manual booking
 // DELETE /api/admin/bookings — bulk delete bookings
+export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
@@ -98,6 +99,12 @@ export async function GET(req: NextRequest) {
       hubtelReference: b.paystack_reference,
       hubtelStatus: b.paystack_status,
       status: b.status,
+      statusPayment: b.status_payment,
+      statusPaymentAt: b.status_payment_at,
+      statusReviewed: b.status_reviewed,
+      statusReviewedAt: b.status_reviewed_at,
+      statusConfirmed: b.status_confirmed,
+      statusConfirmedAt: b.status_confirmed_at,
       isPaid: b.is_paid,
       isPacked: b.is_packed,
       isDispatched: b.is_dispatched,
@@ -202,6 +209,12 @@ export async function POST(req: NextRequest) {
       hubtelReference: booking.paystack_reference,
       hubtelStatus: booking.paystack_status,
       status: booking.status,
+      statusPayment: booking.status_payment,
+      statusPaymentAt: booking.status_payment_at,
+      statusReviewed: booking.status_reviewed,
+      statusReviewedAt: booking.status_reviewed_at,
+      statusConfirmed: booking.status_confirmed,
+      statusConfirmedAt: booking.status_confirmed_at,
       isPaid: booking.is_paid,
       isPacked: booking.is_packed,
       isDispatched: booking.is_dispatched,

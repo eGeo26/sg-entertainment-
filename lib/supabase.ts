@@ -9,7 +9,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { createServerClient } from "@supabase/ssr"
-import { Database } from "@/types/supabase"
+import type { Database } from "@/types/supabase"
 
 // ── Service role client ───────────────────────────────────────────────────────
 // Bypasses Row Level Security. Use ONLY in server-side admin API routes.

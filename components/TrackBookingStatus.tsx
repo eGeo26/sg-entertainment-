@@ -32,7 +32,13 @@ interface BookingData {
   statusReviewedAt?: string
   statusConfirmed?: boolean
   statusConfirmedAt?: string
+  latestMessage?: {
+    text: string
+    timestamp: string
+  } | null
 }
+
+type FetchState = "idle" | "loading" | "success" | "not-found" | "network-error" | "server-error"
 
 
 // Fixed stages for the progress stepper
@@ -47,12 +53,47 @@ export default function TrackBookingStatus() {
   const searchParams = useSearchParams()
   const [bookingId, setBookingId] = useState("")
   const [booking, setBooking] = useState<BookingData | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [fetchState, setFetchState] = useState<FetchState>("idle")
   const [searched, setSearched] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [pollError, setPollError] = useState<string | null>(null)
 
   const isMountedRef = useRef(true)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const loading = fetchState === "loading"
+
+  const classifyFetchError = (res: Response): FetchState => {
+    if (res.status === 404) return "not-found"
+    if (res.status >= 500) return "server-error"
+    return "network-error"
+  }
+
+  const fetchBooking = async (id: string, showToast = false) => {
+    setFetchState("loading")
+    setSearched(true)
+    setBooking(null)
+    setPollError(null)
+
+    try {
+      const res = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { cache: "no-store" })
+      if (!res.ok) {
+        setFetchState(classifyFetchError(res))
+        return null
+      }
+
+      const data = await res.json()
+      setBooking(data)
+      setLastUpdated(new Date())
+      setFetchState("success")
+      if (showToast) toast.success("Booking retrieved successfully")
+      return data as BookingData
+    } catch (err) {
+      console.error(err)
+      setFetchState("network-error")
+      return null
+    }
+  }
 
   useEffect(() => {
     const idParam = searchParams.get("id")
@@ -60,43 +101,32 @@ export default function TrackBookingStatus() {
       const trimmed = idParam.trim()
       setBookingId(trimmed)
 
-      const fetchDirectly = async (id: string) => {
-        setLoading(true)
-        setSearched(true)
-        setBooking(null)
-        try {
-          const res = await fetch(`/api/bookings/${id}`)
-          if (!res.ok) throw new Error("Booking not found")
-          const data = await res.json()
-          setBooking(data)
-          setLastUpdated(new Date())
-        } catch (err) {
-          console.error(err)
-          toast.error("Could not retrieve booking details. Please verify the ID.")
-        } finally {
-          setLoading(false)
-        }
-      }
-      fetchDirectly(trimmed)
+      fetchBooking(trimmed)
     }
   }, [searchParams])
 
   // Simple polling for booking updates (every 3000ms)
   useEffect(() => {
-    if (!booking) return
+    const code = booking?.bookingCode
+    if (!code) return
 
     const pollBooking = async () => {
       if (!isMountedRef.current) return
 
       try {
-        const res = await fetch(`/api/bookings/${booking.bookingCode}`)
+        const res = await fetch(`/api/bookings/${encodeURIComponent(code)}`, { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
           setBooking(data)
           setLastUpdated(new Date())
+          setFetchState("success")
+          setPollError(null)
+        } else {
+          setPollError("Live updates are temporarily unavailable. The last booking details shown may be stale.")
         }
       } catch (err) {
         console.error("[Customer Tracking] Polling error:", err)
+        setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
       }
     }
 
@@ -112,7 +142,7 @@ export default function TrackBookingStatus() {
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [booking])
+  }, [booking?.bookingCode])
 
   // Update relative timestamp every second
   useEffect(() => {
@@ -133,24 +163,7 @@ export default function TrackBookingStatus() {
       return
     }
 
-    setLoading(true)
-    setSearched(true)
-    setBooking(null)
-    try {
-      const res = await fetch(`/api/bookings/${bookingId.trim()}`)
-      if (!res.ok) {
-        throw new Error("Booking not found")
-      }
-      const data = await res.json()
-      setBooking(data)
-      setLastUpdated(new Date())
-      toast.success("Booking retrieved successfully")
-    } catch (err: any) {
-      console.error(err)
-      toast.error("Could not retrieve booking details. Please verify the ID.")
-    } finally {
-      setLoading(false)
-    }
+    await fetchBooking(bookingId.trim(), true)
   }
 
   const handleCopyId = () => {
@@ -278,6 +291,10 @@ export default function TrackBookingStatus() {
       </form>
 
       {/* Result state */}
+      {loading && (
+        <BookingLookupSkeleton />
+      )}
+
       {booking && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md space-y-6">
           
@@ -304,6 +321,11 @@ export default function TrackBookingStatus() {
                 </div>
               )}
             </div>
+            {pollError && (
+              <div className="text-[10px] text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                {pollError}
+              </div>
+            )}
             <button
               onClick={handleCopyId}
               type="button"
@@ -315,6 +337,16 @@ export default function TrackBookingStatus() {
               Copy ID
             </button>
           </div>
+
+          {booking.latestMessage && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-300 mb-2">Message from S&amp;G Studios</p>
+              <p className="text-white/85 text-sm leading-relaxed">{booking.latestMessage.text}</p>
+              <p className="text-white/35 text-[10px] mt-2">
+                {formatStageTimestamp(booking.latestMessage.timestamp)}
+              </p>
+            </div>
+          )}
 
           {/* Session Progress — 4-stage stepper based on booking_status_history */}
           <div className="py-2">
@@ -427,15 +459,92 @@ export default function TrackBookingStatus() {
       )}
 
       {/* Empty / Not found states */}
-      {searched && !loading && !booking && (
-        <div className="text-center py-10 bg-white/5 border border-white/10 rounded-2xl">
+      {searched && !loading && !booking && fetchState !== "idle" && (
+        <TrackingErrorState state={fetchState} />
+      )}
+    </div>
+  )
+}
+
+function BookingLookupSkeleton() {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md space-y-6" aria-label="Loading booking details">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="space-y-2">
+          <div className="skeleton h-3 w-28" />
+          <div className="skeleton h-4 w-36" />
+        </div>
+        <div className="skeleton h-8 w-24" />
+      </div>
+      <div className="py-2">
+        <div className="skeleton h-3 w-32 mx-auto mb-5" />
+        <div className="flex items-center gap-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="flex items-center flex-1 last:flex-none">
+              <div className="skeleton w-8 h-8 rounded-full" />
+              {index < 3 && <div className="skeleton flex-1 h-0.5 mx-2" />}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-3 mt-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="skeleton h-3 w-full" />
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-white/10">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="space-y-2">
+            <div className="skeleton h-3 w-20" />
+            <div className="skeleton h-4 w-36" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TrackingErrorState({ state }: { state: FetchState }) {
+  const copy = {
+    "not-found": {
+      title: "Booking Not Found",
+      body: "No active booking matches that reference. Please double check the code on your receipt or confirmation link.",
+      tone: "text-white/60 border-white/10 bg-white/5",
+    },
+    "network-error": {
+      title: "Connection Problem",
+      body: "We couldn't connect to the booking server. Please check your connection and try again.",
+      tone: "text-amber-100 border-amber-500/25 bg-amber-500/10",
+    },
+    "server-error": {
+      title: "Booking Server Error",
+      body: "The booking server had trouble loading this request. Please try again in a moment.",
+      tone: "text-red-100 border-red-500/25 bg-red-500/10",
+    },
+    "idle": {
+      title: "Enter a Booking Reference",
+      body: "Use your booking reference to view the latest session status.",
+      tone: "text-white/60 border-white/10 bg-white/5",
+    },
+    "loading": {
+      title: "Loading",
+      body: "Loading booking details.",
+      tone: "text-white/60 border-white/10 bg-white/5",
+    },
+    "success": {
+      title: "Loaded",
+      body: "Booking details loaded.",
+      tone: "text-white/60 border-white/10 bg-white/5",
+    },
+  }[state]
+
+  return (
+    <div className={`text-center py-10 border rounded-2xl ${copy.tone}`}>
           <svg className="w-10 h-10 text-white/20 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <p className="text-white/60 text-xs">No active booking was found with that ID.</p>
-          <p className="text-white/30 text-[10px] mt-1">Please double check your reference link or receipt.</p>
-        </div>
-      )}
+      <p className="text-sm font-semibold">{copy.title}</p>
+      <p className="text-xs opacity-75 mt-1 max-w-sm mx-auto">{copy.body}</p>
     </div>
   )
 }

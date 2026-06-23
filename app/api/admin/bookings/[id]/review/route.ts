@@ -1,5 +1,6 @@
 // app/api/admin/bookings/[id]/review/route.ts
 // POST — mark booking as reviewed (writes to boolean + timestamp columns with cascade)
+export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"

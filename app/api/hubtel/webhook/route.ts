@@ -68,19 +68,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, message: "Booking already confirmed" })
   }
 
-  // 3. SECURE VERIFICATION: Query Hubtel API directly to confirm status
-  let verified
+  // 3. Check simulation mode — bypass Hubtel API call if in sim mode
+  let verified: { status: string; amount: number; transactionId?: string }
+
+  // Read simulation mode setting from DB
+  let isSimulationMode = false
   try {
-    verified = await verifyHubtelTransaction(reference)
-  } catch (err: any) {
-    console.error(`[Hubtel Webhook] Secure verification failed for ${reference}:`, err)
-    return NextResponse.json({ error: "Verification failed" }, { status: 500 })
+    const { data: simSetting } = await (supabase as any)
+      .from("settings")
+      .select("value")
+      .eq("key", "payment_simulation_mode")
+      .single()
+    if (simSetting) {
+      isSimulationMode = simSetting.value === "true"
+    }
+  } catch {
+    // If table read fails, assume production mode
   }
 
-  const isSuccess = 
-    verified.status === "Success" || 
-    verified.status === "Completed" || 
-    verified.status === "success" || 
+  if (isSimulationMode || !process.env.HUBTEL_CLIENT_ID || process.env.HUBTEL_CLIENT_ID === "your_hubtel_client_id_here") {
+    // Simulation: trust the payload status directly
+    const payloadStatus = payload.status ?? payload.Status ?? "Success"
+    verified = {
+      status: payloadStatus,
+      amount: payload.amount ?? payload.Amount ?? (booking.amount_ghs / 100),
+      transactionId: payload.transactionId ?? payload.TransactionId ?? `sim-${Date.now()}`,
+    }
+    console.log(`[Hubtel Webhook] Simulation mode: trusting payload status "${verified.status}" for ${reference}`)
+  } else {
+    // Production: query Hubtel API to confirm status
+    try {
+      verified = await verifyHubtelTransaction(reference)
+    } catch (err: any) {
+      console.error(`[Hubtel Webhook] Secure verification failed for ${reference}:`, err)
+      return NextResponse.json({ error: "Verification failed" }, { status: 500 })
+    }
+  }
+
+  const isSuccess =
+    verified.status === "Success" ||
+    verified.status === "Completed" ||
+    verified.status === "success" ||
     verified.status === "completed"
 
   if (!isSuccess) {

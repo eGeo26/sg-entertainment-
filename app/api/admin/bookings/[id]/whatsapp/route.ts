@@ -1,5 +1,6 @@
 // app/api/admin/bookings/[id]/whatsapp/route.ts
 // POST /api/admin/bookings/:id/whatsapp — Trigger a manual notification
+export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"

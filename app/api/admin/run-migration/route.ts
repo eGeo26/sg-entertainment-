@@ -1,6 +1,7 @@
 // app/api/admin/run-migration/route.ts
 // ONE-TIME migration endpoint: adds is_admin_message column to booking_status_history
 // DELETE THIS FILE after migration is confirmed applied.
+export const dynamic = "force-dynamic"
 
 import { NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"

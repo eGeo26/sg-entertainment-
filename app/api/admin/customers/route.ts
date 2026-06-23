@@ -1,4 +1,5 @@
 // app/api/admin/customers/route.ts
+export const dynamic = "force-dynamic"
 // GET /api/admin/customers — CRM view, derived from bookings grouped by email
 
 import { NextResponse } from "next/server"

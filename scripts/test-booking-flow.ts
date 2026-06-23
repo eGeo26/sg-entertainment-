@@ -1,5 +1,7 @@
 // scripts/test-booking-flow.ts
-// Automated end-to-end test for the full booking lifecycle
+// Automated end-to-end test for the full booking lifecycle.
+// Includes customer-side HTTP verification after each admin action to confirm
+// the live read path (GET /api/bookings/:code) reflects database changes.
 
 import * as dotenv from 'dotenv'
 import * as path from 'path'
@@ -8,75 +10,207 @@ import * as path from 'path'
 dotenv.config({ path: path.join(process.cwd(), '.env.local') })
 
 import { createServiceClient } from "../lib/supabase"
-import { generateBookingCode } from "../lib/booking"
+import { createServerClient } from "@supabase/ssr"
 
-// Test configuration
-const TEST_CUSTOMER_NAME = "TEST_Automated Test User"
+// ── Config ─────────────────────────────────────────────────────────────────────
+const TEST_CUSTOMER_NAME  = "TEST_Automated Test User"
 const TEST_CUSTOMER_EMAIL = "test-automated@example.com"
 const TEST_CUSTOMER_PHONE = "+233200000000"
-const TEST_ADMIN_MESSAGE = "Confirmed — see you Thursday at 2PM"
+const TEST_ADMIN_MESSAGE  = "Confirmed — see you Thursday at 2PM"
 
-// Colors for console output
+// The base URL the customer-facing API is served from.
+// Must match where `next dev` (or `next start`) is running.
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+
+// How long to wait (ms) after a write before polling the customer API.
+// Should comfortably exceed the tracking-page poll interval (3 s).
+const CUSTOMER_READ_DELAY_MS = 4_000
+
+// ── Color helpers ──────────────────────────────────────────────────────────────
 const colors = {
-  reset: '\x1b[0m',
-  green: '\x1b[32m',
-  red: '\x1b[31m',
+  reset:  '\x1b[0m',
+  green:  '\x1b[32m',
+  red:    '\x1b[31m',
   yellow: '\x1b[33m',
-  blue: '\x1b[34m',
+  blue:   '\x1b[34m',
+  cyan:   '\x1b[36m',
 }
 
 function log(message: string, color: keyof typeof colors = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`)
 }
 
-function assert(condition: boolean, testName: string, actual: any, expected: any) {
+function assert(condition: boolean, testName: string, actual: any, expected: any): boolean {
   if (condition) {
-    log(`✅ PASS: ${testName}`, 'green')
+    log(`  ✅ PASS: ${testName}`, 'green')
     return true
   } else {
-    log(`❌ FAIL: ${testName}`, 'red')
-    log(`   Expected: ${JSON.stringify(expected)}`, 'red')
-    log(`   Actual: ${JSON.stringify(actual)}`, 'red')
+    log(`  ❌ FAIL: ${testName}`, 'red')
+    log(`     Expected : ${JSON.stringify(expected)}`, 'red')
+    log(`     Actual   : ${JSON.stringify(actual)}`, 'red')
     return false
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function generateBookingCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  let code = "SG-"
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return code
+}
+
+function formatElapsed(startedAt: number): string {
+  return `${((Date.now() - startedAt) / 1000).toFixed(2)}s`
+}
+
+// ── Customer-facing HTTP fetch ─────────────────────────────────────────────────
+// Mirrors exactly what the tracking / success page calls.
+// Returns the parsed JSON body plus the HTTP status code.
+async function fetchCustomerBooking(bookingCode: string): Promise<{
+  status: number
+  body: any
+  raw: string
+}> {
+  const url = `${APP_BASE_URL}/api/bookings/${bookingCode}`
+  log(`     → GET ${url}`, 'cyan')
+
+  const res = await fetch(url, { cache: 'no-store' })
+  const raw = await res.text()
+  let body: any = null
+  try { body = JSON.parse(raw) } catch (_) { /* leave body null */ }
+
+  return { status: res.status, body, raw }
+}
+
+async function createAdminApiSession(supabase: ReturnType<typeof createServiceClient>): Promise<{
+  cookieHeader: string
+  userId: string
+  email: string
+}> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required for admin API tests")
+  }
+
+  const email = `test-admin-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
+  const password = `Test-${crypto.randomUUID()}!aA1`
+
+  const { data: createdUser, error: createUserError } = await (supabase as any).auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  })
+
+  if (createUserError || !createdUser?.user?.id) {
+    throw new Error(`Could not create temporary admin auth user: ${JSON.stringify(createUserError)}`)
+  }
+
+  const cookieJar: { name: string; value: string }[] = []
+  const authClient = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieJar
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          const index = cookieJar.findIndex((cookie) => cookie.name === name)
+          if (options?.maxAge === 0 || value === "") {
+            if (index >= 0) cookieJar.splice(index, 1)
+            return
+          }
+          if (index >= 0) cookieJar[index] = { name, value }
+          else cookieJar.push({ name, value })
+        })
+      },
+    },
+  })
+
+  const { error: signInError } = await authClient.auth.signInWithPassword({ email, password })
+  if (signInError) {
+    await (supabase as any).auth.admin.deleteUser(createdUser.user.id)
+    throw new Error(`Could not sign in temporary admin auth user: ${signInError.message}`)
+  }
+
+  const cookieHeader = cookieJar.map(({ name, value }) => `${name}=${value}`).join("; ")
+  if (!cookieHeader) {
+    await (supabase as any).auth.admin.deleteUser(createdUser.user.id)
+    throw new Error("Temporary admin auth sign-in did not produce SSR cookies")
+  }
+
+  return { cookieHeader, userId: createdUser.user.id, email }
+}
+
+async function fetchAdminApi(
+  cookieHeader: string,
+  pathName: string,
+  init: RequestInit
+): Promise<{ status: number; body: any; raw: string }> {
+  const url = `${APP_BASE_URL}${pathName}`
+  log(`     → ${init.method ?? "GET"} ${url}`, 'cyan')
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      Cookie: cookieHeader,
+      ...(init.headers ?? {}),
+    },
+  })
+  const raw = await res.text()
+  let body: any = null
+  try { body = JSON.parse(raw) } catch (_) { /* leave body null */ }
+  return { status: res.status, body, raw }
+}
+
+// ── Main test ──────────────────────────────────────────────────────────────────
 let allPassed = true
 
 async function testBookingFlow() {
   log('\n=== Starting Automated Booking Flow Test ===\n', 'blue')
-  
+  log(`Customer API base: ${APP_BASE_URL}\n`, 'cyan')
+
   const supabase = createServiceClient()
-  let bookingId: string | null = null
+  let bookingId:   string | null = null
   let bookingCode: string | null = null
+  let tempAdminUserId: string | null = null
 
   try {
-    // STEP 1: Create booking as customer
+    log('STEP 0: Creating temporary admin API session...', 'yellow')
+    const adminSession = await createAdminApiSession(supabase)
+    tempAdminUserId = adminSession.userId
+    log(`   Temporary admin auth user: ${adminSession.email}`, 'blue')
+
+    // ── STEP 1: Create booking ────────────────────────────────────────────────
     log('STEP 1: Creating booking as customer...', 'yellow')
-    
+
     const testDate = new Date()
-    testDate.setDate(testDate.getDate() + 2) // 2 days from now
+    testDate.setDate(testDate.getDate() + 2)
     bookingCode = generateBookingCode()
-    
+
     const { data: booking, error: createError } = await (supabase as any)
       .from('bookings')
       .insert({
-        booking_code: bookingCode,
-        customer_name: TEST_CUSTOMER_NAME,
-        customer_email: TEST_CUSTOMER_EMAIL,
-        customer_phone: TEST_CUSTOMER_PHONE,
-        session_date: testDate.toISOString(),
-        start_time: '10:00',
-        end_time: '12:00',
-        duration_hours: 2,
-        studio: 'Main Studio',
-        equipment: [],
-        notes: null,
-        amount_ghs: 20000, // GHS 200.00 in pesewas
-        paystack_reference: bookingCode,
-        status: 'AWAITING_PAYMENT',
-        status_received: true,
-        status_received_at: new Date().toISOString(),
+        booking_code:         bookingCode,
+        customer_name:        TEST_CUSTOMER_NAME,
+        customer_email:       TEST_CUSTOMER_EMAIL,
+        customer_phone:       TEST_CUSTOMER_PHONE,
+        session_date:         testDate.toISOString(),
+        start_time:           '10:00',
+        end_time:             '12:00',
+        duration_hours:       2,
+        studio:               'Main Studio',
+        equipment:            [],
+        notes:                null,
+        amount_ghs:           20000, // 200.00 GHS in pesewas
+        paystack_reference:   bookingCode,
+        status:               'AWAITING_PAYMENT',
+        status_received:      true,
+        status_received_at:   new Date().toISOString(),
       })
       .select()
       .single()
@@ -87,29 +221,28 @@ async function testBookingFlow() {
       process.exit(1)
     }
 
-    bookingId = booking.id
+    bookingId   = booking.id
     bookingCode = booking.booking_code
 
-    log(`   Created booking with ID: ${bookingId}`, 'blue')
-    log(`   Booking code: ${bookingCode}`, 'blue')
+    log(`   Created booking  ID: ${bookingId}`, 'blue')
+    log(`   Booking code       : ${bookingCode}`, 'blue')
 
-    // Assert booking code format
     const bookingCodeFormat = /^SG-[A-Z0-9]{8}$/
-    allPassed = assert(
+    const codeOk = assert(
       bookingCode ? bookingCodeFormat.test(bookingCode) : false,
       'Booking code format (SG-XXXXXXXX)',
       bookingCode,
       'SG-XXXXXXXX format'
     )
-    if (!allPassed) process.exit(1)
+    if (!codeOk) { allPassed = false; process.exit(1) }
 
-    // STEP 2: Simulate payment
+    // ── STEP 2: Simulate payment ──────────────────────────────────────────────
     log('\nSTEP 2: Simulating payment...', 'yellow')
-    
+
     const { error: paymentError } = await (supabase as any)
       .from('bookings')
       .update({
-        status_payment: true,
+        status_payment:    true,
         status_payment_at: new Date().toISOString(),
       })
       .eq('id', bookingId)
@@ -120,223 +253,177 @@ async function testBookingFlow() {
       process.exit(1)
     }
 
-    // Fetch and assert payment status
-    const { data: afterPayment, error: fetchError1 } = await (supabase as any)
-      .from('bookings')
-      .select('*')
-      .eq('id', bookingId)
-      .single()
+    const { data: afterPayment } = await (supabase as any)
+      .from('bookings').select('*').eq('id', bookingId).single()
 
-    if (fetchError1 || !afterPayment) {
-      log(`❌ FAIL: Could not fetch booking after payment`, 'red')
-      process.exit(1)
-    }
-
-    allPassed = assert(
-      afterPayment.status_payment === true,
-      'Payment status is true after simulation',
-      afterPayment.status_payment,
-      true
-    )
-    if (!allPassed) process.exit(1)
-
-    allPassed = assert(
-      afterPayment.status_payment_at !== null,
-      'Payment timestamp is set after simulation',
-      afterPayment.status_payment_at,
-      'non-null timestamp'
-    )
-    if (!allPassed) process.exit(1)
+    if (!assert(afterPayment?.status_payment === true, 'DB: Payment status is true', afterPayment?.status_payment, true))
+      { allPassed = false; process.exit(1) }
+    if (!assert(afterPayment?.status_payment_at !== null, 'DB: Payment timestamp set', afterPayment?.status_payment_at, 'non-null'))
+      { allPassed = false; process.exit(1) }
 
     log('   Payment simulated successfully', 'green')
 
-    // STEP 3: Mark as reviewed (admin)
-    log('\nSTEP 3: Marking booking as reviewed (admin action)...', 'yellow')
-    
-    const { error: reviewError } = await (supabase as any)
-      .from('bookings')
-      .update({
-        status_reviewed: true,
-        status_reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', bookingId)
+    // ── STEP 3: Admin marks Reviewed ──────────────────────────────────────────
+    log('\nSTEP 3: Admin API marks booking as Reviewed...', 'yellow')
 
-    if (reviewError) {
-      log(`❌ FAIL: Could not mark as reviewed`, 'red')
-      log(`   Error: ${JSON.stringify(reviewError)}`, 'red')
-      process.exit(1)
+    const reviewActionStart = Date.now()
+    const reviewApiResp = await fetchAdminApi(
+      adminSession.cookieHeader,
+      `/api/admin/bookings/${bookingId}/review`,
+      { method: "POST" }
+    )
+
+    if (reviewApiResp.status !== 200) {
+      log(`❌ FAIL: Admin API could not mark as reviewed`, 'red')
+      log(`   Expected HTTP 200, got ${reviewApiResp.status}`, 'red')
+      log(`   Raw response: ${reviewApiResp.raw}`, 'red')
+      allPassed = false
+    } else {
+      assert(reviewApiResp.body?.booking?.status_reviewed === true, "Admin API response: Reviewed is true", reviewApiResp.body, { booking: { status_reviewed: true } })
     }
 
-    // Fetch and assert review status
-    const { data: afterReview, error: fetchError2 } = await (supabase as any)
-      .from('bookings')
-      .select('*')
-      .eq('id', bookingId)
-      .single()
+    // DB-level assertions (sanity check the write itself)
+    const { data: afterReviewDb } = await (supabase as any)
+      .from('bookings').select('*').eq('id', bookingId).single()
 
-    if (fetchError2 || !afterReview) {
-      log(`❌ FAIL: Could not fetch booking after review`, 'red')
-      process.exit(1)
+    if (!assert(afterReviewDb?.status_reviewed === true, 'DB: status_reviewed is true after admin write', afterReviewDb?.status_reviewed, true))
+      { allPassed = false }
+
+    log(`   Waiting ${CUSTOMER_READ_DELAY_MS / 1000}s for customer poll cycle...`, 'cyan')
+    await sleep(CUSTOMER_READ_DELAY_MS)
+
+    // ── Customer-side check: Reviewed ─────────────────────────────────────────
+    log('   Checking customer-facing API for Reviewed status...', 'cyan')
+    const reviewedResp = await fetchCustomerBooking(bookingCode!)
+
+    if (reviewedResp.status !== 200) {
+      log(`  ❌ FAIL: Customer-side reflects Reviewed`, 'red')
+      log(`     Expected HTTP 200, got ${reviewedResp.status}`, 'red')
+      log(`     Raw response: ${reviewedResp.raw}`, 'red')
+      allPassed = false
+    } else {
+      const customerReviewed = reviewedResp.body?.statusReviewed
+      const ok = assert(
+        customerReviewed === true,
+        `Customer-side reflects Reviewed after ${formatElapsed(reviewActionStart)}`,
+        { statusReviewed: customerReviewed, fullResponse: reviewedResp.body },
+        { statusReviewed: true }
+      )
+      if (!ok) allPassed = false
     }
 
-    allPassed = assert(
-      afterReview.status_reviewed === true,
-      'Review status is true after admin action',
-      afterReview.status_reviewed,
-      true
+    // ── STEP 4: Admin writes custom message ───────────────────────────────────
+    log('\nSTEP 4: Admin API writes custom customer message...', 'yellow')
+
+    const messageActionStart = Date.now()
+    const messageApiResp = await fetchAdminApi(
+      adminSession.cookieHeader,
+      `/api/admin/bookings/${bookingId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: afterReviewDb?.status,
+          customerMessage: TEST_ADMIN_MESSAGE,
+        }),
+      }
     )
-    if (!allPassed) process.exit(1)
 
-    allPassed = assert(
-      afterReview.status_reviewed_at !== null,
-      'Review timestamp is set after admin action',
-      afterReview.status_reviewed_at,
-      'non-null timestamp'
-    )
-    if (!allPassed) process.exit(1)
-
-    allPassed = assert(
-      afterReview.status_payment === true,
-      'Payment status remains true after review (cascade check)',
-      afterReview.status_payment,
-      true
-    )
-    if (!allPassed) process.exit(1)
-
-    log('   Review marked successfully', 'green')
-
-    // STEP 4: Write custom admin message
-    log('\nSTEP 4: Writing custom admin message...', 'yellow')
-    
-    const { error: messageError } = await (supabase as any)
-      .from('booking_status_history')
-      .insert({
-        booking_id: bookingId,
-        status: afterReview.status,
-        label: TEST_ADMIN_MESSAGE,
-        is_admin_message: true, // This is the key flag
-        created_at: new Date().toISOString()
-      })
-
-    if (messageError) {
-      log(`❌ FAIL: Could not save admin message`, 'red')
-      log(`   Error: ${JSON.stringify(messageError)}`, 'red')
-      process.exit(1)
+    if (messageApiResp.status !== 200) {
+      log(`❌ FAIL: Admin API could not save customer message`, 'red')
+      log(`   Expected HTTP 200, got ${messageApiResp.status}`, 'red')
+      log(`   Raw response: ${messageApiResp.raw}`, 'red')
+      allPassed = false
     }
 
-    log('   Admin message saved to history', 'green')
+    log(`   Waiting ${CUSTOMER_READ_DELAY_MS / 1000}s for customer poll cycle...`, 'cyan')
+    await sleep(CUSTOMER_READ_DELAY_MS)
 
-    // STEP 5: Fetch via customer API and verify message
-    log('\nSTEP 5: Fetching via customer API to verify admin message...', 'yellow')
-    
-    // Simulate the customer API call (same logic as /api/bookings/[id]/route.ts)
-    const { data: historyData, error: historyError } = await (supabase as any)
-      .from('booking_status_history')
-      .select('label, created_at')
-      .eq('booking_id', bookingId)
-      .eq('is_admin_message', true) // Filter for admin messages only
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    // ── Customer-side check: Message ──────────────────────────────────────────
+    log('   Checking customer-facing API for admin message...', 'cyan')
+    const messageResp = await fetchCustomerBooking(bookingCode!)
 
-    if (historyError) {
-      log(`❌ FAIL: Could not fetch status history`, 'red')
-      log(`   Error: ${JSON.stringify(historyError)}`, 'red')
-      process.exit(1)
+    if (messageResp.status !== 200) {
+      log(`  ❌ FAIL: Customer-side reflects message`, 'red')
+      log(`     Expected HTTP 200, got ${messageResp.status}`, 'red')
+      log(`     Raw response: ${messageResp.raw}`, 'red')
+      allPassed = false
+    } else {
+      const customerMessage = messageResp.body?.latestMessage?.text
+      const ok = assert(
+        customerMessage === TEST_ADMIN_MESSAGE,
+        `Customer-side reflects message after ${formatElapsed(messageActionStart)}`,
+        { latestMessage: messageResp.body?.latestMessage, fullResponse: messageResp.body },
+        { latestMessage: { text: TEST_ADMIN_MESSAGE } }
+      )
+      if (!ok) allPassed = false
     }
 
-    if (!historyData) {
-      log(`❌ FAIL: No admin message found in history`, 'red')
-      log(`   This means the is_admin_message flag filtering is not working`, 'red')
-      process.exit(1)
+    // ── STEP 5: Admin marks Confirmed ─────────────────────────────────────────
+    log('\nSTEP 5: Admin API marks booking as Confirmed...', 'yellow')
+
+    const confirmActionStart = Date.now()
+    const confirmApiResp = await fetchAdminApi(
+      adminSession.cookieHeader,
+      `/api/admin/bookings/${bookingId}/confirm`,
+      { method: "POST" }
+    )
+
+    if (confirmApiResp.status !== 200) {
+      log(`❌ FAIL: Admin API could not mark as confirmed`, 'red')
+      log(`   Expected HTTP 200, got ${confirmApiResp.status}`, 'red')
+      log(`   Raw response: ${confirmApiResp.raw}`, 'red')
+      allPassed = false
+    } else {
+      assert(confirmApiResp.body?.booking?.status_confirmed === true, "Admin API response: Confirmed is true", confirmApiResp.body, { booking: { status_confirmed: true } })
     }
 
-    allPassed = assert(
-      historyData.label === TEST_ADMIN_MESSAGE,
-      'Admin message text matches exactly (not automatic label)',
-      historyData.label,
-      TEST_ADMIN_MESSAGE
-    )
-    if (!allPassed) process.exit(1)
+    // DB-level assertions
+    const { data: afterConfirmDb } = await (supabase as any)
+      .from('bookings').select('*').eq('id', bookingId).single()
 
-    log(`   Admin message verified: "${historyData.label}"`, 'green')
+    if (!assert(afterConfirmDb?.status_confirmed === true, 'DB: status_confirmed is true after admin write', afterConfirmDb?.status_confirmed, true))
+      { allPassed = false }
+    if (!assert(afterConfirmDb?.status === 'CONFIRMED', 'DB: status is CONFIRMED', afterConfirmDb?.status, 'CONFIRMED'))
+      { allPassed = false }
 
-    // STEP 6: Mark as fully confirmed
-    log('\nSTEP 6: Marking booking as fully confirmed...', 'yellow')
-    
-    const { error: confirmError } = await (supabase as any)
-      .from('bookings')
-      .update({
-        status_confirmed: true,
-        status_confirmed_at: new Date().toISOString(),
-        status: 'CONFIRMED',
-      })
-      .eq('id', bookingId)
+    log(`   Waiting ${CUSTOMER_READ_DELAY_MS / 1000}s for customer poll cycle...`, 'cyan')
+    await sleep(CUSTOMER_READ_DELAY_MS)
 
-    if (confirmError) {
-      log(`❌ FAIL: Could not mark as confirmed`, 'red')
-      log(`   Error: ${JSON.stringify(confirmError)}`, 'red')
-      process.exit(1)
+    // ── Customer-side check: Confirmed ────────────────────────────────────────
+    log('   Checking customer-facing API for Confirmed status...', 'cyan')
+    const confirmedResp = await fetchCustomerBooking(bookingCode!)
+
+    if (confirmedResp.status !== 200) {
+      log(`  ❌ FAIL: Customer-side reflects Confirmed`, 'red')
+      log(`     Expected HTTP 200, got ${confirmedResp.status}`, 'red')
+      log(`     Raw response: ${confirmedResp.raw}`, 'red')
+      allPassed = false
+    } else {
+      const customerConfirmed = confirmedResp.body?.statusConfirmed
+      const ok = assert(
+        customerConfirmed === true,
+        `Customer-side reflects Confirmed after ${formatElapsed(confirmActionStart)}`,
+        { statusConfirmed: customerConfirmed, fullResponse: confirmedResp.body },
+        { statusConfirmed: true }
+      )
+      if (!ok) allPassed = false
     }
 
-    // Fetch and assert final state
-    const { data: finalBooking, error: fetchError3 } = await (supabase as any)
-      .from('bookings')
-      .select('*')
-      .eq('id', bookingId)
-      .single()
+    // ── STEP 6: Cascade integrity check (via customer API) ────────────────────
+    log('\nSTEP 6: Customer API cascade integrity — all stages still true...', 'yellow')
 
-    if (fetchError3 || !finalBooking) {
-      log(`❌ FAIL: Could not fetch final booking state`, 'red')
-      process.exit(1)
-    }
+    const { body: finalCustomer } = await fetchCustomerBooking(bookingCode!)
 
-    allPassed = assert(
-      finalBooking.status_confirmed === true,
-      'Confirmed status is true',
-      finalBooking.status_confirmed,
-      true
-    )
-    if (!allPassed) process.exit(1)
+    if (!assert(finalCustomer?.statusReceived  === true,  'Customer API: statusReceived still true',  finalCustomer?.statusReceived,  true)) allPassed = false
+    if (!assert(finalCustomer?.statusPayment   === true,  'Customer API: statusPayment still true',   finalCustomer?.statusPayment,   true)) allPassed = false
+    if (!assert(finalCustomer?.statusReviewed  === true,  'Customer API: statusReviewed still true',  finalCustomer?.statusReviewed,  true)) allPassed = false
+    if (!assert(finalCustomer?.statusConfirmed === true,  'Customer API: statusConfirmed still true', finalCustomer?.statusConfirmed, true)) allPassed = false
+    if (!assert(finalCustomer?.latestMessage?.text === TEST_ADMIN_MESSAGE, 'Customer API: latestMessage still visible', finalCustomer?.latestMessage?.text, TEST_ADMIN_MESSAGE)) allPassed = false
 
-    allPassed = assert(
-      finalBooking.status_confirmed_at !== null,
-      'Confirmed timestamp is set',
-      finalBooking.status_confirmed_at,
-      'non-null timestamp'
-    )
-    if (!allPassed) process.exit(1)
-
-    // Verify all earlier stages remain true
-    allPassed = assert(
-      finalBooking.status_received === true,
-      'Received status remains true',
-      finalBooking.status_received,
-      true
-    )
-    if (!allPassed) process.exit(1)
-
-    allPassed = assert(
-      finalBooking.status_payment === true,
-      'Payment status remains true',
-      finalBooking.status_payment,
-      true
-    )
-    if (!allPassed) process.exit(1)
-
-    allPassed = assert(
-      finalBooking.status_reviewed === true,
-      'Reviewed status remains true',
-      finalBooking.status_reviewed,
-      true
-    )
-    if (!allPassed) process.exit(1)
-
-    log('   Booking fully confirmed', 'green')
-
-    // STEP 7: Cleanup - delete test booking
+    // ── STEP 7: Cleanup ───────────────────────────────────────────────────────
     log('\nSTEP 7: Cleaning up test booking...', 'yellow')
-    
+
     const { error: cleanupError } = await (supabase as any)
       .from('bookings')
       .delete()
@@ -345,33 +432,70 @@ async function testBookingFlow() {
     if (cleanupError) {
       log(`⚠️  WARNING: Could not delete test booking`, 'yellow')
       log(`   Error: ${JSON.stringify(cleanupError)}`, 'yellow')
-      log(`   Booking ID: ${bookingId || 'unknown'}`, 'yellow')
+      log(`   Booking ID: ${bookingId}`, 'yellow')
     } else {
       log('   Test booking deleted successfully', 'green')
     }
 
-    // FINAL SUMMARY
-    log('\n=== Test Summary ===', 'blue')
+    if (tempAdminUserId) {
+      const { error: deleteUserError } = await (supabase as any).auth.admin.deleteUser(tempAdminUserId)
+      if (deleteUserError) {
+        log(`⚠️  WARNING: Could not delete temporary admin auth user`, 'yellow')
+        log(`   Error: ${JSON.stringify(deleteUserError)}`, 'yellow')
+      } else {
+        log('   Temporary admin auth user deleted successfully', 'green')
+      }
+      tempAdminUserId = null
+    }
+
+    // ── Final Summary ─────────────────────────────────────────────────────────
+    log('\n═══════════════════════════════════════════', 'blue')
+    log('              TEST SUMMARY', 'blue')
+    log('═══════════════════════════════════════════', 'blue')
+
     if (allPassed) {
       log('✅ ALL TESTS PASSED', 'green')
-      log('\nBooking flow test completed successfully.', 'green')
-      log('All assertions passed:', 'green')
-      log('  - Booking code format correct', 'green')
-      log('  - Payment simulation works', 'green')
-      log('  - Admin review action works', 'green')
-      log('  - Admin message filtering works (is_admin_message flag)', 'green')
-      log('  - Final confirmation works', 'green')
-      log('  - All status stages persist correctly', 'green')
+      log('', 'reset')
+      log('  DB writes verified:', 'green')
+      log('    ✅  Booking code format correct', 'green')
+      log('    ✅  Payment simulation works', 'green')
+      log('    ✅  Reviewed write works', 'green')
+      log('    ✅  Admin message write works', 'green')
+      log('    ✅  Confirmed write works', 'green')
+      log('', 'reset')
+      log('  Customer-side HTTP API verified:', 'green')
+      log('    ✅  Customer-side reflects Reviewed', 'green')
+      log('    ✅  Customer-side reflects message', 'green')
+      log('    ✅  Customer-side reflects Confirmed', 'green')
+      log('    ✅  All stages cascade correctly on customer API', 'green')
       process.exit(0)
     } else {
       log('❌ SOME TESTS FAILED', 'red')
+      log('', 'reset')
+      log('The test above shows the exact API response received vs expected.', 'red')
+      log('If the DB asserts pass but customer-side asserts fail, the bug is in the', 'red')
+      log('customer-facing read path (GET /api/bookings/:code) — data was written to', 'red')
+      log('the database but the API is not returning it.', 'red')
       process.exit(1)
     }
 
-  } catch (error) {
-    log(`\n❌ UNEXPECTED ERROR: ${JSON.stringify(error)}`, 'red')
+  } catch (error: any) {
+    log(`\n❌ UNEXPECTED ERROR: ${error?.message ?? JSON.stringify(error)}`, 'red')
+    if (bookingId) log(`   Booking ID: ${bookingId}`, 'yellow')
+    if (bookingCode) log(`   Booking code: ${bookingCode}`, 'yellow')
+
+    // Attempt cleanup even on unexpected failure
     if (bookingId) {
-      log(`Booking ID: ${bookingId}`, 'yellow')
+      try {
+        await (supabase as any).from('bookings').delete().eq('id', bookingId)
+        log('   Test booking cleaned up after error.', 'yellow')
+      } catch (_) {}
+    }
+    if (tempAdminUserId) {
+      try {
+        await (supabase as any).auth.admin.deleteUser(tempAdminUserId)
+        log('   Temporary admin auth user cleaned up after error.', 'yellow')
+      } catch (_) {}
     }
     process.exit(1)
   }

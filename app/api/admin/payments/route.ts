@@ -1,4 +1,5 @@
 // app/api/admin/payments/route.ts
+export const dynamic = "force-dynamic"
 // GET /api/admin/payments — Payment transaction log from Booking table
 
 import { NextResponse } from "next/server"

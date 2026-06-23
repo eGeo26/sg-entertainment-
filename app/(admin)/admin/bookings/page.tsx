@@ -28,6 +28,12 @@ interface Booking {
   hubtelReference: string | null
   hubtelStatus: string
   status: string
+  statusPayment?: boolean
+  statusPaymentAt?: string | null
+  statusReviewed?: boolean
+  statusReviewedAt?: string | null
+  statusConfirmed?: boolean
+  statusConfirmedAt?: string | null
   // Pipeline logistics fields
   isPaid: boolean
   isPacked: boolean
@@ -65,6 +71,7 @@ function BookingsContent() {
   // Data States
   const [data, setData] = useState<FetchBookingsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<"network" | "server" | "unauthorized" | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("disconnected")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [newBookingIds, setNewBookingIds] = useState<Set<string>>(new Set())
@@ -119,9 +126,13 @@ function BookingsContent() {
       q.set("limit", "25")
 
       const res = await fetch(`/api/admin/bookings?${q.toString()}`)
-      if (!res.ok) throw new Error("Failed to load bookings")
+      if (!res.ok) {
+        setLoadError(res.status === 401 ? "unauthorized" : "server")
+        throw new Error("Failed to load bookings")
+      }
       const result = await res.json()
       setData(result)
+      setLoadError(null)
 
       // If search matches a specific booking directly, auto-open it
       if (search && result.bookings.length === 1 && result.bookings[0].id === search) {
@@ -129,6 +140,7 @@ function BookingsContent() {
       }
     } catch (err) {
       console.error(err)
+      setLoadError((current) => current ?? "network")
       toast.error("Could not load bookings list")
     } finally {
       setLoading(false)
@@ -242,6 +254,7 @@ function BookingsContent() {
     if (!inspectedBooking) return
     setIsUpdating(true)
     try {
+      const shouldConfirmSession = editStatus === "CONFIRMED" && inspectedBooking.statusConfirmed !== true
       const res = await fetch(`/api/admin/bookings/${inspectedBooking.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -256,8 +269,25 @@ function BookingsContent() {
       if (!res.ok) throw new Error("Failed to update booking")
       const updated = await res.json()
 
+      if (shouldConfirmSession) {
+        const confirmRes = await fetch(`/api/admin/bookings/${inspectedBooking.id}/confirm`, {
+          method: "POST",
+        })
+
+        if (!confirmRes.ok) {
+          const error = await confirmRes.json().catch(() => null)
+          if (error?.error !== "Booking already session confirmed") {
+            throw new Error("Failed to mark booking as session confirmed")
+          }
+        }
+      }
+
       toast.success("Booking changes saved successfully")
-      setInspectedBooking(updated)
+      setInspectedBooking({
+        ...updated,
+        statusConfirmed: shouldConfirmSession ? true : updated.statusConfirmed,
+        statusConfirmedAt: shouldConfirmSession ? new Date().toISOString() : updated.statusConfirmedAt,
+      })
       setEditCustomerMessage("") // Clear customer message after sending
       fetchBookings()
     } catch (err) {
@@ -515,21 +545,27 @@ function BookingsContent() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="glass-card p-5">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Total Confirmed Revenue</p>
-          <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
-            GH₵ {data?.stats?.totalRevenueGHS?.toLocaleString("en-GH", { minimumFractionDigits: 2 }) ?? "0.00"}
-          </p>
+          {loading ? <div className="skeleton h-9 w-40 mt-3" /> : (
+            <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
+              GH₵ {data?.stats?.totalRevenueGHS?.toLocaleString("en-GH", { minimumFractionDigits: 2 }) ?? "0.00"}
+            </p>
+          )}
         </div>
         <div className="glass-card p-5">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Active Confirmed Bookings</p>
-          <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
-            {data?.stats?.activeBookings ?? 0} Sessions
-          </p>
+          {loading ? <div className="skeleton h-9 w-32 mt-3" /> : (
+            <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
+              {data?.stats?.activeBookings ?? 0} Sessions
+            </p>
+          )}
         </div>
         <div className="glass-card p-5">
           <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Granted Sessions</p>
-          <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
-            {data?.stats?.grantedSessions ?? 0} Granted
-          </p>
+          {loading ? <div className="skeleton h-9 w-32 mt-3" /> : (
+            <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
+              {data?.stats?.grantedSessions ?? 0} Granted
+            </p>
+          )}
         </div>
       </div>
 
@@ -575,6 +611,27 @@ function BookingsContent() {
           </button>
         </div>
       </div>
+
+      {loadError && !loading && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${
+          loadError === "unauthorized"
+            ? "bg-red-500/10 border-red-500/25 text-red-100"
+            : loadError === "server"
+            ? "bg-red-500/10 border-red-500/25 text-red-100"
+            : "bg-amber-500/10 border-amber-500/25 text-amber-100"
+        }`}>
+          <p className="font-semibold">
+            {loadError === "unauthorized" ? "Admin Session Required" : loadError === "server" ? "Bookings Could Not Load" : "Connection Problem"}
+          </p>
+          <p className="text-xs opacity-75 mt-1">
+            {loadError === "unauthorized"
+              ? "Please sign in again before viewing the bookings list."
+              : loadError === "server"
+              ? "The booking server returned an error while loading this list."
+              : "The admin console could not connect to the booking server. Please try again."}
+          </p>
+        </div>
+      )}
 
       {/* Filter toolbar */}
       <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
@@ -657,11 +714,31 @@ function BookingsContent() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
-                    <td colSpan={6} className="px-4 py-6">
-                      <div className="h-4 bg-white/10 rounded w-2/3" />
+                    <td className="px-4 py-5 text-center"><div className="skeleton h-4 w-4 mx-auto" /></td>
+                    <td className="px-4 py-5">
+                      <div className="skeleton h-4 w-36 mb-2" />
+                      <div className="skeleton h-3 w-56" />
+                    </td>
+                    <td className="px-4 py-5">
+                      <div className="skeleton h-4 w-28 mb-2" />
+                      <div className="skeleton h-3 w-24" />
+                    </td>
+                    <td className="px-4 py-5"><div className="skeleton h-4 w-20" /></td>
+                    <td className="px-4 py-5"><div className="skeleton h-4 w-44" /></td>
+                    <td className="px-4 py-5">
+                      <div className="flex justify-end gap-2">
+                        <div className="skeleton h-7 w-14" />
+                        <div className="skeleton h-7 w-14" />
+                      </div>
                     </td>
                   </tr>
                 ))
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-white/40 text-xs">
+                    Resolve the loading error above, then refresh the bookings list.
+                  </td>
+                </tr>
               ) : data?.bookings && data.bookings.length > 0 ? (
                 data.bookings.map((b) => {
                   const isDuplicate = hasDuplicateWarning(b, data.bookings)

@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     const supabase = createServiceClient()
-    const { data: booking, error } = await (supabase as any)
+    const { data: bookingByCode, error: codeError } = await (supabase as any)
       .from("bookings")
       .select(`
         id,
@@ -46,7 +46,49 @@ export async function GET(
         status_confirmed_at
       `)
       .eq("booking_code", params.id)
-      .single()
+      .maybeSingle()
+
+    // Fallback: if not found by booking_code, try internal UUID id
+    let booking = bookingByCode
+    let error = codeError
+    if (!bookingByCode && (!codeError || codeError.code === "PGRST116")) {
+      const { data: bookingById, error: idError } = await (supabase as any)
+        .from("bookings")
+        .select(`
+          id,
+          booking_code,
+          customer_name,
+          customer_email,
+          customer_phone,
+          session_date,
+          start_time,
+          end_time,
+          duration_hours,
+          studio,
+          equipment,
+          notes,
+          amount_ghs,
+          status,
+          paystack_reference,
+          is_paid,
+          is_packed,
+          is_delivered,
+          created_at,
+          updated_at,
+          status_received,
+          status_received_at,
+          status_payment,
+          status_payment_at,
+          status_reviewed,
+          status_reviewed_at,
+          status_confirmed,
+          status_confirmed_at
+        `)
+        .eq("id", params.id)
+        .maybeSingle()
+      booking = bookingById
+      error = idError
+    }
 
     if (error || !booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })

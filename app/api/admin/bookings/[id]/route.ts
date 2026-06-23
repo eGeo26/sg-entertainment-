@@ -2,10 +2,11 @@
 // GET    — full booking detail
 // PATCH  — update status / fields
 // DELETE — cancel booking
+export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
-import { Database } from "@/types/supabase"
+import type { Database } from "@/types/supabase"
 
 type BookingUpdate = Database["public"]["Tables"]["bookings"]["Update"]
 
@@ -32,6 +33,12 @@ function mapDbToCamel(b: any) {
     paystackStatus: b.paystack_status,
     anollaBookingId: b.anolla_booking_id,
     anollaStatus: b.anolla_status,
+    statusPayment: b.status_payment,
+    statusPaymentAt: b.status_payment_at,
+    statusReviewed: b.status_reviewed,
+    statusReviewedAt: b.status_reviewed_at,
+    statusConfirmed: b.status_confirmed,
+    statusConfirmedAt: b.status_confirmed_at,
     isPaid: b.is_paid,
     isPacked: b.is_packed,
     isDispatched: b.is_dispatched,

@@ -25,7 +25,13 @@ interface BookingData {
     text: string
     timestamp: string
   } | null
+  statusConfirmed?: boolean
+  statusConfirmedAt?: string
+  statusReviewed?: boolean
+  statusReviewedAt?: string
 }
+
+type LoadState = "loading" | "success" | "not-found" | "network-error" | "server-error"
 
 export default function SuccessContent() {
   const params = useSearchParams()
@@ -33,56 +39,87 @@ export default function SuccessContent() {
   const reference = params.get("reference")
 
   const [booking, setBooking] = useState<BookingData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [pollCount, setPollCount] = useState(0)
+  const [loadState, setLoadState] = useState<LoadState>("loading")
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [pollError, setPollError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!bookingId) {
-      setError("No booking ID found")
-      setLoading(false)
+      setLoadState("not-found")
       return
     }
 
-    const poll = async () => {
+    let cancelled = false
+
+    const classify = (res: Response): LoadState => {
+      if (res.status === 404) return "not-found"
+      if (res.status >= 500) return "server-error"
+      return "network-error"
+    }
+
+    const fetchBooking = async (isPoll = false) => {
       try {
-        const res = await fetch(`/api/bookings/${bookingId}`)
-        if (!res.ok) throw new Error("Booking not found")
+        const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}`, { cache: "no-store" })
+        if (!res.ok) {
+          if (!cancelled && !isPoll) setLoadState(classify(res))
+          if (!cancelled && isPoll) setPollError("Live updates are temporarily unavailable. The details shown may be stale.")
+          return
+        }
         const data = await res.json()
+        if (cancelled) return
         setBooking(data)
-        setLoading(false)
+        setLastUpdated(new Date())
+        setLoadState("success")
+        setPollError(null)
       } catch {
-        setError("Could not retrieve booking details")
-        setLoading(false)
+        if (cancelled) return
+        if (isPoll) {
+          setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
+        } else {
+          setLoadState("network-error")
+        }
       }
     }
 
-    poll()
+    fetchBooking()
+    const interval = setInterval(() => fetchBooking(true), 3000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [bookingId])
 
-  if (loading) {
-    return (
-      <div className="text-center">
-        <div className="w-16 h-16 border-2 border-white/10 border-t-white rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-white/50">Confirming your booking…</p>
-        <p className="text-white/25 text-sm mt-2">This may take a few seconds</p>
-      </div>
-    )
+  const getRelativeTime = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
+    if (seconds < 60) return `${seconds}s ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    return `${Math.floor(seconds / 3600)}h ago`
   }
 
-  if (error || !booking) {
+  if (loadState === "loading") {
+    return <SuccessSkeleton />
+  }
+
+  if (loadState !== "success" || !booking) {
     return (
       <div className="max-w-md w-full text-center">
-        <div className="card bg-black/40 backdrop-blur-sm">
+        <div className={`card backdrop-blur-sm ${loadState === "server-error" ? "bg-red-500/10 border-red-500/25" : loadState === "network-error" ? "bg-amber-500/10 border-amber-500/25" : "bg-black/40"}`}>
           <div className="flex justify-center mb-4">
             <svg className="w-14 h-14 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">Booking Lookup Failed</h1>
+          <h1 className="text-xl font-bold text-white mb-2">
+            {loadState === "not-found" ? "Booking Not Found" : loadState === "server-error" ? "Booking Server Error" : "Connection Problem"}
+          </h1>
           <p className="text-white/50 text-sm mb-6">
-            {error ?? "We couldn't find your booking. If you paid, don't worry — we received it and will confirm shortly via WhatsApp and email."}
+            {loadState === "not-found"
+              ? "We couldn't find that booking reference. If you paid, don't worry — we received it and will confirm shortly via WhatsApp and email."
+              : loadState === "server-error"
+              ? "The booking server had trouble loading your receipt. Please try again in a moment."
+              : "We couldn't connect to the booking server. Please check your connection and try again."}
           </p>
           <p className="text-white/30 text-xs mb-6">Reference: {reference}</p>
           <Link href="/" className="btn-secondary text-sm py-2.5 px-5">
@@ -121,6 +158,18 @@ export default function SuccessContent() {
             ? "Your session is confirmed. Check your email and WhatsApp for full details."
             : "Your payment was received. Confirmation will arrive via email and WhatsApp shortly."}
         </p>
+        {lastUpdated && (
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[10px] uppercase tracking-wider text-white/35">Live</span>
+            <span className="text-[10px] text-white/30">Updated {getRelativeTime(lastUpdated)}</span>
+          </div>
+        )}
+        {pollError && (
+          <p className="mt-3 text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            {pollError}
+          </p>
+        )}
       </div>
 
       {/* Booking card */}
@@ -234,6 +283,35 @@ export default function SuccessContent() {
         <Link href="/" className="btn-primary flex-1 py-3 text-sm text-center">
           Back to Home
         </Link>
+      </div>
+    </div>
+  )
+}
+
+function SuccessSkeleton() {
+  return (
+    <div className="max-w-lg w-full" aria-label="Loading booking receipt">
+      <div className="text-center mb-8">
+        <div className="skeleton w-20 h-20 rounded-full mx-auto mb-4" />
+        <div className="skeleton h-7 w-48 mx-auto mb-3" />
+        <div className="skeleton h-4 w-80 max-w-full mx-auto" />
+      </div>
+      <div className="card bg-black/40 backdrop-blur-sm mb-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="skeleton h-4 w-32" />
+          <div className="skeleton h-6 w-28" />
+        </div>
+        <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-2">
+          <div className="skeleton h-5 w-40" />
+          <div className="skeleton h-4 w-56" />
+          <div className="skeleton h-4 w-44" />
+        </div>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="flex justify-between gap-4">
+            <div className="skeleton h-4 w-24" />
+            <div className="skeleton h-4 w-40" />
+          </div>
+        ))}
       </div>
     </div>
   )

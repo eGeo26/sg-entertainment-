@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:flow": "tsx scripts/test-booking-flow.ts"
+    "test:flow": "jiti scripts/test-booking-flow.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.0",

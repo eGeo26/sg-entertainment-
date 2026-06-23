@@ -1,5 +1,6 @@
 // app/api/admin/stats/route.ts
 // GET /api/admin/stats — dashboard overview aggregates
+export const dynamic = "force-dynamic"
 
 import { NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
