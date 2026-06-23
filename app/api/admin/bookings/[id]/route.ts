@@ -17,6 +17,7 @@ const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
 function mapDbToCamel(b: any) {
   return {
     id: b.id,
+    bookingCode: b.booking_code,
     customerName: b.customer_name,
     customerEmail: b.customer_email,
     customerPhone: b.customer_phone,
@@ -29,6 +30,8 @@ function mapDbToCamel(b: any) {
     notes: b.notes,
     amountGHS: pesewasToGhs(b.amount_ghs),
     status: b.status,
+    hubtelReference: b.hubtel_reference,
+    hubtelStatus: b.hubtel_status,
     paystackReference: b.paystack_reference,
     paystackStatus: b.paystack_status,
     anollaBookingId: b.anolla_booking_id,
@@ -39,15 +42,17 @@ function mapDbToCamel(b: any) {
     statusReviewedAt: b.status_reviewed_at,
     statusConfirmed: b.status_confirmed,
     statusConfirmedAt: b.status_confirmed_at,
-    isPaid: b.is_paid,
-    isPacked: b.is_packed,
-    isDispatched: b.is_dispatched,
-    isDelivered: b.is_delivered,
+    isPaid: b.is_paid ?? false,
+    isPacked: b.is_packed ?? false,
+    isDispatched: b.is_dispatched ?? false,
+    isDelivered: b.is_delivered ?? false,
     adminNotes: b.admin_notes,
     estimatedDeliveryTime: b.estimated_delivery_time,
     createdAt: b.created_at,
+    updatedAt: b.updated_at,
   }
 }
+
 
 export async function GET(
   _req: NextRequest,
@@ -79,19 +84,69 @@ export async function PATCH(
   const body = await req.json()
   const supabase = createServiceClient()
 
+  // Fetch existing status columns to preserve or cascade timestamps correctly
+  const { data: currentBooking, error: fetchError } = await (supabase as any)
+    .from("bookings")
+    .select("status_payment, status_payment_at, status_reviewed, status_reviewed_at, status_confirmed, status_confirmed_at")
+    .eq("id", params.id)
+    .maybeSingle()
+
+  if (fetchError || !currentBooking) {
+    console.error("[Admin Booking PATCH] Fetch error:", fetchError)
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+  }
+
   // Map incoming camelCase properties to DB snake_case columns
-  const updateData: BookingUpdate = {}
+  const updateData: any = {}
   
   if (body.status !== undefined) updateData.status = body.status
   if (body.anollaStatus !== undefined) updateData.anolla_status = body.anollaStatus
   if (body.paystackStatus !== undefined) updateData.paystack_status = body.paystackStatus
   if (body.adminNotes !== undefined) updateData.admin_notes = body.adminNotes
   if (body.estimatedDeliveryTime !== undefined) updateData.estimated_delivery_time = body.estimatedDeliveryTime
-  
-  if (body.isPaid !== undefined) updateData.is_paid = body.isPaid
-  if (body.isPacked !== undefined) updateData.is_packed = body.isPacked
+
+  if (body.isPaid !== undefined) {
+    updateData.is_paid = body.isPaid
+    // isPaid → also mark status_payment (what the customer stepper reads)
+    if (body.isPaid === true) {
+      updateData.status_payment = true
+      updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
+    } else {
+      updateData.status_payment = false
+      updateData.status_payment_at = null
+    }
+  }
+  if (body.isPacked !== undefined) {
+    updateData.is_packed = body.isPacked
+    // isPacked = "Reviewed" in the UI → cascade to status_reviewed (stepper stage 3)
+    if (body.isPacked === true) {
+      updateData.status_reviewed = true
+      updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
+      // Also cascade payment confirmation if not already set
+      updateData.status_payment = true
+      updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
+    } else {
+      updateData.status_reviewed = false
+      updateData.status_reviewed_at = null
+    }
+  }
   if (body.isDispatched !== undefined) updateData.is_dispatched = body.isDispatched
-  if (body.isDelivered !== undefined) updateData.is_delivered = body.isDelivered
+  if (body.isDelivered !== undefined) {
+    updateData.is_delivered = body.isDelivered
+    // isDelivered = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
+    if (body.isDelivered === true) {
+      updateData.status_confirmed = true
+      updateData.status_confirmed_at = currentBooking.status_confirmed_at || new Date().toISOString()
+      // Cascade all prior stages
+      updateData.status_reviewed = true
+      updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
+      updateData.status_payment = true
+      updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
+    } else {
+      updateData.status_confirmed = false
+      updateData.status_confirmed_at = null
+    }
+  }
 
   const { data: updated, error } = await (supabase as any)
     .from("bookings")

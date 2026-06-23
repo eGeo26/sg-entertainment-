@@ -59,17 +59,6 @@ export default function AdminHeader() {
       {/* Right side */}
       <div className="flex items-center gap-2">
 
-        {/* Live indicator */}
-        <div
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-          style={{ background: "var(--bg-overlay)", border: "1px solid var(--border)" }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[10px] tracking-widest uppercase font-medium" style={{ color: "var(--text-muted)" }}>
-            Live
-          </span>
-        </div>
-
         {/* Admin pill */}
         <div
           className="flex items-center gap-2 px-3 py-1.5 rounded-full"

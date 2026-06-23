@@ -1,0 +1,192 @@
+// app/api/payments/hubtel/initiate/route.ts
+// POST /api/payments/hubtel/initiate
+//
+// Dual-mode payment initiator:
+//   - Reads `payment_simulation_mode` from Supabase settings table.
+//   - mode = true  → returns the simulate-payment URL (no external API call)
+//   - mode = false → calls Hubtel POS Online Checkout API and returns checkout URL
+//
+// Security: All HUBTEL_ env vars are server-side only; nothing is forwarded to the client.
+
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { createServiceClient } from "@/lib/supabase"
+import { initiateHubtelTransaction, HubtelError } from "@/lib/hubtel"
+
+// ── Request validation ─────────────────────────────────────────────────────────
+
+const InitiateSchema = z.object({
+  /** The booking_code / paystack_reference that identifies this booking */
+  bookingCode: z.string().min(1),
+  /** GHS amount as a float, e.g. 300.00 */
+  amountGHS: z.number().positive(),
+  /** Customer display name */
+  customerName: z.string().min(1).max(100),
+  /** Customer email for Hubtel receipt */
+  customerEmail: z.string().email().optional(),
+  /** Customer phone in E.164 format e.g. +233XXXXXXXXX */
+  customerPhone: z.string().optional(),
+  /** Human-readable description of the booking */
+  description: z.string().max(200).optional(),
+})
+
+// ── Helper: read simulation mode from Supabase ─────────────────────────────────
+
+async function isSimulationMode(supabase: ReturnType<typeof createServiceClient>): Promise<boolean> {
+  try {
+    const { data, error } = await (supabase as any)
+      .from("settings")
+      .select("value")
+      .eq("key", "payment_simulation_mode")
+      .maybeSingle()
+
+    if (error) {
+      console.warn("[initiate] Could not read payment_simulation_mode from settings:", error.message)
+      return true // fail-safe: default to simulation
+    }
+
+    if (!data) {
+      console.warn("[initiate] payment_simulation_mode not found in settings table — defaulting to simulation.")
+      return true
+    }
+
+    // The value may be stored as boolean true/false or string "true"/"false"
+    return data.value === true || data.value === "true"
+  } catch (err) {
+    console.error("[initiate] Exception reading simulation setting:", err)
+    return true // fail-safe
+  }
+}
+
+// ── Route handler ──────────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  // 1. Parse + validate body
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 })
+  }
+
+  const parsed = InitiateSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request data.", details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+
+  const {
+    bookingCode,
+    amountGHS,
+    customerName,
+    customerEmail,
+    customerPhone,
+    description,
+  } = parsed.data
+
+  const supabase = createServiceClient()
+
+  // 2. Confirm the booking exists in our DB
+  const { data: booking, error: lookupError } = await (supabase as any)
+    .from("bookings")
+    .select("id, booking_code, status, customer_name, customer_email, customer_phone")
+    .eq("booking_code", bookingCode)
+    .maybeSingle()
+
+  if (lookupError || !booking) {
+    console.error("[initiate] Booking not found:", bookingCode, lookupError)
+    return NextResponse.json({ error: "Booking not found." }, { status: 404 })
+  }
+
+  // Guard against double-charging confirmed bookings
+  if (booking.status === "CONFIRMED" || booking.status === "PAID") {
+    return NextResponse.json(
+      { error: "This booking has already been paid.", alreadyPaid: true },
+      { status: 409 }
+    )
+  }
+
+  // 3. Determine mode
+  const simMode = await isSimulationMode(supabase)
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")
+
+  // ── SIMULATION MODE ────────────────────────────────────────────────────────
+  if (simMode) {
+    console.log(`[initiate] Simulation mode ON → routing ${bookingCode} to simulate-payment page.`)
+
+    const simulateUrl = `${appUrl}/booking/simulate-payment?reference=${bookingCode}&booking_id=${bookingCode}`
+
+    return NextResponse.json({
+      mode: "simulation",
+      bookingCode,
+      authorizationUrl: simulateUrl,
+      amountGHS,
+      currency: "GHS",
+    })
+  }
+
+  // ── LIVE MODE ──────────────────────────────────────────────────────────────
+  console.log(`[initiate] Live mode → calling Hubtel for ${bookingCode}, GHS ${amountGHS}`)
+
+  // Use HUBTEL_CALLBACK_URL from env if set, otherwise build from app URL
+  const callbackUrl =
+    process.env.HUBTEL_CALLBACK_URL ||
+    `${appUrl}/api/payments/hubtel/callback`
+
+  const returnUrl = `${appUrl}/success?reference=${bookingCode}&booking_id=${bookingCode}`
+  const cancellationUrl = `${appUrl}/booking?cancelled=true&reference=${bookingCode}`
+
+  try {
+    const hubtelResult = await initiateHubtelTransaction({
+      totalAmount: amountGHS,
+      description: description || `Studio booking — ref: ${bookingCode}`,
+      clientReference: bookingCode,
+      callbackUrl,
+      returnUrl,
+      cancellationUrl,
+      customerName: customerName || booking.customer_name,
+      customerEmail: customerEmail || booking.customer_email || undefined,
+      customerMobileNumber: customerPhone || booking.customer_phone || undefined,
+    })
+
+    console.log(`[initiate] Hubtel checkout ready: ${hubtelResult.checkoutUrl}`)
+
+    return NextResponse.json({
+      mode: "live",
+      bookingCode,
+      authorizationUrl: hubtelResult.checkoutUrl,
+      checkoutId: hubtelResult.checkoutId,
+      clientReference: hubtelResult.clientReference,
+      amountGHS,
+      currency: "GHS",
+    })
+  } catch (err) {
+    if (err instanceof HubtelError) {
+      console.error(`[initiate] HubtelError (${err.code}):`, err.message, err.raw)
+
+      // Return 502 for gateway issues, 422 for credential/config issues
+      const httpStatus =
+        err.code === "invalid_credentials" || err.code === "config"
+          ? 503
+          : err.code === "declined"
+          ? 422
+          : 502
+
+      return NextResponse.json(
+        {
+          error: err.toUserMessage(),
+          code: err.code,
+        },
+        { status: httpStatus }
+      )
+    }
+
+    console.error("[initiate] Unexpected error:", err)
+    return NextResponse.json(
+      { error: "An unexpected error occurred. Please try again or contact us." },
+      { status: 500 }
+    )
+  }
+}

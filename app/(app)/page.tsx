@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
+import PromoFlyer from "@/components/PromoFlyer"
 
 interface Review {
   id: string
@@ -188,65 +189,7 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* ── Single unified compact info card ── */}
-      <div
-        className="w-full max-w-md rounded-2xl px-5 py-4 text-left mx-auto"
-        style={{
-          background: "rgba(0,0,0,0.45)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
-        }}
-      >
-        {/* Badge — centered within the card */}
-        <div className="flex justify-center mb-3">
-          <span
-            className="inline-block text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-studio-gold/10 text-studio-gold border border-studio-gold/25"
-          >
-            WE OFFER
-          </span>
-        </div>
-
-        {/* Services list */}
-        <p className="text-white/65 text-sm leading-relaxed mb-3 text-center">
-          Music Productions · Mixing · Sound Engineering
-          <br />
-          Arrangements · Demo Recording · Jingles
-        </p>
-
-        {/* Quick stats row */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-          <span className="text-white/40 flex items-center gap-1.5">
-            <svg className="w-3 h-3 text-white/60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            From GHS 300 / session
-          </span>
-          <span className="text-white/40 flex items-center gap-1.5">
-            <svg className="w-3 h-3 text-white/60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            24 Hours Active
-          </span>
-          <span className="text-white/40 flex items-center gap-1.5">
-            <svg className="w-3 h-3 text-white/60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Min. 2h 30m
-          </span>
-          <span className="text-white/40 flex items-center gap-1.5">
-            <svg className="w-3 h-3 text-white/60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Accra, Ghana
-          </span>
-        </div>
-      </div>
+      <PromoFlyer />
 
       {/* ── Testimonials Section ── */}
       <div className="w-full border-t border-white/10 pt-12 text-left space-y-6">

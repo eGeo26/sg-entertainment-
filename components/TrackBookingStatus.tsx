@@ -310,15 +310,9 @@ export default function TrackBookingStatus() {
                 </div>
               </div>
               {lastUpdated && (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-[9px] text-white/40 uppercase tracking-wider">
-                    Live
-                  </span>
-                  <span className="text-[9px] text-white/30">
-                    Updated {getRelativeTime(lastUpdated)}
-                  </span>
-                </div>
+                <span className="text-[9px] text-white/30">
+                  Updated {getRelativeTime(lastUpdated)}
+                </span>
               )}
             </div>
             {pollError && (
@@ -350,86 +344,81 @@ export default function TrackBookingStatus() {
 
           {/* Session Progress — 4-stage stepper based on booking_status_history */}
           <div className="py-2">
-            <h4 className="text-[10px] uppercase tracking-widest font-bold mb-5 text-center" style={{ color: "#C5A880" }}>Session Progress</h4>
+            <h4 className="text-[10px] uppercase tracking-widest font-bold mb-6 text-center" style={{ color: "#C5A880" }}>Session Progress</h4>
 
-            {/* Row 1: circles + connectors */}
-            <div className="flex items-center">
-              {PROGRESS_STAGES.map((stage, index) => {
-                const isReached = isStageReached(stage.key)
-                const timestamp = getStageTimestamp(stage.key)
-                const activeStageIndex = getActiveStageIndex()
-                const isActive = index === activeStageIndex
-                const isLast = index === PROGRESS_STAGES.length - 1
-                // Connector is filled if the current step is reached (meaning path to next step is complete)
-                const connectorFilled = isReached
+            <div className="relative">
+              {/* Background connector line */}
+              <div 
+                className="absolute top-[16px] h-[1px] bg-white/10 -z-0 transition-all duration-300"
+                style={{ left: "12.5%", right: "12.5%" }}
+              />
+              {/* Filled connector line */}
+              <div 
+                className="absolute top-[16px] h-[1px] bg-[#C5A880] -z-0 transition-all duration-300"
+                style={{ 
+                  left: "12.5%", 
+                  width: `${(getActiveStageIndex() / (PROGRESS_STAGES.length - 1)) * 75}%` 
+                }}
+              />
 
-                return (
-                  <div key={stage.key} className="flex items-center flex-1 last:flex-none">
-                    {/* Circle */}
-                    <div
-                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
-                      style={
-                        isReached
-                          ? { background: "#C5A880", color: "#000" }
-                          : isActive
-                          ? { background: "transparent", border: "2px solid #C5A880", color: "#C5A880" }
-                          : { background: "transparent", border: "2px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.3)" }
-                      }
-                    >
-                      {isReached ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : index + 1}
-                    </div>
-                    {/* Connector to next step */}
-                    {!isLast && (
+              <div className="flex justify-between items-start w-full relative z-10">
+                {PROGRESS_STAGES.map((stage, index) => {
+                  const isReached = isStageReached(stage.key)
+                  const timestamp = getStageTimestamp(stage.key)
+                  const activeStageIndex = getActiveStageIndex()
+                  const isActive = index === activeStageIndex
+
+                  return (
+                    <div key={stage.key} className="flex flex-col items-center flex-1 text-center px-0.5 sm:px-1">
+                      {/* Circle */}
                       <div
-                        className="flex-1 h-0.5 mx-2 transition-all duration-300"
-                        style={{
-                          background: connectorFilled ? "#C5A880" : "rgba(255,255,255,0.15)"
-                        }}
-                      />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Row 2: labels */}
-            <div className="grid mt-3" style={{ gridTemplateColumns: `repeat(${PROGRESS_STAGES.length}, 1fr)` }}>
-              {PROGRESS_STAGES.map((stage, index) => {
-                const isReached = isStageReached(stage.key)
-                const timestamp = getStageTimestamp(stage.key)
-                const activeStageIndex = getActiveStageIndex()
-                const isActive = index === activeStageIndex
-
-                return (
-                  <div key={stage.key} className="flex flex-col items-center">
-                    <span
-                      className="text-[10px] font-semibold whitespace-nowrap"
-                      style={{
-                        color: isReached
-                          ? "#C5A880"
-                          : isActive
-                          ? "#C5A880"
-                          : "rgba(255,255,255,0.3)"
-                      }}
-                    >
-                      {stage.label}
-                    </span>
-                    {/* Timestamp underneath for completed steps */}
-                    {isReached && timestamp && (
-                      <span
-                        className="text-[9px] font-medium mt-1 whitespace-nowrap"
-                        style={{ color: "#C5A880" }}
+                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 select-none"
+                        style={
+                          isReached
+                            ? { background: "#C5A880", color: "#000" }
+                            : isActive
+                            ? { background: "#0c0c0e", border: "2px solid #C5A880", color: "#C5A880" }
+                            : { background: "#0c0c0e", border: "2px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.3)" }
+                        }
                       >
-                        {formatStageTimestamp(timestamp)}
+                        {isReached ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : index + 1}
+                      </div>
+
+                      {/* Label */}
+                      <span
+                        className="text-[9px] sm:text-xs font-semibold mt-2.5 leading-tight transition-colors duration-200 max-w-[80px] sm:max-w-none"
+                        style={{
+                          color: isReached
+                            ? "#C5A880"
+                            : isActive
+                            ? "#C5A880"
+                            : "rgba(255,255,255,0.3)"
+                        }}
+                      >
+                        {stage.label}
                       </span>
-                    )}
-                  </div>
-                )
-              })}
+
+                      {/* Timestamp underneath for completed steps */}
+                      {isReached && timestamp ? (
+                        <span
+                          className="text-[8px] sm:text-[9px] font-medium mt-1 leading-normal text-[#C5A880]/85 break-words max-w-[70px] sm:max-w-[100px]"
+                        >
+                          {formatStageTimestamp(timestamp)}
+                        </span>
+                      ) : (
+                        // Placeholder to balance layout heights
+                        <span className="text-[8px] sm:text-[9px] font-medium mt-1 leading-normal opacity-0 select-none pointer-events-none">
+                          -
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
           </div>

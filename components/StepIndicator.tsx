@@ -11,26 +11,39 @@ interface Props {
 
 export default function StepIndicator({ steps, currentStep }: Props) {
   const currentIndex = steps.findIndex((s) => s.id === currentStep)
+  const circleOffsetPercent = 100 / (steps.length * 2)
+  const maxFilledPercent = 100 - (100 / steps.length)
+  const currentFilledPercent = steps.length > 1 ? (currentIndex / (steps.length - 1)) * maxFilledPercent : 0
 
   return (
-    <div className="w-full">
-      {/* Top row: circles + connectors, all vertically centred */}
-      <div className="flex items-center">
+    <div className="w-full relative">
+      {/* Background connector line */}
+      <div 
+        className="absolute top-[14px] h-[1px] bg-white/10 -z-0 transition-all duration-300"
+        style={{ left: `${circleOffsetPercent}%`, right: `${circleOffsetPercent}%` }}
+      />
+      {/* Filled connector line */}
+      <div 
+        className="absolute top-[14px] h-[1px] bg-studio-gold -z-0 transition-all duration-300"
+        style={{ left: `${circleOffsetPercent}%`, width: `${currentFilledPercent}%` }}
+      />
+
+      <div className="flex justify-between items-start w-full relative z-10">
         {steps.map((step, i) => {
           const isDone = i < currentIndex
           const isActive = i === currentIndex
 
           return (
-            <div key={step.id} className="flex items-center flex-1 last:flex-none">
+            <div key={step.id} className="flex flex-col items-center flex-1 text-center px-1">
               {/* Circle node */}
               <div
                 className={clsx(
-                  "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200",
+                  "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 select-none",
                   isDone && "text-black",
                   isActive && "border-2 border-studio-gold text-studio-gold",
-                  !isDone && !isActive && "bg-white/5 border border-white/10 text-white/25"
+                  !isDone && !isActive && "bg-[#0c0c0e] border border-white/10 text-white/25"
                 )}
-                style={isDone ? { background: "var(--sg-gold)" } : isActive ? { background: "rgba(255,255,255,0.1)" } : {}}
+                style={isDone ? { background: "var(--sg-gold, #C5A880)" } : isActive ? { background: "rgba(255,255,255,0.05)" } : {}}
               >
                 {isDone ? (
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,31 +52,10 @@ export default function StepIndicator({ steps, currentStep }: Props) {
                 ) : i + 1}
               </div>
 
-              {/* Connector line — same row as circles, vertically centred */}
-              {i < steps.length - 1 && (
-                <div
-                  className={clsx(
-                    "flex-1 h-px mx-1.5 transition-all duration-300",
-                    i < currentIndex ? "bg-studio-gold" : "bg-white/10"
-                  )}
-                />
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Bottom row: labels, only visible on sm+ */}
-      <div className="hidden sm:flex items-start mt-1.5">
-        {steps.map((step, i) => {
-          const isDone = i < currentIndex
-          const isActive = i === currentIndex
-
-          return (
-            <div key={step.id} className="flex-1 last:flex-none flex justify-center last:justify-center">
+              {/* Label - visible on all screens, wrapping/scaling nicely */}
               <span
                 className={clsx(
-                  "text-xs font-medium whitespace-nowrap",
+                  "text-[10px] sm:text-xs font-medium mt-2 leading-tight transition-colors duration-200 max-w-[90px] sm:max-w-none",
                   isActive ? "text-studio-gold" : isDone ? "text-white/60" : "text-white/20"
                 )}
               >

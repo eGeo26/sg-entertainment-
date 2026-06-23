@@ -4,31 +4,14 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import dynamic from "next/dynamic"
-
-// Lazy-load the beat station so it doesn't affect initial bundle size
-const BeatStation = dynamic(() => import("./BeatStation"), { ssr: false })
-
-const KONAMI = [
-  "ArrowUp","ArrowUp","ArrowDown","ArrowDown",
-  "ArrowLeft","ArrowRight","ArrowLeft","ArrowRight",
-  "b","a",
-]
 
 export default function Navbar() {
   const pathname = usePathname()
   const isHome = pathname === "/"
 
   const [lastBookingId, setLastBookingId] = useState<string | null>(null)
-  const [beatStationOpen, setBeatStationOpen] = useState(false)
-
-  // Konami code tracking
-  const konamiProgressRef = useRef<number>(0)
-  // Logo click tracking (7 rapid clicks)
-  const logoClicksRef = useRef<number>(0)
-  const logoClickTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // ── LocalStorage polling for active booking banner ──────────────────────────
   useEffect(() => {
@@ -42,49 +25,6 @@ export default function Navbar() {
     return () => clearInterval(interval)
   }, [lastBookingId])
 
-  // ── Konami code listener ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === KONAMI[konamiProgressRef.current]) {
-        konamiProgressRef.current += 1
-        if (konamiProgressRef.current === KONAMI.length) {
-          konamiProgressRef.current = 0
-          setBeatStationOpen(true)
-          toast("🎵 Secret unlocked — Beat Station!", {
-            description: "Use keys Q–F or click pads to jam.",
-            duration: 3000,
-          })
-        }
-      } else {
-        konamiProgressRef.current = 0
-        // Check if this key restarts the sequence
-        if (e.key === KONAMI[0]) konamiProgressRef.current = 1
-      }
-    }
-    window.addEventListener("keydown", handleKey)
-    return () => window.removeEventListener("keydown", handleKey)
-  }, [])
-
-  // ── Logo 7-click easter egg ──────────────────────────────────────────────────
-  const handleLogoClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    logoClicksRef.current += 1
-
-    if (logoClickTimerRef.current) clearTimeout(logoClickTimerRef.current)
-    logoClickTimerRef.current = setTimeout(() => {
-      logoClicksRef.current = 0
-    }, 1500)
-
-    if (logoClicksRef.current >= 7) {
-      logoClicksRef.current = 0
-      setBeatStationOpen(true)
-      toast("🎵 You found it!", {
-        description: "S&G Beat Station unlocked.",
-        duration: 3000,
-      })
-    }
-  }, [])
-
   return (
     <>
       <header
@@ -97,11 +37,11 @@ export default function Navbar() {
         }}
       >
         <div className="max-w-5xl mx-auto w-full px-4 h-14 flex items-center justify-between gap-4">
-          {/* Logo — 7 fast clicks opens Beat Station */}
-          <button
-            onClick={handleLogoClick}
+          {/* Logo */}
+          <Link
+            href="/"
             className="flex items-center gap-2.5 shrink-0 focus:outline-none"
-            aria-label="S&G Studios – Home (click 7× for a surprise)"
+            aria-label="S&G Studios – Home"
           >
             <Image
               src="/assets/sg-logo.png"
@@ -114,7 +54,7 @@ export default function Navbar() {
             <span className="text-white font-semibold text-sm tracking-tight hidden sm:block">
               S&amp;G Studios
             </span>
-          </button>
+          </Link>
 
           {/* Centre label on booking/services pages */}
           {!isHome && (
@@ -206,11 +146,6 @@ export default function Navbar() {
           </div>
         )}
       </header>
-
-      {/* Beat Station Modal */}
-      {beatStationOpen && (
-        <BeatStation onClose={() => setBeatStationOpen(false)} />
-      )}
     </>
   )
 }

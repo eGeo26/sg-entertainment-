@@ -69,10 +69,10 @@ function SimulatePaymentContent() {
 
       if (action === "SUCCESS") {
         toast.success("Payment authorized successfully!", { id: "sim-toast" })
-        router.push(`/success?reference=${reference}&booking_id=${bookingId}&simulated=true`)
+        router.push(`/booking/success?reference=${reference}&booking_id=${bookingId}&simulated=true`)
       } else {
         toast.error("Transaction declined by cardholder / provider.", { id: "sim-toast" })
-        router.push("/booking?cancelled=true")
+        router.push(`/booking/payment-failed?reference=${reference}`)
       }
     } catch (err) {
       console.error(err)
@@ -108,7 +108,7 @@ function SimulatePaymentContent() {
             <div>
               <p className="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Total Amount</p>
               <h2 className="text-2xl font-bold text-white mt-0.5">
-                GHS {booking.amountGHS.toFixed(2)}
+                GHS {(booking?.amountGHS ?? 0).toFixed(2)}
               </h2>
             </div>
             <div className="text-right">
@@ -118,7 +118,7 @@ function SimulatePaymentContent() {
           </div>
           <div className="mt-3 text-xs text-white/65 border-t border-white/5 pt-2">
             <span className="text-white/40 font-semibold uppercase text-[9px] tracking-wider block">Customer</span>
-            {booking.customerName} ({booking.customerEmail})
+            {booking?.customerName || ""} ({booking?.customerEmail || ""})
           </div>
         </div>
 

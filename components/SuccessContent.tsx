@@ -159,9 +159,7 @@ export default function SuccessContent() {
             : "Your payment was received. Confirmation will arrive via email and WhatsApp shortly."}
         </p>
         {lastUpdated && (
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] uppercase tracking-wider text-white/35">Live</span>
+          <div className="mt-3 text-center">
             <span className="text-[10px] text-white/30">Updated {getRelativeTime(lastUpdated)}</span>
           </div>
         )}
@@ -190,16 +188,16 @@ export default function SuccessContent() {
             <p className="text-white/50 text-sm">{booking.studio} · S&amp;G Entertainment, Accra</p>
           </div>
 
-          <Row label="Guest name" value={booking.customerName} />
-          <Row label="Email" value={booking.customerEmail} />
-          <Row label="WhatsApp" value={booking.customerPhone} />
-          {booking.equipment.length > 0 && (
+          <Row label="Guest name" value={booking.customerName || ""} />
+          <Row label="Email" value={booking.customerEmail || ""} />
+          <Row label="WhatsApp" value={booking.customerPhone || ""} />
+          {booking.equipment && Array.isArray(booking.equipment) && booking.equipment.length > 0 && (
             <Row label="Equipment" value={booking.equipment.join(", ")} />
           )}
           <div className="pt-2 border-t border-white/8 flex justify-between items-center">
             <span className="text-white/50 text-sm">Total paid</span>
             <span className="font-bold text-lg text-white">
-              GHS {booking.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2 })}
+              GHS {(booking.amountGHS ?? 0).toLocaleString("en-GH", { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -258,7 +256,7 @@ export default function SuccessContent() {
 
       <div className="flex gap-3">
         <a
-          href={`https://wa.me/${process.env.NEXT_PUBLIC_STUDIO_PHONE?.replace(/\s+/g, "").replace("+", "")}`}
+          href={`https://wa.me/${(process.env.NEXT_PUBLIC_STUDIO_PHONE || "").replace(/\s+/g, "").replace("+", "")}`}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-secondary flex-1 py-3 text-sm text-center flex items-center justify-center gap-2"

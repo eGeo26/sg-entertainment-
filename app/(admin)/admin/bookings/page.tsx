@@ -72,7 +72,6 @@ function BookingsContent() {
   const [data, setData] = useState<FetchBookingsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<"network" | "server" | "unauthorized" | null>(null)
-  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("disconnected")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [newBookingIds, setNewBookingIds] = useState<Set<string>>(new Set())
 
@@ -359,6 +358,11 @@ function BookingsContent() {
         return
       }
       toast.success("Booking marked as reviewed")
+      setInspectedBooking({
+        ...inspectedBooking,
+        statusReviewed: true,
+        statusReviewedAt: new Date().toISOString(),
+      })
       fetchBookings()
     } catch (err) {
       console.error(err)
@@ -576,16 +580,11 @@ function BookingsContent() {
             <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Bookings Log Console</h1>
             <p className="text-xs text-white/40 mt-1.5">Manage session bookings, pipeline logistics, and print invoices</p>
           </div>
-          {/* Live indicator */}
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[9px] text-white/40 uppercase tracking-wider">Live</span>
-            {lastUpdated && (
-              <span className="text-[9px] text-white/30">
-                Updated {getRelativeTime(lastUpdated)}
-              </span>
-            )}
-          </div>
+          {lastUpdated && (
+            <span className="text-[9px] text-white/30">
+              Updated {getRelativeTime(lastUpdated)}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
