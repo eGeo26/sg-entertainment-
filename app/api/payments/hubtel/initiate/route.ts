@@ -130,10 +130,15 @@ export async function POST(req: NextRequest) {
   // ── LIVE MODE ──────────────────────────────────────────────────────────────
   console.log(`[initiate] Live mode → calling Hubtel for ${bookingCode}, GHS ${amountGHS}`)
 
-  // Use HUBTEL_CALLBACK_URL from env if set, otherwise build from app URL
-  const callbackUrl =
-    process.env.HUBTEL_CALLBACK_URL ||
-    `${appUrl}/api/payments/hubtel/callback`
+  // Use HUBTEL_CALLBACK_URL from environment variable
+  const callbackUrl = process.env.HUBTEL_CALLBACK_URL
+  if (!callbackUrl) {
+    console.error("[initiate] HUBTEL_CALLBACK_URL is not set in environment variables")
+    return NextResponse.json(
+      { error: "Server configuration error: callback URL not configured" },
+      { status: 500 }
+    )
+  }
 
   const returnUrl = `${appUrl}/success?reference=${bookingCode}&booking_id=${bookingCode}`
   const cancellationUrl = `${appUrl}/booking?cancelled=true&reference=${bookingCode}`
