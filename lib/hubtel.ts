@@ -6,8 +6,26 @@
 //   - Never import this file inside a "use client" component.
 //   - Credentials are Base64-encoded at runtime and never cached in module scope.
 
+// ── Startup guard for required environment variables ────────────────────────
+const requiredEnvVars = [
+  "HUBTEL_API_ID",
+  "HUBTEL_API_KEY",
+  "HUBTEL_MERCHANT_ACCOUNT_NUMBER",
+  "HUBTEL_CALLBACK_URL",
+  "NEXT_PUBLIC_APP_URL",
+] as const
+
+const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName])
+
+if (missingEnvVars.length > 0) {
+  throw new Error(
+    `[Hubtel] Missing required environment variables: ${missingEnvVars.join(", ")}. ` +
+    "Set these via Vercel dashboard or .env.local. See .env.example for reference."
+  )
+}
+
 const HUBTEL_INITIATE_URL =
-  "https://payproxyapi.hubtel.com/items/initiate"
+  "https://api.hubtel.com/v2/pos/onlinecheckout/initiate-transaction"
 
 // ── Auth header builder ────────────────────────────────────────────────────────
 // Uses HUBTEL_API_ID and HUBTEL_API_KEY (as supplied in the user spec).
@@ -89,31 +107,26 @@ interface HubtelApiResponse {
 export async function initiateHubtelTransaction(
   params: HubtelInitiateParams
 ): Promise<HubtelInitiateResult> {
-  const merchantAccountNumber =
-    process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER ||
-    process.env.HUBTEL_SANDBOX_MERCHANT_ACCOUNT_NUMBER ||
-    ""
-
-  if (!merchantAccountNumber) {
-    throw new HubtelError(
-      "config",
-      "HUBTEL_MERCHANT_ACCOUNT_NUMBER is not set.",
-      null
-    )
-  }
-
   const requestBody = {
-    merchantAccountNumber,
-    amount: params.totalAmount,
+    totalAmount: params.totalAmount,
     description: params.description,
     clientReference: params.clientReference,
     callbackUrl: params.callbackUrl,
     returnUrl: params.returnUrl,
     cancellationUrl: params.cancellationUrl,
+    ...(params.customerName && { customerName: params.customerName }),
+    ...(params.customerEmail && { customerEmail: params.customerEmail }),
+    ...(params.customerMobileNumber && {
+      customerMobileNumber: params.customerMobileNumber,
+    }),
   }
 
-  console.log("[Hubtel] Calling URL:", HUBTEL_INITIATE_URL)
-  console.log("[Hubtel] Payload:", JSON.stringify(requestBody))
+  console.log("[Hubtel] Initiating transaction:", {
+    clientReference: params.clientReference,
+    totalAmount: params.totalAmount,
+    description: params.description,
+    requestBody: JSON.stringify(requestBody)
+  })
 
   let res: Response
   try {

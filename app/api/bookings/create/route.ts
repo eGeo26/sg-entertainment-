@@ -32,14 +32,6 @@ function ghsToPesewas(amount: number): number {
 }
 
 export async function POST(req: NextRequest) {
-  console.log('[DEBUG] Env check:', {
-    hubtelApiId: !!process.env.HUBTEL_API_ID,
-    hubtelApiKey: !!process.env.HUBTEL_API_KEY,
-    hubtelMerchant: !!process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER,
-    hubtelCallback: !!process.env.HUBTEL_CALLBACK_URL,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL
-  })
-
   try {
     const body = await req.json()
     const parsed = CreateBookingSchema.safeParse(body)
