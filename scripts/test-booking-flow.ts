@@ -207,7 +207,7 @@ async function testBookingFlow() {
         equipment:            [],
         notes:                null,
         amount_ghs:           20000, // 200.00 GHS in pesewas
-        paystack_reference:   bookingCode,
+        hubtel_reference:   bookingCode,
         status:               'AWAITING_PAYMENT',
         status_received:      true,
         status_received_at:   new Date().toISOString(),

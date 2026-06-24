@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 
     if (action === "SUCCESS") {
-      console.log(`[Simulated Payment] Triggering success webhook for reference: ${booking.paystack_reference}`)
+      console.log(`[Simulated Payment] Triggering success webhook for reference: ${booking.hubtel_reference}`)
       
       try {
         const webhookRes = await fetch(`${appUrl}/api/hubtel/webhook`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clientReference: booking.paystack_reference,
+            clientReference: booking.hubtel_reference,
             transactionId: `sim-tx-${Date.now()}`,
             status: "Success",
             amount: booking.amount_ghs / 100,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
           .from("bookings")
           .update({
             status: "CONFIRMED",
-            paystack_status: "SUCCESS",
+            hubtel_status: "SUCCESS",
             is_paid: true,
             status_payment: true,
             status_payment_at: new Date().toISOString(),
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         .from("bookings")
         .update({
           status: "FAILED",
-          paystack_status: "FAILED",
+          hubtel_status: "FAILED",
         })
         .eq("booking_code", bookingId)
       console.log(`[Simulated Payment] Booking ${bookingId} marked as failed via simulation.`)

@@ -24,7 +24,7 @@ export async function GET() {
     ] = await Promise.all([
       (supabase as any).from("bookings").select("*", { count: "exact", head: true }),
       (supabase as any).from("bookings").select("*", { count: "exact", head: true }).eq("status", "CONFIRMED"),
-      (supabase as any).from("bookings").select("*", { count: "exact", head: true }).eq("is_delivered", true),
+      (supabase as any).from("bookings").select("*", { count: "exact", head: true }).eq("status_confirmed", true),
       (supabase as any).from("bookings").select("amount_ghs").eq("status", "CONFIRMED")
     ])
 
@@ -70,7 +70,7 @@ export async function GET() {
         studio,
         amount_ghs,
         status,
-        paystack_reference,
+        hubtel_reference,
         created_at
       `)
       .order("created_at", { ascending: false })
@@ -89,7 +89,7 @@ export async function GET() {
       studio: b.studio,
       amountGHS: b.amount_ghs / 100,
       status: b.status,
-      hubtelReference: b.paystack_reference,
+      hubtelReference: b.hubtel_reference,
       createdAt: b.created_at,
     }))
 

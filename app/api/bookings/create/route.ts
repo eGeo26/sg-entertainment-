@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         equipment: data.equipment,
         notes: data.notes ?? null,
         amount_ghs: pesewas,
-        paystack_reference: reference,
+        hubtel_reference: reference,
         status: "AWAITING_PAYMENT",
       })
       .select()

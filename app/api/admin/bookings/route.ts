@@ -96,8 +96,8 @@ export async function GET(req: NextRequest) {
       notes: b.notes,
       amountGHS: pesewasToGhs(b.amount_ghs),
       currency: b.currency ?? "GHS",
-      hubtelReference: b.paystack_reference,
-      hubtelStatus: b.paystack_status,
+      hubtelReference: b.hubtel_reference,
+      hubtelStatus: b.hubtel_status,
       status: b.status,
       statusPayment: b.status_payment,
       statusPaymentAt: b.status_payment_at,
@@ -106,11 +106,7 @@ export async function GET(req: NextRequest) {
       statusConfirmed: b.status_confirmed,
       statusConfirmedAt: b.status_confirmed_at,
       isPaid: b.is_paid,
-      isPacked: b.is_packed,
-      isDispatched: b.is_dispatched,
-      isDelivered: b.is_delivered,
       adminNotes: b.admin_notes,
-      estimatedDeliveryTime: b.estimated_delivery_time,
       createdAt: b.created_at,
       updatedAt: b.updated_at,
     }))
@@ -180,9 +176,9 @@ export async function POST(req: NextRequest) {
         equipment: data.equipment,
         notes: data.notes ?? null,
         amount_ghs: ghsToPesewas(data.amountGHS),
-        paystack_reference: bookingCode,
+        hubtel_reference: bookingCode,
         status: "CONFIRMED", // Manual bookings are auto-confirmed
-        paystack_status: "SUCCESS",
+        hubtel_status: "SUCCESS",
         is_paid: true,
       })
       .select()
@@ -206,8 +202,8 @@ export async function POST(req: NextRequest) {
       notes: booking.notes,
       amountGHS: pesewasToGhs(booking.amount_ghs),
       currency: booking.currency ?? "GHS",
-      hubtelReference: booking.paystack_reference,
-      hubtelStatus: booking.paystack_status,
+      hubtelReference: booking.hubtel_reference,
+      hubtelStatus: booking.hubtel_status,
       status: booking.status,
       statusPayment: booking.status_payment,
       statusPaymentAt: booking.status_payment_at,
@@ -216,11 +212,7 @@ export async function POST(req: NextRequest) {
       statusConfirmed: booking.status_confirmed,
       statusConfirmedAt: booking.status_confirmed_at,
       isPaid: booking.is_paid,
-      isPacked: booking.is_packed,
-      isDispatched: booking.is_dispatched,
-      isDelivered: booking.is_delivered,
       adminNotes: booking.admin_notes,
-      estimatedDeliveryTime: booking.estimated_delivery_time,
       createdAt: booking.created_at,
     })
   } catch (err) {

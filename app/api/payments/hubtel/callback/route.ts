@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
   const updatePayload = isSuccess
     ? {
         status: "CONFIRMED",
-        paystack_status: "SUCCESS",
+        hubtel_status: "SUCCESS",
         is_paid: true,
         status_payment: true,
         status_payment_at: now,
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
       }
     : {
         status: "FAILED",
-        paystack_status: "FAILED",
+        hubtel_status: "FAILED",
         hubtel_transaction_id: transactionId ?? null,
       }
 

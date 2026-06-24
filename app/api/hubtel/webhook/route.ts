@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const { data: booking, error: bookingError } = await (supabase as any)
     .from("bookings")
     .select("*")
-    .eq("paystack_reference", reference)
+    .eq("hubtel_reference", reference)
     .maybeSingle()
 
   if (bookingError || !booking) {
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
   const { error: updateError } = await (supabase as any)
     .from("bookings")
     .update({
-      paystack_status: "SUCCESS",
+      hubtel_status: "SUCCESS",
       status: "CONFIRMED",
       is_paid: true,
       status_payment: true,

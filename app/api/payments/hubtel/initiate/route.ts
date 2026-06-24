@@ -16,7 +16,7 @@ import { initiateHubtelTransaction, HubtelError } from "@/lib/hubtel"
 // ── Request validation ─────────────────────────────────────────────────────────
 
 const InitiateSchema = z.object({
-  /** The booking_code / paystack_reference that identifies this booking */
+  /** The booking_code / hubtel_reference that identifies this booking */
   bookingCode: z.string().min(1),
   /** GHS amount as a float, e.g. 300.00 */
   amountGHS: z.number().positive(),

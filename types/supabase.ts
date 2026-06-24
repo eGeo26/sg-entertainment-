@@ -29,20 +29,15 @@ export interface Database {
           notes: string | null
           amount_ghs: number
           currency: string
-          anolla_booking_id: string | null
-          anolla_status: string
-          paystack_reference: string | null
-          paystack_status: string
+
+          hubtel_reference: string | null
+          hubtel_status: string
           status: string
           customer_notified: boolean
           owner_notified: boolean
           processed_events: string[]
           is_paid: boolean
-          is_packed: boolean
-          is_dispatched: boolean
-          is_delivered: boolean
           admin_notes: string | null
-          estimated_delivery_time: string | null
           status_received: boolean | null
           status_received_at: string | null
           status_payment: boolean | null
@@ -69,20 +64,15 @@ export interface Database {
           notes?: string | null
           amount_ghs: number
           currency?: string
-          anolla_booking_id?: string | null
-          anolla_status?: string
-          paystack_reference?: string | null
-          paystack_status?: string
+
+          hubtel_reference?: string | null
+          hubtel_status?: string
           status?: string
           customer_notified?: boolean
           owner_notified?: boolean
           processed_events?: string[]
           is_paid?: boolean
-          is_packed?: boolean
-          is_dispatched?: boolean
-          is_delivered?: boolean
           admin_notes?: string | null
-          estimated_delivery_time?: string | null
           status_received?: boolean | null
           status_received_at?: string | null
           status_payment?: boolean | null
@@ -109,20 +99,15 @@ export interface Database {
           notes?: string | null
           amount_ghs?: number
           currency?: string
-          anolla_booking_id?: string | null
-          anolla_status?: string
-          paystack_reference?: string | null
-          paystack_status?: string
+
+          hubtel_reference?: string | null
+          hubtel_status?: string
           status?: string
           customer_notified?: boolean
           owner_notified?: boolean
           processed_events?: string[]
           is_paid?: boolean
-          is_packed?: boolean
-          is_dispatched?: boolean
-          is_delivered?: boolean
           admin_notes?: string | null
-          estimated_delivery_time?: string | null
           status_received?: boolean | null
           status_received_at?: string | null
           status_payment?: boolean | null

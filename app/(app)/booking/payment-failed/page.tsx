@@ -1,18 +1,14 @@
 "use client"
+// app/(app)/booking/payment-failed/page.tsx
 
-import { useEffect } from "react"
+import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
-export default function PaymentFailedPage() {
+function PaymentFailedContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference")
-
-  useEffect(() => {
-    // Show error toast on mount
-    // toast.error("Payment was cancelled or failed")
-  }, [])
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] px-4 py-8">
@@ -51,5 +47,22 @@ export default function PaymentFailedPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function LoadingState() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh]">
+      <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin mb-4" />
+      <p className="text-white/50 text-sm">Loading...</p>
+    </div>
+  )
+}
+
+export default function PaymentFailedPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <PaymentFailedContent />
+    </Suspense>
   )
 }

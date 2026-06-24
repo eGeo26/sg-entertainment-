@@ -31,7 +31,7 @@ export async function GET() {
         (payload?.ClientReference as string) ||
         (payload?.Reference as string) ||
         (data?.reference as string) ||
-        (data?.metadata as Record<string, unknown>)?.paystack_reference ||
+        (data?.metadata as Record<string, unknown>)?.hubtel_reference ||
         (data?.metadata as Record<string, unknown>)?.booking_id ||
         null
 

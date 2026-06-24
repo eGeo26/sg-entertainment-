@@ -32,10 +32,6 @@ function mapDbToCamel(b: any) {
     status: b.status,
     hubtelReference: b.hubtel_reference,
     hubtelStatus: b.hubtel_status,
-    paystackReference: b.paystack_reference,
-    paystackStatus: b.paystack_status,
-    anollaBookingId: b.anolla_booking_id,
-    anollaStatus: b.anolla_status,
     statusPayment: b.status_payment,
     statusPaymentAt: b.status_payment_at,
     statusReviewed: b.status_reviewed,
@@ -43,11 +39,7 @@ function mapDbToCamel(b: any) {
     statusConfirmed: b.status_confirmed,
     statusConfirmedAt: b.status_confirmed_at,
     isPaid: b.is_paid ?? false,
-    isPacked: b.is_packed ?? false,
-    isDispatched: b.is_dispatched ?? false,
-    isDelivered: b.is_delivered ?? false,
     adminNotes: b.admin_notes,
-    estimatedDeliveryTime: b.estimated_delivery_time,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
   }
@@ -100,10 +92,8 @@ export async function PATCH(
   const updateData: any = {}
   
   if (body.status !== undefined) updateData.status = body.status
-  if (body.anollaStatus !== undefined) updateData.anolla_status = body.anollaStatus
-  if (body.paystackStatus !== undefined) updateData.paystack_status = body.paystackStatus
+  if (body.hubtelStatus !== undefined) updateData.hubtel_status = body.hubtelStatus
   if (body.adminNotes !== undefined) updateData.admin_notes = body.adminNotes
-  if (body.estimatedDeliveryTime !== undefined) updateData.estimated_delivery_time = body.estimatedDeliveryTime
 
   if (body.isPaid !== undefined) {
     updateData.is_paid = body.isPaid
@@ -116,26 +106,21 @@ export async function PATCH(
       updateData.status_payment_at = null
     }
   }
-  if (body.isPacked !== undefined) {
-    updateData.is_packed = body.isPacked
-    // isPacked = "Reviewed" in the UI → cascade to status_reviewed (stepper stage 3)
-    if (body.isPacked === true) {
-      updateData.status_reviewed = true
+  if (body.statusReviewed !== undefined) {
+    updateData.status_reviewed = body.statusReviewed
+    if (body.statusReviewed === true) {
       updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
       // Also cascade payment confirmation if not already set
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
     } else {
-      updateData.status_reviewed = false
       updateData.status_reviewed_at = null
     }
   }
-  if (body.isDispatched !== undefined) updateData.is_dispatched = body.isDispatched
-  if (body.isDelivered !== undefined) {
-    updateData.is_delivered = body.isDelivered
-    // isDelivered = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
-    if (body.isDelivered === true) {
-      updateData.status_confirmed = true
+  if (body.statusConfirmed !== undefined) {
+    updateData.status_confirmed = body.statusConfirmed
+    // statusConfirmed = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
+    if (body.statusConfirmed === true) {
       updateData.status_confirmed_at = currentBooking.status_confirmed_at || new Date().toISOString()
       // Cascade all prior stages
       updateData.status_reviewed = true
@@ -143,7 +128,6 @@ export async function PATCH(
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
     } else {
-      updateData.status_confirmed = false
       updateData.status_confirmed_at = null
     }
   }

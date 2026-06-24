@@ -29,14 +29,14 @@ export async function POST(req: NextRequest) {
 
   if (selectError || !booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 })
 
-  if (booking.paystack_status !== "SUCCESS") {
+  if (booking.hubtel_status !== "SUCCESS") {
     return NextResponse.json(
       { error: "Booking has no successful payment to refund" },
       { status: 400 }
     )
   }
 
-  if (!booking.paystack_reference) {
+  if (!booking.hubtel_reference) {
     return NextResponse.json(
       { error: "No Hubtel client reference on this booking" },
       { status: 400 }
@@ -46,11 +46,11 @@ export async function POST(req: NextRequest) {
   try {
     // Mark the booking as refunded in the database.
     // The actual refund must be processed via the Hubtel merchant dashboard
-    // using clientReference: booking.paystack_reference
+    // using clientReference: booking.hubtel_reference
     const { data: updated, error: updateError } = await (supabase as any)
       .from("bookings")
       .update({
-        paystack_status: "REVERSED",
+        hubtel_status: "REVERSED",
         status: "REFUNDED",
       })
       .eq("id", booking.id)
@@ -74,18 +74,16 @@ export async function POST(req: NextRequest) {
       notes: updated.notes,
       amountGHS: updated.amount_ghs / 100,
       status: updated.status,
-      paystackReference: updated.paystack_reference,
-      paystackStatus: updated.paystack_status,
+      hubtelReference: updated.hubtel_reference,
+      hubtelStatus: updated.hubtel_status,
       isPaid: updated.is_paid,
-      isPacked: updated.is_packed,
-      isDelivered: updated.is_delivered,
       createdAt: updated.created_at,
     }
 
     return NextResponse.json({
       success: true,
       booking: formattedBooking,
-      message: `Booking marked as refunded. Please complete the refund in the Hubtel dashboard using reference: ${booking.paystack_reference}`,
+      message: `Booking marked as refunded. Please complete the refund in the Hubtel dashboard using reference: ${booking.hubtel_reference}`,
     })
   } catch (err) {
     console.error("[Admin Refund] Error:", err)

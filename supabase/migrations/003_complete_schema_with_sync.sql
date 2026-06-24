@@ -37,11 +37,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   amount_ghs INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'GHS',
   
-  anolla_booking_id TEXT UNIQUE,
-  anolla_status TEXT NOT NULL DEFAULT 'PENDING',
-  
-  paystack_reference TEXT UNIQUE,
-  paystack_status TEXT NOT NULL DEFAULT 'PENDING',
+  hubtel_reference TEXT UNIQUE,
+  hubtel_status TEXT NOT NULL DEFAULT 'PENDING',
   
   status TEXT NOT NULL DEFAULT 'AWAITING_PAYMENT',
   
@@ -51,11 +48,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   processed_events TEXT[] DEFAULT '{}'::TEXT[],
   
   is_paid BOOLEAN NOT NULL DEFAULT FALSE,
-  is_packed BOOLEAN NOT NULL DEFAULT FALSE,
-  is_dispatched BOOLEAN NOT NULL DEFAULT FALSE,
-  is_delivered BOOLEAN NOT NULL DEFAULT FALSE,
-  admin_notes TEXT,
-  estimated_delivery_time TEXT
+  admin_notes TEXT
 );
 
 -- Create trigger for bookings (if it doesn't exist)
@@ -68,8 +61,7 @@ EXECUTE FUNCTION trigger_set_timestamp();
 -- Indexes for bookings
 CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(customer_email);
 CREATE INDEX IF NOT EXISTS idx_bookings_session_date ON bookings(session_date);
-CREATE INDEX IF NOT EXISTS idx_bookings_paystack_reference ON bookings(paystack_reference);
-CREATE INDEX IF NOT EXISTS idx_bookings_anolla_booking_id ON bookings(anolla_booking_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_hubtel_reference ON bookings(hubtel_reference);
 
 -- 2. Booking Status History Table
 CREATE TABLE IF NOT EXISTS booking_status_history (

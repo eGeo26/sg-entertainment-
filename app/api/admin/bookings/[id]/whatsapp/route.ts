@@ -47,7 +47,7 @@ export async function POST(
     studio: booking.studio,
     equipment: booking.equipment ?? [],
     amountGHS,
-    paystackReference: booking.paystack_reference ?? "MANUAL",
+    paystackReference: booking.hubtel_reference ?? "MANUAL",
     notes: booking.notes ?? undefined,
   }
 
