@@ -39,8 +39,8 @@ function mapDbToCamel(b: any) {
     statusConfirmed: b.status_confirmed,
     statusConfirmedAt: b.status_confirmed_at,
     isPaid: b.is_paid ?? false,
-    isPacked: b.is_packed ?? false,
-    isDelivered: b.is_delivered ?? false,
+    isPacked: b.status_reviewed ?? false,
+    isDelivered: b.status_confirmed ?? false,
     adminNotes: b.admin_notes,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
@@ -109,7 +109,6 @@ export async function PATCH(
     }
   }
   if (body.isPacked !== undefined) {
-    updateData.is_packed = body.isPacked
     // isPacked = "Reviewed" in the UI → cascade to status_reviewed (stepper stage 3)
     if (body.isPacked === true) {
       updateData.status_reviewed = true
@@ -123,7 +122,6 @@ export async function PATCH(
     }
   }
   if (body.isDelivered !== undefined) {
-    updateData.is_delivered = body.isDelivered
     // isDelivered = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
     if (body.isDelivered === true) {
       updateData.status_confirmed = true

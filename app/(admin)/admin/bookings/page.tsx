@@ -37,10 +37,8 @@ interface Booking {
   // Pipeline logistics fields
   isPaid: boolean
   isPacked: boolean
-  isDispatched: boolean
   isDelivered: boolean
   adminNotes: string | null
-  estimatedDeliveryTime: string | null
 }
 
 interface StatsData {
@@ -84,7 +82,6 @@ function BookingsContent() {
   
   // Logistics local states in inspector
   const [editAdminNotes, setEditAdminNotes] = useState("")
-  const [editEstDeliveryTime, setEditEstDeliveryTime] = useState("")
   const [editCustomerMessage, setEditCustomerMessage] = useState("")
 
   const [isUpdating, setIsUpdating] = useState(false)
@@ -245,7 +242,6 @@ function BookingsContent() {
     setInspectedBooking(booking)
     setEditStatus(booking.status)
     setEditAdminNotes(booking.adminNotes || "")
-    setEditEstDeliveryTime(booking.estimatedDeliveryTime || "")
   }
 
   // Save changes in inspector
@@ -260,7 +256,6 @@ function BookingsContent() {
         body: JSON.stringify({
           status: editStatus,
           adminNotes: editAdminNotes,
-          estimatedDeliveryTime: editEstDeliveryTime,
           customerMessage: editCustomerMessage
         }),
       })
@@ -298,7 +293,7 @@ function BookingsContent() {
   }
 
   // Checkbox inline updates
-  const handleToggleLogisticsField = async (booking: Booking, field: "isPaid" | "isPacked" | "isDispatched" | "isDelivered") => {
+  const handleToggleLogisticsField = async (booking: Booking, field: "isPaid" | "isPacked" | "isDelivered") => {
     const nextVal = !booking[field]
     
     // Optimistic Update
@@ -949,28 +944,16 @@ function BookingsContent() {
                 <p className="text-[9px] text-white/30">This message will be visible to the customer on their tracking page</p>
               </div>
 
-              {/* Delivery / Session controls */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <span className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Est. Session / Delivery Time</span>
-                  <input
-                    type="text"
-                    value={editEstDeliveryTime}
-                    onChange={(e) => setEditEstDeliveryTime(e.target.value)}
-                    placeholder="e.g. Next Tuesday at 2:00 PM"
-                    className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <span className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Internal Admin Notes</span>
-                  <textarea
-                    value={editAdminNotes}
-                    onChange={(e) => setEditAdminNotes(e.target.value)}
-                    placeholder="Internal logistics comments..."
-                    rows={2}
-                    className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF] resize-none"
-                  />
-                </div>
+              {/* Internal Admin Notes */}
+              <div className="space-y-1.5">
+                <span className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Internal Admin Notes</span>
+                <textarea
+                  value={editAdminNotes}
+                  onChange={(e) => setEditAdminNotes(e.target.value)}
+                  placeholder="Internal logistics comments..."
+                  rows={2}
+                  className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF] resize-none"
+                />
               </div>
 
               {/* System status details */}

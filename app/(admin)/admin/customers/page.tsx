@@ -72,7 +72,10 @@ export default function CustomersCRMPage() {
   }
 
   const formatSimpleDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    if (!dateStr) return ""
+    const d = dateStr.slice(0, 10)
+    const [yr, mo, dy] = d.split("-").map(Number)
+    return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",

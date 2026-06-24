@@ -20,21 +20,25 @@ export default function NotificationsWebhookPage() {
   const [loading, setLoading] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null)
 
-  useEffect(() => {
-    async function fetchEvents() {
-      try {
-        const res = await fetch("/api/admin/notifications")
-        if (!res.ok) throw new Error("Failed to load notifications log")
-        const data = await res.json()
-        setEvents(data.events)
-      } catch (err) {
-        console.error(err)
-        toast.error("Could not fetch webhook integration logs")
-      } finally {
-        setLoading(false)
-      }
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch("/api/admin/notifications")
+      if (!res.ok) throw new Error("Failed to load notifications log")
+      const data = await res.json()
+      setEvents(data.events)
+    } catch (err) {
+      console.error(err)
+      toast.error("Could not fetch webhook integration logs")
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchEvents()
+    // Poll every 10 seconds so new Hubtel webhooks appear in real-time
+    const interval = setInterval(fetchEvents, 10_000)
+    return () => clearInterval(interval)
   }, [])
 
   const filteredEvents = events.filter(

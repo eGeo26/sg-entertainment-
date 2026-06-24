@@ -32,10 +32,14 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clientReference: booking.hubtel_reference,
-            transactionId: `sim-tx-${Date.now()}`,
-            status: "Success",
-            amount: booking.amount_ghs / 100,
+            ResponseCode: "0000",
+            Status: "Success",
+            Data: {
+              ClientReference: booking.hubtel_reference,
+              TransactionId: `sim-tx-${Date.now()}`,
+              Status: "Success",
+              Amount: booking.amount_ghs / 100,
+            }
           }),
         })
 

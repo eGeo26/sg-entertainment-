@@ -80,6 +80,10 @@ export default function AdminDashboardPage() {
       }
     }
     fetchStats()
+
+    // Auto-refresh stats every 5 seconds so new Hubtel payments appear immediately
+    const pollInterval = setInterval(fetchStats, 5000)
+    return () => clearInterval(pollInterval)
   }, [])
 
   // Handle sync events from realtime subscription
@@ -149,7 +153,10 @@ export default function AdminDashboardPage() {
   }, [])
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    if (!dateStr) return ""
+    const d = dateStr.slice(0, 10)
+    const [yr, mo, dy] = d.split("-").map(Number)
+    return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",

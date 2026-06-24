@@ -47,6 +47,8 @@ export default function ReviewsConsolePage() {
 
   useEffect(() => {
     fetchReviews()
+    const interval = setInterval(fetchReviews, 4000)
+    return () => clearInterval(interval)
   }, [])
 
 

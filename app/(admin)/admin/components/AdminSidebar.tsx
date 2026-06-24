@@ -3,10 +3,15 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
+
+interface NotificationCounts {
+  reviews: number
+  bookings: number
+}
 
 const NAV_ITEMS = [
   {
@@ -91,8 +96,10 @@ interface SidebarContentProps {
   isHoveredState: boolean
   systemStatus: { isPlaceholderDb: boolean }
   pathname: string
+  counts: NotificationCounts
   onNavClick: () => void
   onToggleCollapse: () => void
+  onSignOut: () => void
 }
 
 function SidebarContent({
@@ -101,8 +108,10 @@ function SidebarContent({
   isHoveredState,
   systemStatus,
   pathname,
+  counts,
   onNavClick,
   onToggleCollapse,
+  onSignOut,
 }: SidebarContentProps) {
   const isCollapsed = collapsed && !isMobile && !isHoveredState
 
@@ -170,6 +179,12 @@ function SidebarContent({
       >
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href)
+          // Badge count per nav item
+          const badgeCount =
+            item.href === "/admin/bookings" ? counts.bookings
+            : item.href === "/admin/reviews" ? counts.reviews
+            : item.href === "/admin/notifications" ? counts.reviews + counts.bookings
+            : 0
           return (
             <Link
               key={item.href}
@@ -203,22 +218,35 @@ function SidebarContent({
                 />
               )}
 
+              {/* Icon with optional badge for collapsed state */}
               <span
-                className="flex-shrink-0 transition-colors duration-150"
+                className="flex-shrink-0 transition-colors duration-150 relative"
                 style={{ color: active ? "var(--sg-gold)" : "var(--text-muted)" }}
               >
                 {item.icon}
+                {badgeCount > 0 && isCollapsed && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[8px] font-bold px-0.5 leading-none">
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
               </span>
 
               {!isCollapsed && (
-                <span className="font-medium tracking-wide text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-                  {item.label}
+                <span className="flex-1 flex items-center justify-between gap-2">
+                  <span className="font-medium tracking-wide text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                    {item.label}
+                  </span>
+                  {badgeCount > 0 && (
+                    <span className="min-w-[18px] h-4.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1 leading-none">
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
                 </span>
               )}
 
               {isCollapsed && (
                 <div className="absolute left-full ml-3 px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  {item.label}
+                  {item.label}{badgeCount > 0 ? ` (${badgeCount})` : ""}
                 </div>
               )}
             </Link>
@@ -228,9 +256,64 @@ function SidebarContent({
 
       {/* Footer */}
       <div
-        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2 text-center" : "px-5"}`}
+        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2" : "px-4"} space-y-2`}
         style={{ borderTop: "1px solid var(--border)" }}
       >
+        {/* Hubtel Back Office Link */}
+        {!isCollapsed ? (
+          <a
+            href="https://bo.hubtel.com/app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-150 hover:bg-white/5"
+            style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            title="Open Hubtel Back Office"
+          >
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+            <span className="whitespace-nowrap">Hubtel Back Office</span>
+          </a>
+        ) : (
+          <a
+            href="https://bo.hubtel.com/app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center w-full py-2 rounded-xl transition-all hover:bg-white/5"
+            style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            title="Hubtel Back Office"
+          >
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </a>
+        )}
+
+        {/* Sign Out */}
+        {!isCollapsed ? (
+          <button
+            onClick={onSignOut}
+            className="flex items-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-150 hover:bg-red-500/10 hover:text-red-400"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+            Sign Out
+          </button>
+        ) : (
+          <button
+            onClick={onSignOut}
+            className="flex items-center justify-center w-full py-2 rounded-xl transition-all hover:bg-red-500/10 hover:text-red-400"
+            style={{ color: "var(--text-muted)" }}
+            title="Sign Out"
+          >
+            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+          </button>
+        )}
+
         <p className="text-[9px] tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>
           {isCollapsed ? "v1" : "S&G Admin v1.0"}
         </p>
@@ -248,6 +331,17 @@ export default function AdminSidebar() {
   const [isHovered, setIsHovered] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [systemStatus, setSystemStatus] = useState({ isPlaceholderDb: true })
+  const [counts, setCounts] = useState<NotificationCounts>({ reviews: 0, bookings: 0 })
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/notification-counts")
+      if (res.ok) {
+        const data = await res.json()
+        setCounts(data)
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     setIsMounted(true)
@@ -261,7 +355,12 @@ export default function AdminSidebar() {
       } catch {}
     }
     fetchStatus()
-  }, [])
+
+    // Fetch notification counts immediately and then every 10 seconds
+    fetchCounts()
+    const interval = setInterval(fetchCounts, 10_000)
+    return () => clearInterval(interval)
+  }, [fetchCounts])
 
   const handleSignOut = async () => {
     try {
@@ -327,15 +426,11 @@ export default function AdminSidebar() {
               isHoveredState={false}
               systemStatus={systemStatus}
               pathname={pathname}
+              counts={counts}
               onNavClick={closeMobile}
               onToggleCollapse={toggleCollapse}
+              onSignOut={handleSignOut}
             />
-            <button
-              onClick={handleSignOut}
-              className="mx-3 mb-4 py-2.5 btn-glass text-xs font-semibold uppercase tracking-wider"
-            >
-              Sign Out
-            </button>
           </div>
         </div>
       )}
@@ -376,8 +471,10 @@ export default function AdminSidebar() {
             isHoveredState={isHovered}
             systemStatus={systemStatus}
             pathname={pathname}
+            counts={counts}
             onNavClick={closeMobile}
             onToggleCollapse={toggleCollapse}
+            onSignOut={handleSignOut}
           />
         </div>
       </aside>

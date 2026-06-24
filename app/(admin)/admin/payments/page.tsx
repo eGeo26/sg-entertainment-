@@ -46,6 +46,9 @@ export default function PaymentsLedgerPage() {
 
   useEffect(() => {
     fetchPayments()
+    // Poll every 5 seconds so Hubtel payments appear immediately
+    const interval = setInterval(fetchPayments, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const filteredPayments = payments.filter(

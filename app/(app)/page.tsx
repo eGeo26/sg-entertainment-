@@ -77,6 +77,8 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchReviews()
+    const interval = setInterval(fetchReviews, 4000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleSubmitReview = async (e: React.FormEvent) => {
