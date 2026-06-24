@@ -41,13 +41,13 @@ async function isSimulationMode(supabase: ReturnType<typeof createServiceClient>
       .maybeSingle()
 
     if (error) {
-      console.warn("[initiate] Could not read payment_simulation_mode from settings:", error.message)
-      return true // fail-safe: default to simulation
+      console.error('[SimMode] DB read error:', error)
+      return false  // fail open to real payments
     }
 
     if (!data) {
-      console.warn("[initiate] payment_simulation_mode not found in settings table — defaulting to simulation.")
-      return true
+      console.warn('[SimMode] Setting not found, defaulting to real payments')
+      return false
     }
 
     // Debug: log the actual value being read
@@ -56,8 +56,8 @@ async function isSimulationMode(supabase: ReturnType<typeof createServiceClient>
     // The value may be stored as boolean true/false or string "true"/"false"
     return data.value === true || data.value === "true"
   } catch (err) {
-    console.error("[initiate] Exception reading simulation setting:", err)
-    return true // fail-safe
+    console.error('[SimMode] Exception reading simulation setting:', err)
+    return false  // fail open to real payments
   }
 }
 
