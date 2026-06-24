@@ -9,7 +9,6 @@ export async function GET() {
 
   try {
     const keys = [
-      "payment_simulation_mode",
       "simulated_activity_control"
     ]
 
@@ -32,7 +31,6 @@ export async function GET() {
     }, {} as any)
 
     // Set defaults if empty
-    if (!settingsMap.payment_simulation_mode) settingsMap.payment_simulation_mode = "true"
     if (!settingsMap.simulated_activity_control) settingsMap.simulated_activity_control = "true"
 
     return NextResponse.json(settingsMap)

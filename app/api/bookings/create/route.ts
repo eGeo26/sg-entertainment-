@@ -82,35 +82,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to save booking to database" }, { status: 500 })
     }
 
-    // 2. Initialize payment transaction (Simulation vs Hubtel)
+    // 2. Initialize payment transaction with Hubtel
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-
-    let isSimulationMode = true
-    try {
-      const { data: simSetting } = await (supabase as any)
-        .from("settings")
-        .select("value")
-        .eq("key", "payment_simulation_mode")
-        .single()
-      if (simSetting) {
-        isSimulationMode = simSetting.value === "true"
-      }
-    } catch (e) {
-      console.error("Failed to read simulation setting, defaulting to true", e)
-    }
-
-    if (isSimulationMode || !process.env.HUBTEL_CLIENT_ID) {
-      console.log("[Booking] Payment simulation active. Routing to simulated payment portal.")
-      const simulateUrl = `${appUrl}/booking/simulate-payment?reference=${reference}&booking_id=${reference}`
-      
-      return NextResponse.json({
-        bookingId: reference,
-        paystackReference: reference,
-        authorizationUrl: simulateUrl,
-        amount: pesewas,
-        currency: "GHS",
-      })
-    }
 
     const hubtelData = await initializeHubtelTransaction({
       amountGHS: total,

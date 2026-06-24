@@ -82,30 +82,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 3. Simulation mode guard
-  // Live callbacks should never be processed if we're in simulation mode.
-  // This prevents a Hubtel retry (from a prior live attempt) from corrupting simulated state.
-  try {
-    const { data: simSetting } = await (supabase as any)
-      .from("settings")
-      .select("value")
-      .eq("key", "payment_simulation_mode")
-      .maybeSingle()
-
-    const simMode = simSetting?.value === true || simSetting?.value === "true"
-    if (simMode) {
-      console.warn("[callback] Received live Hubtel callback while simulation mode is ON — ignoring.")
-      return NextResponse.json(
-        { received: true, skipped: "simulation_mode_active" },
-        { status: 200 }
-      )
-    }
-  } catch (err) {
-    // Non-fatal — proceed; we'll let the verification step catch issues
-    console.warn("[callback] Could not read simulation mode, proceeding with verification:", err)
-  }
-
-  // 4. Verify transaction status directly with Hubtel (don't trust callback alone)
+  // 3. Verify transaction status directly with Hubtel (don't trust callback alone)
   let verifiedStatus: string
   try {
     const verification = await verifyHubtelTransaction(clientReference)

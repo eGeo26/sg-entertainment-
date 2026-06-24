@@ -30,37 +30,6 @@ const InitiateSchema = z.object({
   description: z.string().max(200).optional(),
 })
 
-// ── Helper: read simulation mode from Supabase ─────────────────────────────────
-
-async function isSimulationMode(supabase: ReturnType<typeof createServiceClient>): Promise<boolean> {
-  try {
-    const { data, error } = await (supabase as any)
-      .from("settings")
-      .select("value")
-      .eq("key", "payment_simulation_mode")
-      .maybeSingle()
-
-    if (error) {
-      console.error('[SimMode] DB read error:', error)
-      return false  // fail open to real payments
-    }
-
-    if (!data) {
-      console.warn('[SimMode] Setting not found, defaulting to real payments')
-      return false
-    }
-
-    // Debug: log the actual value being read
-    console.log('[initiate] payment_simulation_mode value:', data.value, typeof data.value)
-
-    // The value may be stored as boolean true/false or string "true"/"false"
-    return data.value === true || data.value === "true"
-  } catch (err) {
-    console.error('[SimMode] Exception reading simulation setting:', err)
-    return false  // fail open to real payments
-  }
-}
-
 // ── Route handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -111,27 +80,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 3. Determine mode
-  const simMode = await isSimulationMode(supabase)
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")
 
-  // ── SIMULATION MODE ────────────────────────────────────────────────────────
-  if (simMode) {
-    console.log(`[initiate] Simulation mode ON → routing ${bookingCode} to simulate-payment page.`)
-
-    const simulateUrl = `${appUrl}/booking/simulate-payment?reference=${bookingCode}&booking_id=${bookingCode}`
-
-    return NextResponse.json({
-      mode: "simulation",
-      bookingCode,
-      authorizationUrl: simulateUrl,
-      amountGHS,
-      currency: "GHS",
-    })
-  }
-
-  // ── LIVE MODE ──────────────────────────────────────────────────────────────
-  console.log(`[initiate] Live mode → calling Hubtel for ${bookingCode}, GHS ${amountGHS}`)
+  console.log(`[initiate] Calling Hubtel for ${bookingCode}, GHS ${amountGHS}`)
 
   // Use HUBTEL_CALLBACK_URL from environment variable
   const callbackUrl = process.env.HUBTEL_CALLBACK_URL
