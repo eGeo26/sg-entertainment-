@@ -26,9 +26,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Hubtel sends nested payload: { ResponseCode, Status, Data: { ClientReference, Status, Amount, ... } }
-  const reference = payload.Data?.ClientReference ?? payload.clientReference ?? payload.ClientReference ?? payload.Reference ?? ""
-  const status = payload.Data?.Status ?? payload.status ?? payload.Status ?? ""
+  const reference = payload.Data?.ClientReference ?? payload.Data?.clientReference ?? ""
+  const status = payload.Data?.Status ?? payload.Data?.status ?? ""
   const responseCode = payload.ResponseCode ?? payload.responseCode ?? ""
+
+  // Log raw top-level keys for debugging (no secrets)
+  console.log("[Hubtel Webhook] Raw top-level keys:", Object.keys(payload))
 
   if (!reference) {
     console.warn("[Hubtel Webhook] Missing ClientReference in payload")
@@ -82,7 +85,8 @@ export async function POST(req: NextRequest) {
     verified.status === "Success" ||
     verified.status === "Completed" ||
     verified.status === "success" ||
-    verified.status === "completed"
+    verified.status === "completed" ||
+    responseCode === "0000"
 
   if (!isSuccess) {
     console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${verified.status})`)
