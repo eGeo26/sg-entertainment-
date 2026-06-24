@@ -94,8 +94,23 @@ export async function POST(req: NextRequest) {
 
   if (!isSuccess) {
     const statusUsed = usePayloadStatus ? status : verified?.status
-    console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${statusUsed})`)
-    return NextResponse.json({ ok: true, status: statusUsed })
+    console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${statusUsed}) - NOT recording payment`)
+    
+    // Record failed webhook event for audit trail but do NOT update booking payment status
+    const { error: insertEventError } = await (supabase as any)
+      .from("webhook_events")
+      .insert({
+        source: "hubtel",
+        event_id: `hubtel-failed-${reference}`,
+        event_type: "transaction.failed",
+        payload: payload,
+      })
+
+    if (insertEventError) {
+      console.error("[Hubtel Webhook] Failed to insert failed webhook event:", insertEventError)
+    }
+    
+    return NextResponse.json({ ok: true, status: statusUsed, recorded: false })
   }
 
   // 4. Amount Verification (prevent underpayment attacks) - skip if using payload status

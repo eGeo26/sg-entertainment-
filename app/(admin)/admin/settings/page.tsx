@@ -40,11 +40,6 @@ export default function SettingsConsolePage() {
     }
   }
 
-  const handleSignOut = async () => {
-    const supabase = createBrowserSupabaseClient()
-    await supabase.auth.signOut()
-    window.location.href = "/admin/login"
-  }
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -152,20 +147,12 @@ export default function SettingsConsolePage() {
               <p className="text-[10px] text-white/40 leading-relaxed">
                 Manage your admin account security settings.
               </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => setShowPasswordForm(true)}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/8 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider transition-all"
-                >
-                  Change Password
-                </button>
-                <button
-                  onClick={handleSignOut}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/8 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider transition-all"
-                >
-                  Sign Out
-                </button>
-              </div>
+              <button
+                onClick={() => setShowPasswordForm(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/8 text-white/70 hover:text-white text-xs font-semibold rounded-xl uppercase tracking-wider transition-all"
+              >
+                Change Password
+              </button>
             </div>
           ) : (
             <form onSubmit={handleChangePassword} className="space-y-4">

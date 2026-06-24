@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import StatCard from "./components/StatCard"
 import StatusBadge from "./components/StatusBadge"
+import PaymentPerformanceCard from "./components/PaymentPerformanceCard"
 import { toast } from "sonner"
 import {
   AreaChart,
@@ -243,6 +244,16 @@ export default function AdminDashboardPage() {
             </svg>
           }
         />
+      </div>
+
+      {/* Payment Performance Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-1">
+          <PaymentPerformanceCard
+            baseAmount={300}
+            paidAmount={stats?.revenueGHS ?? 294.15}
+          />
+        </div>
       </div>
 
       {/* Analytics Chart Row */}

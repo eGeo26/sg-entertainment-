@@ -1,8 +1,14 @@
 "use client"
 // app/(admin)/admin/notifications/page.tsx
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
+import {
+  subscribeToBookingEvents,
+  markEventDelivered,
+  catchUpMissedEvents,
+  type SyncEvent,
+} from "@/lib/realtimeBookings"
 
 interface WebhookEvent {
   id: string
@@ -20,6 +26,10 @@ export default function NotificationsWebhookPage() {
   const [loading, setLoading] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null)
 
+  // Realtime subscription refs
+  const unsubscribeRef = useRef<(() => void) | null>(null)
+  const isMountedRef = useRef(true)
+
   const fetchEvents = async () => {
     try {
       const res = await fetch("/api/admin/notifications")
@@ -34,11 +44,66 @@ export default function NotificationsWebhookPage() {
     }
   }
 
+  // Handle sync events from realtime subscription
+  const handleSyncEvent = async (event: SyncEvent) => {
+    console.log("[Notifications] Received sync event:", event.event_type, event.booking_code)
+    
+    // Refresh events when we receive a webhook event
+    if (event.event_type === "webhook_received" || event.event_type === "transaction.success") {
+      await fetchEvents()
+      
+      // Show toast notification for new webhooks
+      if (event.event_type === "webhook_received") {
+        const payload = event.payload as any
+        toast.success(`New webhook: ${payload?.Data?.Status || "Unknown status"}`)
+      } else if (event.event_type === "transaction.success") {
+        toast.success(`Payment confirmed: ${event.booking_code}`)
+      }
+    }
+
+    // Mark event as delivered
+    try {
+      await markEventDelivered(event.id)
+    } catch (err) {
+      console.error("[Notifications] Failed to mark event as delivered:", err)
+    }
+  }
+
   useEffect(() => {
     fetchEvents()
-    // Poll every 10 seconds so new Hubtel webhooks appear in real-time
-    const interval = setInterval(fetchEvents, 10_000)
-    return () => clearInterval(interval)
+
+    // Subscribe to realtime webhook events
+    async function setupRealtime() {
+      // Clean up any existing subscription before creating a new one
+      if (unsubscribeRef.current) {
+        console.log("[Notifications] Cleaning up previous subscription before creating new one")
+        unsubscribeRef.current()
+        unsubscribeRef.current = null
+      }
+
+      // First, catch up on any missed events
+      try {
+        await catchUpMissedEvents(handleSyncEvent)
+      } catch (err) {
+        console.error("[Notifications] Failed to catch up on missed events:", err)
+      }
+
+      // Only subscribe if component is still mounted
+      if (isMountedRef.current) {
+        unsubscribeRef.current = subscribeToBookingEvents(handleSyncEvent)
+      }
+    }
+
+    setupRealtime()
+
+    return () => {
+      console.log("[Notifications] Component unmounting, cleaning up subscription")
+      isMountedRef.current = false
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current()
+        unsubscribeRef.current = null
+      }
+    }
   }, [])
 
   const filteredEvents = events.filter(

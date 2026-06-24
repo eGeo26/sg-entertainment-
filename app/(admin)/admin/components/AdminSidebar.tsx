@@ -256,39 +256,9 @@ function SidebarContent({
 
       {/* Footer */}
       <div
-        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2" : "px-4"} space-y-2`}
+        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2" : "px-4"}`}
         style={{ borderTop: "1px solid var(--border)" }}
       >
-        {/* Hubtel Back Office Link */}
-        {!isCollapsed ? (
-          <a
-            href="https://bo.hubtel.com/app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-150 hover:bg-white/5"
-            style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
-            title="Open Hubtel Back Office"
-          >
-            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-            </svg>
-            <span className="whitespace-nowrap">Hubtel Back Office</span>
-          </a>
-        ) : (
-          <a
-            href="https://bo.hubtel.com/app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-full py-2 rounded-xl transition-all hover:bg-white/5"
-            style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
-            title="Hubtel Back Office"
-          >
-            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-            </svg>
-          </a>
-        )}
-
         {/* Sign Out */}
         {!isCollapsed ? (
           <button
@@ -314,7 +284,7 @@ function SidebarContent({
           </button>
         )}
 
-        <p className="text-[9px] tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[9px] tracking-widest uppercase text-center mt-2" style={{ color: "var(--text-muted)" }}>
           {isCollapsed ? "v1" : "S&G Admin v1.0"}
         </p>
       </div>
