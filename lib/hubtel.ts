@@ -7,7 +7,7 @@
 //   - Credentials are Base64-encoded at runtime and never cached in module scope.
 
 const HUBTEL_INITIATE_URL =
-  "https://api.hubtel.com/v2/pos/onlinecheckout/initiate-transaction"
+  "https://payproxyapi.hubtel.com/items/initiate"
 
 // ── Startup guard for required environment variables ────────────────────────
 const requiredEnvVars = [
@@ -129,6 +129,7 @@ export async function initiateHubtelTransaction(
     callbackUrl: params.callbackUrl,
     returnUrl: params.returnUrl,
     cancellationUrl: params.cancellationUrl,
+    merchantAccountNumber: getMerchantAccountNumber(),
     ...(params.customerName && { customerName: params.customerName }),
     ...(params.customerEmail && { customerEmail: params.customerEmail }),
     ...(params.customerMobileNumber && {
@@ -382,6 +383,7 @@ export async function initializeHubtelTransaction(params: {
   clientReference: string
   callbackUrl: string
   returnUrl: string
+  cancellationUrl?: string
 }): Promise<{ checkoutUrl: string; checkoutId?: string; clientReference: string }> {
   return initiateHubtelTransaction({
     totalAmount: params.amountGHS,
@@ -389,6 +391,6 @@ export async function initializeHubtelTransaction(params: {
     clientReference: params.clientReference,
     callbackUrl: params.callbackUrl,
     returnUrl: params.returnUrl,
-    cancellationUrl: params.callbackUrl, // legacy callers didn't supply cancellationUrl
+    cancellationUrl: params.cancellationUrl || params.callbackUrl, // fallback to callbackUrl if not provided
   })
 }

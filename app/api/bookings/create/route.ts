@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
       clientReference: reference,
       callbackUrl: `${appUrl}/api/hubtel/webhook`,
       returnUrl: `${appUrl}/success?reference=${reference}&booking_id=${reference}`,
+      cancellationUrl: `${appUrl}/booking?cancelled=true&reference=${reference}`,
     })
 
     return NextResponse.json({
