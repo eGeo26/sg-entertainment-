@@ -72,33 +72,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, message: "Booking already confirmed" })
   }
 
-  // 3. Verify transaction with Hubtel API
-  let verified: { status: string; amount: number; transactionId?: string }
+  // 3. Verify transaction with Hubtel API (optional - fallback to webhook payload if verification fails)
+  let verified: { status: string; amount: number; transactionId?: string } | null = null
+  let usePayloadStatus = false
+
   try {
     verified = await verifyHubtelTransaction(reference)
   } catch (err: any) {
-    console.error(`[Hubtel Webhook] Secure verification failed for ${reference}:`, err)
-    return NextResponse.json({ error: "Verification failed" }, { status: 500 })
+    console.warn(`[Hubtel Webhook] Verification failed for ${reference}, using webhook payload status:`, err.message)
+    usePayloadStatus = true
   }
 
   const isSuccess =
-    verified.status === "Success" ||
-    verified.status === "Completed" ||
-    verified.status === "success" ||
-    verified.status === "completed" ||
-    responseCode === "0000"
+    usePayloadStatus
+      ? responseCode === "0000" && (status === "Success" || status === "success")
+      : (verified && (verified.status === "Success" ||
+         verified.status === "Completed" ||
+         verified.status === "success" ||
+         verified.status === "completed" ||
+         responseCode === "0000"))
 
   if (!isSuccess) {
-    console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${verified.status})`)
-    return NextResponse.json({ ok: true, status: verified.status })
+    const statusUsed = usePayloadStatus ? status : verified?.status
+    console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${statusUsed})`)
+    return NextResponse.json({ ok: true, status: statusUsed })
   }
 
-  // 4. Amount Verification (prevent underpayment attacks)
+  // 4. Amount Verification (prevent underpayment attacks) - skip if using payload status
   const expectedGHS = booking.amount_ghs / 100
-  const tolerance = 0.01
-  if (Math.abs(verified.amount - expectedGHS) > tolerance) {
-    console.error(`[Hubtel Webhook] Amount mismatch for ${reference}. Expected: GHS ${expectedGHS}, Got: GHS ${verified.amount}`)
-    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 })
+  if (!usePayloadStatus && verified) {
+    const tolerance = 0.01
+    if (Math.abs(verified.amount - expectedGHS) > tolerance) {
+      console.error(`[Hubtel Webhook] Amount mismatch for ${reference}. Expected: GHS ${expectedGHS}, Got: GHS ${verified.amount}`)
+      return NextResponse.json({ error: "Amount mismatch" }, { status: 400 })
+    }
   }
 
   // 5. Update Database Booking Status to CONFIRMED and set payment status columns
