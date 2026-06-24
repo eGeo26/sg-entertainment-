@@ -179,12 +179,8 @@ function SidebarContent({
       >
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href)
-          // Badge count per nav item
-          const badgeCount =
-            item.href === "/admin/bookings" ? counts.bookings
-            : item.href === "/admin/reviews" ? counts.reviews
-            : item.href === "/admin/notifications" ? counts.reviews + counts.bookings
-            : 0
+          // Only show indicator for new/unseen bookings
+          const hasNewBookings = item.href === "/admin/bookings" && counts.bookings > 0
           return (
             <Link
               key={item.href}
@@ -224,9 +220,9 @@ function SidebarContent({
                 style={{ color: active ? "var(--sg-gold)" : "var(--text-muted)" }}
               >
                 {item.icon}
-                {badgeCount > 0 && isCollapsed && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[8px] font-bold px-0.5 leading-none">
-                    {badgeCount > 99 ? "99+" : badgeCount}
+                {hasNewBookings && isCollapsed && (
+                  <span className="absolute -top-1.5 -right-1.5 w-3 h-3 flex items-center justify-center rounded-full bg-red-500 text-white text-[8px] font-bold leading-none animate-pulse">
+                    •
                   </span>
                 )}
               </span>
@@ -236,17 +232,15 @@ function SidebarContent({
                   <span className="font-medium tracking-wide text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                     {item.label}
                   </span>
-                  {badgeCount > 0 && (
-                    <span className="min-w-[18px] h-4.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1 leading-none">
-                      {badgeCount > 99 ? "99+" : badgeCount}
-                    </span>
+                  {hasNewBookings && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   )}
                 </span>
               )}
 
               {isCollapsed && (
                 <div className="absolute left-full ml-3 px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  {item.label}{badgeCount > 0 ? ` (${badgeCount})` : ""}
+                  {item.label}
                 </div>
               )}
             </Link>
