@@ -25,16 +25,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  // Support both lowercase and uppercase formats for Hubtel webhooks
-  const reference = payload.clientReference ?? payload.ClientReference ?? payload.Reference ?? ""
-  const status = payload.status ?? payload.Status ?? ""
+  // Hubtel sends nested payload: { ResponseCode, Status, Data: { ClientReference, Status, Amount, ... } }
+  const reference = payload.Data?.ClientReference ?? payload.clientReference ?? payload.ClientReference ?? payload.Reference ?? ""
+  const status = payload.Data?.Status ?? payload.status ?? payload.Status ?? ""
+  const responseCode = payload.ResponseCode ?? payload.responseCode ?? ""
 
   if (!reference) {
-    console.warn("[Hubtel Webhook] Missing clientReference in payload")
-    return NextResponse.json({ error: "Missing clientReference" }, { status: 400 })
+    console.warn("[Hubtel Webhook] Missing ClientReference in payload")
+    return NextResponse.json({ error: "Missing ClientReference" }, { status: 400 })
   }
 
-  console.log(`[Hubtel Webhook] Received status notification for ref: ${reference} | status: ${status}`)
+  console.log(`[Hubtel Webhook] Received status notification for ref: ${reference} | status: ${status} | ResponseCode: ${responseCode}`)
 
   const supabase = createServiceClient()
 

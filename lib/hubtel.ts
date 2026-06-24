@@ -6,47 +6,90 @@
 //   - Never import this file inside a "use client" component.
 //   - Credentials are Base64-encoded at runtime and never cached in module scope.
 
+// ── Environment configuration ─────────────────────────────────────────────────────
+const HUBTEL_ENV = (process.env.HUBTEL_ENV || "sandbox").toLowerCase()
+const IS_SANDBOX = HUBTEL_ENV === "sandbox"
+
+// API endpoints based on environment
+const HUBTEL_INITIATE_URL = IS_SANDBOX
+  ? "https://api.hubtel.com/v1/pos/onlinecheckout/initiate-transaction"
+  : "https://api.hubtel.com/v2/pos/onlinecheckout/initiate-transaction"
+
+const HUBTEL_VERIFY_BASE_URL = IS_SANDBOX
+  ? "https://api-merchant.hubtel.com/v1"
+  : "https://api-merchant.hubtel.com/v2"
+
 // ── Startup guard for required environment variables ────────────────────────
-const requiredEnvVars = [
-  "HUBTEL_API_ID",
-  "HUBTEL_API_KEY",
-  "HUBTEL_MERCHANT_ACCOUNT_NUMBER",
-  "HUBTEL_CALLBACK_URL",
-  "NEXT_PUBLIC_APP_URL",
-] as const
+const requiredEnvVars = IS_SANDBOX
+  ? [
+      "HUBTEL_SANDBOX_API_ID",
+      "HUBTEL_SANDBOX_API_KEY",
+      "HUBTEL_SANDBOX_MERCHANT_ACCOUNT_NUMBER",
+      "HUBTEL_CALLBACK_URL",
+      "NEXT_PUBLIC_APP_URL",
+    ] as const
+  : [
+      "HUBTEL_API_ID",
+      "HUBTEL_API_KEY",
+      "HUBTEL_MERCHANT_ACCOUNT_NUMBER",
+      "HUBTEL_CALLBACK_URL",
+      "NEXT_PUBLIC_APP_URL",
+    ] as const
 
 const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName])
 
 if (missingEnvVars.length > 0) {
   throw new Error(
-    `[Hubtel] Missing required environment variables: ${missingEnvVars.join(", ")}. ` +
+    `[Hubtel] Missing required environment variables for ${HUBTEL_ENV} mode: ${missingEnvVars.join(", ")}. ` +
     "Set these via Vercel dashboard or .env.local. See .env.example for reference."
   )
 }
 
-const HUBTEL_INITIATE_URL =
-  "https://api.hubtel.com/v2/pos/onlinecheckout/initiate-transaction"
-
 // ── Auth header builder ────────────────────────────────────────────────────────
-// Uses HUBTEL_API_ID and HUBTEL_API_KEY (as supplied in the user spec).
+// Uses sandbox or production credentials based on HUBTEL_ENV.
 // Falls back to legacy HUBTEL_CLIENT_ID / HUBTEL_CLIENT_SECRET for backwards compat.
 function buildBasicAuth(): string {
-  const apiId =
-    process.env.HUBTEL_API_ID ||
-    process.env.HUBTEL_CLIENT_ID ||
-    ""
-  const apiKey =
-    process.env.HUBTEL_API_KEY ||
-    process.env.HUBTEL_CLIENT_SECRET ||
-    ""
+  const apiId = IS_SANDBOX
+    ? process.env.HUBTEL_SANDBOX_API_ID ||
+      process.env.HUBTEL_CLIENT_ID ||
+      ""
+    : process.env.HUBTEL_API_ID ||
+      process.env.HUBTEL_CLIENT_ID ||
+      ""
+
+  const apiKey = IS_SANDBOX
+    ? process.env.HUBTEL_SANDBOX_API_KEY ||
+      process.env.HUBTEL_CLIENT_SECRET ||
+      ""
+    : process.env.HUBTEL_API_KEY ||
+      process.env.HUBTEL_CLIENT_SECRET ||
+      ""
 
   if (!apiId || !apiKey) {
     throw new Error(
-      "[Hubtel] Missing credentials. Set HUBTEL_API_ID and HUBTEL_API_KEY in .env.local"
+      `[Hubtel] Missing credentials for ${HUBTEL_ENV} mode. Set HUBTEL_${IS_SANDBOX ? "SANDBOX_" : ""}API_ID and HUBTEL_${IS_SANDBOX ? "SANDBOX_" : ""}API_KEY in .env.local`
     )
   }
 
   return "Basic " + Buffer.from(`${apiId}:${apiKey}`).toString("base64")
+}
+
+// ── Merchant account number getter ─────────────────────────────────────────────
+function getMerchantAccountNumber(): string {
+  const merchantAccount = IS_SANDBOX
+    ? process.env.HUBTEL_SANDBOX_MERCHANT_ACCOUNT_NUMBER ||
+      process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER ||
+      ""
+    : process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER ||
+      ""
+
+  if (!merchantAccount) {
+    throw new Error(
+      `[Hubtel] Missing merchant account number for ${HUBTEL_ENV} mode. Set HUBTEL_${IS_SANDBOX ? "SANDBOX_" : ""}MERCHANT_ACCOUNT_NUMBER in .env.local`
+    )
+  }
+
+  return merchantAccount
 }
 
 function hubtelHeaders(): Record<string, string> {
@@ -235,20 +278,9 @@ export interface HubtelVerifyResult {
 export async function verifyHubtelTransaction(
   clientReference: string
 ): Promise<HubtelVerifyResult> {
-  const MERCHANT_ACCOUNT =
-    process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER ||
-    process.env.HUBTEL_SANDBOX_MERCHANT_ACCOUNT_NUMBER ||
-    ""
+  const MERCHANT_ACCOUNT = getMerchantAccountNumber()
 
-  if (!MERCHANT_ACCOUNT) {
-    throw new HubtelError(
-      "config",
-      "HUBTEL_MERCHANT_ACCOUNT_NUMBER is not set.",
-      null
-    )
-  }
-
-  const url = `https://api-merchant.hubtel.com/v2/merchantaccount/merchants/${MERCHANT_ACCOUNT}/transactions/status?clientReference=${encodeURIComponent(clientReference)}`
+  const url = `${HUBTEL_VERIFY_BASE_URL}/merchantaccount/merchants/${MERCHANT_ACCOUNT}/transactions/status?clientReference=${encodeURIComponent(clientReference)}`
 
   let res: Response
   try {
