@@ -78,12 +78,22 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error("[Booking] Insert error:", insertError)
+      console.error("[Booking] Insert error:", JSON.stringify(insertError))
       return NextResponse.json({ error: "Failed to save booking to database" }, { status: 500 })
     }
 
     // 2. Initialize payment transaction with Hubtel
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+
+    // Validate required environment variables
+    const callbackUrl = process.env.HUBTEL_CALLBACK_URL
+    if (!callbackUrl) {
+      console.error("[Booking] HUBTEL_CALLBACK_URL is not set in environment variables")
+      return NextResponse.json(
+        { error: "Server configuration error: payment callback URL not configured" },
+        { status: 500 }
+      )
+    }
 
     const hubtelData = await initializeHubtelTransaction({
       amountGHS: total,
@@ -101,7 +111,7 @@ export async function POST(req: NextRequest) {
       currency: "GHS",
     })
   } catch (err) {
-    console.error("[Booking] Create error:", err)
+    console.error("[Booking] Create error:", JSON.stringify(err))
     return NextResponse.json(
       { error: "Failed to create booking. Please try again." },
       { status: 500 }

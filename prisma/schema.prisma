@@ -51,13 +51,9 @@ model Booking {
   // Idempotency — store raw webhook event IDs to prevent duplicate processing
   processedEvents   String[]      @default([])
 
-  // Logistics / pipeline fields
+  // Payment status
   isPaid             Boolean       @default(false)
-  isPacked           Boolean       @default(false)
-  isDispatched       Boolean       @default(false)
-  isDelivered        Boolean       @default(false)
   adminNotes         String?
-  estimatedDeliveryTime String?
 
   @@index([customerEmail])
   @@index([sessionDate])
