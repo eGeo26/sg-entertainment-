@@ -107,6 +107,7 @@ export async function initiateHubtelTransaction(
     clientReference: params.clientReference,
     totalAmount: params.totalAmount,
     description: params.description,
+    requestBody: JSON.stringify(requestBody)
   })
 
   let res: Response
@@ -153,10 +154,12 @@ export async function initiateHubtelTransaction(
     responseCode: json.responseCode,
     hubtelStatus: json.status,
     message: json.message,
+    fullResponse: JSON.stringify(json)
   })
 
   // ── Credential/auth errors ─────────────────────────────────────────────────
   if (res.status === 401 || res.status === 403) {
+    console.error("[Hubtel] Auth error - Full response:", JSON.stringify(json))
     throw new HubtelError(
       "invalid_credentials",
       "Payment gateway authentication failed. Please contact support.",
@@ -170,6 +173,7 @@ export async function initiateHubtelTransaction(
     const msg =
       json.message ||
       `Hubtel returned status ${res.status}`
+    console.error("[Hubtel] Declined error - Full response:", JSON.stringify(json))
     throw new HubtelError("declined", msg, json, res.status)
   }
 
