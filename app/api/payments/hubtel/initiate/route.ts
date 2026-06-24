@@ -50,6 +50,9 @@ async function isSimulationMode(supabase: ReturnType<typeof createServiceClient>
       return true
     }
 
+    // Debug: log the actual value being read
+    console.log('[initiate] payment_simulation_mode value:', data.value, typeof data.value)
+
     // The value may be stored as boolean true/false or string "true"/"false"
     return data.value === true || data.value === "true"
   } catch (err) {
