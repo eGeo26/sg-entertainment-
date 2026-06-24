@@ -39,6 +39,8 @@ function mapDbToCamel(b: any) {
     statusConfirmed: b.status_confirmed,
     statusConfirmedAt: b.status_confirmed_at,
     isPaid: b.is_paid ?? false,
+    isPacked: b.is_packed ?? false,
+    isDelivered: b.is_delivered ?? false,
     adminNotes: b.admin_notes,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
@@ -106,21 +108,25 @@ export async function PATCH(
       updateData.status_payment_at = null
     }
   }
-  if (body.statusReviewed !== undefined) {
-    updateData.status_reviewed = body.statusReviewed
-    if (body.statusReviewed === true) {
+  if (body.isPacked !== undefined) {
+    updateData.is_packed = body.isPacked
+    // isPacked = "Reviewed" in the UI → cascade to status_reviewed (stepper stage 3)
+    if (body.isPacked === true) {
+      updateData.status_reviewed = true
       updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
       // Also cascade payment confirmation if not already set
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
     } else {
+      updateData.status_reviewed = false
       updateData.status_reviewed_at = null
     }
   }
-  if (body.statusConfirmed !== undefined) {
-    updateData.status_confirmed = body.statusConfirmed
-    // statusConfirmed = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
-    if (body.statusConfirmed === true) {
+  if (body.isDelivered !== undefined) {
+    updateData.is_delivered = body.isDelivered
+    // isDelivered = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
+    if (body.isDelivered === true) {
+      updateData.status_confirmed = true
       updateData.status_confirmed_at = currentBooking.status_confirmed_at || new Date().toISOString()
       // Cascade all prior stages
       updateData.status_reviewed = true
@@ -128,6 +134,7 @@ export async function PATCH(
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
     } else {
+      updateData.status_confirmed = false
       updateData.status_confirmed_at = null
     }
   }

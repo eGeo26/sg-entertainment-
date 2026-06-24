@@ -106,6 +106,8 @@ export async function GET(req: NextRequest) {
       statusConfirmed: b.status_confirmed,
       statusConfirmedAt: b.status_confirmed_at,
       isPaid: b.is_paid,
+      isPacked: b.is_packed,
+      isDelivered: b.is_delivered,
       adminNotes: b.admin_notes,
       createdAt: b.created_at,
       updatedAt: b.updated_at,
@@ -212,6 +214,8 @@ export async function POST(req: NextRequest) {
       statusConfirmed: booking.status_confirmed,
       statusConfirmedAt: booking.status_confirmed_at,
       isPaid: booking.is_paid,
+      isPacked: booking.is_packed,
+      isDelivered: booking.is_delivered,
       adminNotes: booking.admin_notes,
       createdAt: booking.created_at,
     })

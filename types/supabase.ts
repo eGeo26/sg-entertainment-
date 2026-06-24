@@ -37,6 +37,8 @@ export interface Database {
           owner_notified: boolean
           processed_events: string[]
           is_paid: boolean
+          is_packed: boolean
+          is_delivered: boolean
           admin_notes: string | null
           status_received: boolean | null
           status_received_at: string | null
@@ -72,6 +74,8 @@ export interface Database {
           owner_notified?: boolean
           processed_events?: string[]
           is_paid?: boolean
+          is_packed?: boolean
+          is_delivered?: boolean
           admin_notes?: string | null
           status_received?: boolean | null
           status_received_at?: string | null
@@ -107,6 +111,8 @@ export interface Database {
           owner_notified?: boolean
           processed_events?: string[]
           is_paid?: boolean
+          is_packed?: boolean
+          is_delivered?: boolean
           admin_notes?: string | null
           status_received?: boolean | null
           status_received_at?: string | null

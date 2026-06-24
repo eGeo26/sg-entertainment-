@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   processed_events TEXT[] DEFAULT '{}'::TEXT[],
   
   is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+  is_packed BOOLEAN NOT NULL DEFAULT FALSE,
+  is_delivered BOOLEAN NOT NULL DEFAULT FALSE,
   admin_notes TEXT
 );
 
