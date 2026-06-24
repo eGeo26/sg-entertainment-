@@ -2,7 +2,9 @@
 // app/admin/components/AdminHeader.tsx
 
 import { usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 
 const BREADCRUMBS: Record<string, string> = {
   "/admin": "Overview",
@@ -17,10 +19,18 @@ const BREADCRUMBS: Record<string, string> = {
 
 export default function AdminHeader() {
   const pathname = usePathname()
+  const router = useRouter()
   const title = BREADCRUMBS[pathname] ?? "Admin"
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
+
+  const handleSignOut = async () => {
+    const supabase = createBrowserSupabaseClient()
+    await supabase.auth.signOut()
+    router.push("/admin/login")
+    router.refresh()
+  }
 
   if (!mounted) return (
     <header className="glass-header flex-shrink-0 h-14 flex items-center px-4 md:px-6 pl-16 md:pl-6" />
@@ -77,6 +87,19 @@ export default function AdminHeader() {
           </svg>
           <span className="hidden sm:inline">Hubtel</span>
         </a>
+
+        {/* Sign out */}
+        <button
+          onClick={handleSignOut}
+          className="btn-glass px-2.5 py-1.5"
+          title="Sign out"
+          id="admin-signout"
+        >
+          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+          </svg>
+          <span className="hidden sm:inline text-xs">Sign out</span>
+        </button>
       </div>
     </header>
   )

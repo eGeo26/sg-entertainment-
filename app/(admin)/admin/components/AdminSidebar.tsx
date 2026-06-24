@@ -259,32 +259,7 @@ function SidebarContent({
         className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2" : "px-4"}`}
         style={{ borderTop: "1px solid var(--border)" }}
       >
-        {/* Sign Out */}
-        {!isCollapsed ? (
-          <button
-            onClick={onSignOut}
-            className="flex items-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-150 hover:bg-red-500/10 hover:text-red-400"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-            </svg>
-            Sign Out
-          </button>
-        ) : (
-          <button
-            onClick={onSignOut}
-            className="flex items-center justify-center w-full py-2 rounded-xl transition-all hover:bg-red-500/10 hover:text-red-400"
-            style={{ color: "var(--text-muted)" }}
-            title="Sign Out"
-          >
-            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-            </svg>
-          </button>
-        )}
-
-        <p className="text-[9px] tracking-widest uppercase text-center mt-2" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[9px] tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>
           {isCollapsed ? "v1" : "S&G Admin v1.0"}
         </p>
       </div>
