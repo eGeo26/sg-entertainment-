@@ -685,7 +685,8 @@ function BookingsContent() {
 
       {/* Bookings Table */}
       <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden shadow-lg shadow-black/10">
-        <div className="overflow-x-auto">
+        {/* ── Desktop table (md+) ── */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/5 text-[9px] font-bold tracking-wider text-white/40 uppercase bg-white/[0.01]">
@@ -876,6 +877,110 @@ function BookingsContent() {
             </div>
           </div>
         )}
+        {/* ── Mobile card list (below md) ── */}
+        <div className="block md:hidden divide-y divide-white/5">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="animate-pulse p-4 space-y-3">
+                <div className="skeleton h-4 w-40" />
+                <div className="skeleton h-3 w-32" />
+                <div className="skeleton h-3 w-24" />
+                <div className="skeleton h-8 w-full mt-2" />
+              </div>
+            ))
+          ) : loadError ? (
+            <div className="text-center py-10 text-white/30 text-xs px-4">
+              Resolve the loading error above, then refresh.
+            </div>
+          ) : data?.bookings && data.bookings.length > 0 ? (
+            data.bookings.map((b) => {
+              const isDuplicate = hasDuplicateWarning(b, data.bookings)
+              return (
+                <div
+                  key={b.id}
+                  className={`p-4 space-y-3 ${
+                    newBookingIds.has(b.id)
+                      ? "bg-white/[0.08] animate-in slide-in-from-top-2 fade-in duration-300"
+                      : ""
+                  }`}
+                >
+                  {/* Card header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
+                      <p className="text-[10px] text-white/40 mt-0.5 font-mono">{b.bookingCode}</p>
+                      {isDuplicate && (
+                        <span className="inline-block mt-1 text-[8px] bg-white/5 text-white/50 border border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                          Duplicate
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-white">GH₵ {b.amountGHS.toFixed(2)}</p>
+                      <p className="text-[10px] text-white/40 mt-0.5">
+                        {(() => {
+                          const d = b.sessionDate.slice(0, 10)
+                          const [yr, mo, dy] = d.split("-").map(Number)
+                          return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status badges */}
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                      b.isPaid ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300" : "bg-white/5 border-white/10 text-white/40"
+                    }`}>
+                      {b.isPaid ? "✓" : "○"} Paid
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                      b.isPacked ? "bg-blue-500/10 border-blue-500/25 text-blue-300" : "bg-white/5 border-white/10 text-white/40"
+                    }`}>
+                      {b.isPacked ? "✓" : "○"} Reviewed
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                      b.isDelivered ? "bg-[#C5A880]/10 border-[#C5A880]/25 text-[#C5A880]" : "bg-white/5 border-white/10 text-white/40"
+                    }`}>
+                      {b.isDelivered ? "✓" : "○"} Granted
+                    </span>
+                  </div>
+
+                  {/* Actions — full width */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    <button
+                      onClick={() => openInspection(b)}
+                      className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/75 hover:text-white border border-white/10 rounded-lg text-xs font-semibold uppercase tracking-wider"
+                    >
+                      Inspect Booking
+                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setReceiptBooking(b)}
+                        className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded-lg text-xs font-semibold uppercase tracking-wider"
+                      >
+                        Print Slip
+                      </button>
+                      {b.status !== "CANCELLED" && (
+                        <button
+                          onClick={() => handleCancelBooking(b.id)}
+                          className="flex-1 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/10 rounded-lg text-xs font-semibold uppercase tracking-wider"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="text-center py-10 text-white/30 text-xs">
+              No bookings found matching criteria.
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Booking Inspector Drawer / Modal */}

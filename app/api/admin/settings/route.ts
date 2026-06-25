@@ -68,14 +68,20 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "WIPE_DATABASE") {
-      // Clear bookings, reviews
-      const [delBookings, delReviews] = await Promise.all([
+      // Hard delete all data - bookings, reviews, webhook_events, sync_events, booking_status_history
+      const [delBookings, delReviews, delWebhookEvents, delSyncEvents, delHistory] = await Promise.all([
         (supabase as any).from("bookings").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
-        (supabase as any).from("reviews").delete().neq("id", "00000000-0000-0000-0000-000000000000")
+        (supabase as any).from("reviews").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        (supabase as any).from("webhook_events").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        (supabase as any).from("sync_events").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+        (supabase as any).from("booking_status_history").delete().neq("id", "00000000-0000-0000-0000-000000000000")
       ])
 
       if (delBookings.error) throw delBookings.error
       if (delReviews.error) throw delReviews.error
+      if (delWebhookEvents.error) throw delWebhookEvents.error
+      if (delSyncEvents.error) throw delSyncEvents.error
+      if (delHistory.error) throw delHistory.error
 
       return NextResponse.json({ success: true, message: "Database wiped and reset to default settings." })
     }

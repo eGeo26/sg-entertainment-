@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
         amount_ghs: pesewas,
         hubtel_reference: reference,
         status: "AWAITING_PAYMENT",
+        status_received: true,
+        status_received_at: new Date().toISOString(),
       })
       .select()
       .single()

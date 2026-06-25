@@ -154,6 +154,23 @@ export async function POST(req: NextRequest) {
     console.error("[Hubtel Webhook] Failed to insert webhook event:", insertEventError)
   }
 
+  // 6b. Insert sync_event so the admin Realtime subscription fires immediately
+  const { error: syncError } = await (supabase as any)
+    .from("sync_events")
+    .insert({
+      event_type: "payment.confirmed",
+      booking_id: booking.id,
+      booking_code: booking.booking_code,
+      payload: { status: "CONFIRMED", reference },
+      delivered: false,
+      delivery_attempts: 0,
+    })
+
+  if (syncError) {
+    console.error("[Hubtel Webhook] Failed to insert sync_event:", syncError)
+    // Non-fatal — do not abort the request
+  }
+
   // 7. Trigger WhatsApp notifications
   const dateStr = formatDisplayDate(new Date(booking.session_date).toISOString().slice(0, 10))
   const startTimeStr = formatDisplayTime(booking.start_time)

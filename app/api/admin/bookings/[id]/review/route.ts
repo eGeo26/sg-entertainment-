@@ -53,6 +53,23 @@ export async function POST(
 
     if (updateError) throw updateError
 
+    // Insert sync_event so the admin Realtime subscription fires immediately
+    const { error: syncError } = await (supabase as any)
+      .from("sync_events")
+      .insert({
+        event_type: "booking.reviewed",
+        booking_id: params.id,
+        booking_code: updatedBooking.booking_code,
+        payload: { status_reviewed: true, reviewed_at: updateData.status_reviewed_at },
+        delivered: false,
+        delivery_attempts: 0,
+      })
+
+    if (syncError) {
+      console.error("[Admin Booking Review] Failed to insert sync_event:", syncError)
+      // Non-fatal — do not abort the request
+    }
+
     return NextResponse.json({ success: true, booking: updatedBooking })
   } catch (err) {
     console.error("[Admin Booking Review] Error:", err)

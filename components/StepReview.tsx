@@ -199,41 +199,43 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
         Cancellations 24h+ before the session are fully refundable.
       </p>
 
-      {/* Action buttons */}
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={isSubmitting}
-          className="btn-secondary flex-1 py-3.5 text-sm flex items-center justify-center gap-1.5"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Go Back
-        </button>
-        <button
-          ref={btnRef}
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          id="btn-pay"
-          className={`btn-primary flex-1 py-3.5 text-sm transition-transform duration-150 ${animating ? "scale-95" : ""}`}
-        >
-          {isSubmitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-              Redirecting…
-            </span>
-          ) : (
-            <span className="flex items-center justify-center gap-1.5">
-              Pay Now — GHS {total.toLocaleString()}
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </span>
-          )}
-        </button>
+      {/* Action buttons — sticky on mobile so Pay is always visible */}
+      <div className="sticky bottom-0 left-0 right-0 bg-[#09090f] pt-3 pb-6 md:relative md:bg-transparent md:pt-0 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={isSubmitting}
+            className="btn-secondary flex-1 py-3.5 text-sm flex items-center justify-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Go Back
+          </button>
+          <button
+            ref={btnRef}
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            id="btn-pay"
+            className={`btn-primary flex-1 py-3.5 text-sm transition-transform duration-150 ${animating ? "scale-95" : ""}`}
+          >
+            {isSubmitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                Redirecting…
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-1.5">
+                Pay Now — GHS {total.toLocaleString()}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Sparkle keyframes */}

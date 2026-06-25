@@ -149,6 +149,44 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update booking" }, { status: 500 })
   }
 
+  // Insert sync_events rows so the admin Realtime subscription fires immediately
+  const syncInserts: Array<Promise<any>> = []
+
+  if (updateData.status_reviewed === true) {
+    syncInserts.push(
+      (supabase as any).from("sync_events").insert({
+        event_type: "booking.reviewed",
+        booking_id: params.id,
+        booking_code: updated.booking_code,
+        payload: { status_reviewed: true, reviewed_at: updateData.status_reviewed_at },
+        delivered: false,
+        delivery_attempts: 0,
+      })
+    )
+  }
+
+  if (updateData.status_confirmed === true) {
+    syncInserts.push(
+      (supabase as any).from("sync_events").insert({
+        event_type: "booking.confirmed",
+        booking_id: params.id,
+        booking_code: updated.booking_code,
+        payload: { status_confirmed: true, confirmed_at: updateData.status_confirmed_at },
+        delivered: false,
+        delivery_attempts: 0,
+      })
+    )
+  }
+
+  if (syncInserts.length > 0) {
+    const results = await Promise.allSettled(syncInserts)
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        console.error(`[Admin Booking PATCH] sync_events insert ${i} failed:`, r.reason)
+      }
+    })
+  }
+
   // If customer message is provided, save it to booking_status_history
   if (body.customerMessage && body.customerMessage.trim()) {
     try {
@@ -179,17 +217,18 @@ export async function DELETE(
 
   const supabase = createServiceClient()
 
-  const { data: updated, error } = await (supabase as any)
+  // Hard delete - removes the booking and all related records via CASCADE
+  const { data: deleted, error } = await (supabase as any)
     .from("bookings")
-    .update({ status: "CANCELLED" })
+    .delete()
     .eq("id", params.id)
     .select()
     .single()
 
-  if (error || !updated) {
+  if (error || !deleted) {
     console.error("[Admin Booking DELETE] Error:", error)
-    return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to delete booking" }, { status: 500 })
   }
 
-  return NextResponse.json(mapDbToCamel(updated))
+  return NextResponse.json({ success: true, deletedId: params.id })
 }

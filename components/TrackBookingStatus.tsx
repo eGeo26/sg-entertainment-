@@ -105,9 +105,9 @@ export default function TrackBookingStatus() {
     }
   }, [searchParams])
 
-  // Simple polling for booking updates (every 3000ms)
+  // Simple polling for booking updates (every 5000ms)
   useEffect(() => {
-    const code = booking?.bookingCode
+    const code = booking?.bookingCode || bookingId
     if (!code) return
 
     const pollBooking = async () => {
@@ -133,8 +133,8 @@ export default function TrackBookingStatus() {
     // Initial poll after 1 second
     const initialPoll = setTimeout(pollBooking, 1000)
 
-    // Set up recurring poll every 3 seconds
-    pollingIntervalRef.current = setInterval(pollBooking, 3000)
+    // Set up recurring poll every 5 seconds
+    pollingIntervalRef.current = setInterval(pollBooking, 5000)
 
     return () => {
       clearTimeout(initialPoll)
@@ -142,7 +142,7 @@ export default function TrackBookingStatus() {
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [booking?.bookingCode])
+  }, [booking?.bookingCode, bookingId])
 
   // Update relative timestamp every second
   useEffect(() => {
@@ -346,7 +346,61 @@ export default function TrackBookingStatus() {
           <div className="py-2">
             <h4 className="text-[10px] uppercase tracking-widest font-bold mb-6 text-center" style={{ color: "#C5A880" }}>Session Progress</h4>
 
-            <div className="relative">
+            {/* Mobile: vertical stack */}
+            <div className="flex flex-col gap-3 md:hidden">
+              {PROGRESS_STAGES.map((stage, index) => {
+                const isReached = isStageReached(stage.key)
+                const timestamp = getStageTimestamp(stage.key)
+                const activeStageIndex = getActiveStageIndex()
+                const isActive = index === activeStageIndex
+
+                return (
+                  <div key={stage.key} className="flex items-center gap-3">
+                    {/* Circle */}
+                    <div
+                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 select-none"
+                      style={
+                        isReached
+                          ? { background: "#C5A880", color: "#000" }
+                          : isActive
+                          ? { background: "#0c0c0e", border: "2px solid #C5A880", color: "#C5A880" }
+                          : { background: "#0c0c0e", border: "2px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.3)" }
+                      }
+                    >
+                      {isReached ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : index + 1}
+                    </div>
+
+                    {/* Label + timestamp */}
+                    <div className="flex flex-col">
+                      <span
+                        className="text-xs font-semibold leading-tight transition-colors duration-200"
+                        style={{
+                          color: isReached
+                            ? "#C5A880"
+                            : isActive
+                            ? "#C5A880"
+                            : "rgba(255,255,255,0.3)"
+                        }}
+                      >
+                        {stage.label}
+                      </span>
+                      {isReached && timestamp && (
+                        <span className="text-[9px] font-medium mt-0.5 text-[#C5A880]/85">
+                          {formatStageTimestamp(timestamp)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop: horizontal stepper */}
+            <div className="relative hidden md:block">
               {/* Background connector line */}
               <div 
                 className="absolute top-[16px] h-[1px] bg-white/10 -z-0 transition-all duration-300"
@@ -369,7 +423,7 @@ export default function TrackBookingStatus() {
                   const isActive = index === activeStageIndex
 
                   return (
-                    <div key={stage.key} className="flex flex-col items-center flex-1 text-center px-0.5 sm:px-1">
+                    <div key={stage.key} className="flex flex-col items-center flex-1 text-center px-1">
                       {/* Circle */}
                       <div
                         className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 select-none"
@@ -390,7 +444,7 @@ export default function TrackBookingStatus() {
 
                       {/* Label */}
                       <span
-                        className="text-[9px] sm:text-xs font-semibold mt-2.5 leading-tight transition-colors duration-200 max-w-[80px] sm:max-w-none"
+                        className="text-xs font-semibold mt-2.5 leading-tight transition-colors duration-200"
                         style={{
                           color: isReached
                             ? "#C5A880"
@@ -405,13 +459,13 @@ export default function TrackBookingStatus() {
                       {/* Timestamp underneath for completed steps */}
                       {isReached && timestamp ? (
                         <span
-                          className="text-[8px] sm:text-[9px] font-medium mt-1 leading-normal text-[#C5A880]/85 break-words max-w-[70px] sm:max-w-[100px]"
+                          className="text-[9px] font-medium mt-1 leading-normal text-[#C5A880]/85 max-w-[100px]"
                         >
                           {formatStageTimestamp(timestamp)}
                         </span>
                       ) : (
                         // Placeholder to balance layout heights
-                        <span className="text-[8px] sm:text-[9px] font-medium mt-1 leading-normal opacity-0 select-none pointer-events-none">
+                        <span className="text-[9px] font-medium mt-1 leading-normal opacity-0 select-none pointer-events-none">
                           -
                         </span>
                       )}
