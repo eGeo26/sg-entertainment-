@@ -262,10 +262,9 @@ function SidebarContent({
 }
 
 // ── Main exported component ──────────────────────────────────────────────────
-export default function AdminSidebar() {
+export default function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
@@ -319,77 +318,47 @@ export default function AdminSidebar() {
     localStorage.setItem("admin-sidebar-collapsed", String(next))
   }
 
-  const closeMobile = () => setMobileOpen(false)
-
   return (
     <>
-      {/* Mobile hamburger button */}
-      <button
-        className="md:hidden fixed top-3 left-3 z-50 w-8 h-8 flex items-center justify-center rounded-lg"
-        style={{ background: "var(--bg-overlay)", border: "1px solid var(--border)" }}
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open navigation"
-      >
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
-      </button>
-
-      {/* Mobile overlay drawer */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={closeMobile}
-          />
-          {/* Drawer */}
-          <div className="relative w-64 glass-sidebar h-full flex flex-col z-10 shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-              <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
-                S&amp;G Studios
-              </span>
-              <button
-                onClick={closeMobile}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <SidebarContent
-              collapsed={false}
-              isMobile={true}
-              isHoveredState={false}
-              systemStatus={systemStatus}
-              pathname={pathname}
-              counts={counts}
-              onNavClick={closeMobile}
-              onToggleCollapse={toggleCollapse}
-              onSignOut={handleSignOut}
-            />
-          </div>
-        </div>
+      {/* Mobile overlay backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          onClick={onClose}
+        />
       )}
 
-      {/* Desktop sidebar */}
+      {/* Sidebar panel */}
       <aside
-        className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out relative z-30 ${
-          isMounted && collapsed ? "w-[68px]" : "w-60"
-        }`}
         onMouseEnter={() => collapsed && setIsHovered(true)}
         onMouseLeave={() => collapsed && setIsHovered(false)}
+        className={`
+          fixed top-0 left-0 h-full z-50 bg-[#161619] border-r border-white/10 glass-sidebar flex flex-col
+          transform transition-all duration-300 ease-in-out
+          md:relative md:translate-x-0 md:flex-shrink-0 md:z-30
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isMounted && collapsed && !isHovered ? 'md:w-[68px]' : 'md:w-60'}
+          ${collapsed && isHovered ? 'md:absolute md:top-0 md:left-0 md:shadow-2xl md:border-r md:border-neutral-800' : ''}
+          w-64 md:w-auto
+        `}
       >
-        {/* Pin button when hovered-collapsed */}
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 md:hidden text-white/60 hover:text-white z-50 flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/10 transition-colors"
+          aria-label="Close menu"
+        >
+          ✖
+        </button>
+
+        {/* Pin button when hovered-collapsed on desktop */}
         {isMounted && collapsed && isHovered && (
           <button
             onClick={(e) => {
               e.stopPropagation()
               toggleCollapse()
             }}
-            className="absolute top-4 right-4 z-40 p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
+            className="absolute top-4 right-4 z-40 p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center hidden md:flex"
             style={{ color: "var(--text-muted)" }}
             title="Pin sidebar"
           >
@@ -399,23 +368,17 @@ export default function AdminSidebar() {
           </button>
         )}
 
-        <div
-          className={`glass-sidebar h-full flex flex-col transition-all duration-300 ease-in-out ${
-            isMounted && collapsed && !isHovered ? "w-[68px]" : "w-60"
-          } ${collapsed && isHovered ? "absolute top-0 left-0 shadow-2xl border-r border-neutral-800" : ""}`}
-        >
-          <SidebarContent
-            collapsed={collapsed}
-            isMobile={false}
-            isHoveredState={isHovered}
-            systemStatus={systemStatus}
-            pathname={pathname}
-            counts={counts}
-            onNavClick={closeMobile}
-            onToggleCollapse={toggleCollapse}
-            onSignOut={handleSignOut}
-          />
-        </div>
+        <SidebarContent
+          collapsed={collapsed}
+          isMobile={isOpen}
+          isHoveredState={isHovered}
+          systemStatus={systemStatus}
+          pathname={pathname}
+          counts={counts}
+          onNavClick={onClose}
+          onToggleCollapse={toggleCollapse}
+          onSignOut={handleSignOut}
+        />
       </aside>
     </>
   )

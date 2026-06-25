@@ -107,7 +107,7 @@ export default function SettingsConsolePage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="max-w-xl mx-auto space-y-6 pb-4">
       {/* Header */}
       <div>
         <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Admin Settings</h1>

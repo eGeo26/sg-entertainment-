@@ -190,7 +190,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-4">
       {/* Header */}
       <div>
         <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Overview</h1>

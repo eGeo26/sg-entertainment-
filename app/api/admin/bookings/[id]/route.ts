@@ -107,10 +107,10 @@ export async function PATCH(
   if (body.hubtelStatus !== undefined) updateData.hubtel_status = body.hubtelStatus
   if (body.adminNotes !== undefined) updateData.admin_notes = body.adminNotes
 
-  if (body.isPaid !== undefined) {
-    updateData.is_paid = body.isPaid
-    // isPaid → also mark status_payment (what the customer stepper reads)
-    if (body.isPaid === true) {
+  const isPaidVal = body.isPaid !== undefined ? body.isPaid : body.is_paid
+  if (isPaidVal !== undefined) {
+    updateData.is_paid = isPaidVal
+    if (isPaidVal === true) {
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
     } else {
@@ -118,12 +118,12 @@ export async function PATCH(
       updateData.status_payment_at = null
     }
   }
-  if (body.isPacked !== undefined) {
-    // isPacked = "Reviewed" in the UI → cascade to status_reviewed (stepper stage 3)
-    if (body.isPacked === true) {
-      updateData.status_reviewed = true
+
+  const isPackedVal = body.isPacked !== undefined ? body.isPacked : body.is_packed
+  if (isPackedVal !== undefined) {
+    updateData.status_reviewed = isPackedVal
+    if (isPackedVal === true) {
       updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
-      // Also cascade payment confirmation if not already set
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
     } else {
@@ -131,12 +131,12 @@ export async function PATCH(
       updateData.status_reviewed_at = null
     }
   }
-  if (body.isDelivered !== undefined) {
-    // isDelivered = "Granted" in the UI → cascade to status_confirmed (stepper stage 4)
-    if (body.isDelivered === true) {
-      updateData.status_confirmed = true
-      updateData.status_confirmed_at = currentBooking.status_confirmed_at || new Date().toISOString()
-      // Cascade all prior stages
+
+  const isDeliveredVal = body.isDelivered !== undefined ? body.isDelivered : body.is_delivered
+  if (isDeliveredVal !== undefined) {
+    updateData.status_confirmed = isDeliveredVal
+    if (isDeliveredVal === true) {
+      updateData.status_confirmed_at = new Date().toISOString()
       updateData.status_reviewed = true
       updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
       updateData.status_payment = true

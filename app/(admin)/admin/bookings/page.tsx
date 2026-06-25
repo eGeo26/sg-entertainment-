@@ -7,6 +7,7 @@ import StatusBadge from "../components/StatusBadge"
 import { calculateTotal } from "@/lib/booking"
 import { EQUIPMENT_OPTIONS, TIME_SLOTS } from "@/types"
 import { toast } from "sonner"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 
 interface Booking {
   id: string
@@ -303,12 +304,31 @@ function BookingsContent() {
     }
 
     try {
+      const patchBody: any = { [field]: nextVal }
+      if (field === "isDelivered" && nextVal === true) {
+        patchBody.status_confirmed = true
+        patchBody.status_confirmed_at = new Date().toISOString()
+      }
+
       const res = await fetch(`/api/admin/bookings/${booking.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: nextVal }),
+        body: JSON.stringify(patchBody),
       })
       if (!res.ok) throw new Error()
+
+      if (field === "isDelivered" && nextVal === true) {
+        const supabase = createBrowserSupabaseClient()
+        await (supabase as any).from("sync_events").insert({
+          event_type: "booking.confirmed",
+          booking_id: booking.id,
+          booking_code: booking.bookingCode,
+          payload: { status_confirmed: true },
+          delivered: false,
+          delivery_attempts: 0,
+        })
+      }
+
       toast.success("Fulfillment status updated")
       fetchBookings()
     } catch {
@@ -927,23 +947,28 @@ function BookingsContent() {
                     </div>
                   </div>
 
-                  {/* Status badges */}
-                  <div className="flex flex-wrap gap-2">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      b.isPaid ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300" : "bg-white/5 border-white/10 text-white/40"
-                    }`}>
-                      {b.isPaid ? "✓" : "○"} Paid
-                    </span>
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      b.isPacked ? "bg-blue-500/10 border-blue-500/25 text-blue-300" : "bg-white/5 border-white/10 text-white/40"
-                    }`}>
-                      {b.isPacked ? "✓" : "○"} Reviewed
-                    </span>
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      b.isDelivered ? "bg-[#C5A880]/10 border-[#C5A880]/25 text-[#C5A880]" : "bg-white/5 border-white/10 text-white/40"
-                    }`}>
-                      {b.isDelivered ? "✓" : "○"} Granted
-                    </span>
+                  {/* Pipeline badges — always visible on mobile cards */}
+                  <div className="flex gap-1 flex-wrap mt-2">
+                    {b.isPaid && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-900/40 text-green-400 border border-green-700/40">
+                        ✓ Paid
+                      </span>
+                    )}
+                    {b.statusReviewed && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-400 border border-blue-700/40">
+                        ✓ Reviewed
+                      </span>
+                    )}
+                    {b.isDelivered && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-400 border border-purple-700/40">
+                        ✓ Confirmed
+                      </span>
+                    )}
+                    {!b.isPaid && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-400 border border-yellow-700/40">
+                        Pending Payment
+                      </span>
+                    )}
                   </div>
 
                   {/* Actions — full width */}
@@ -985,8 +1010,8 @@ function BookingsContent() {
 
       {/* Booking Inspector Drawer / Modal */}
       {inspectedBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-          <div className="bg-[#0F0F0F]/95 border border-white/10 backdrop-blur-2xl rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-black/75 backdrop-blur-md">
+          <div className="fixed inset-0 md:inset-auto md:relative z-50 overflow-y-auto bg-[#161619] md:bg-[#0F0F0F]/95 border-0 md:border border-white/10 backdrop-blur-2xl rounded-none md:rounded-2xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[92vh] shadow-2xl p-4 md:p-0 pb-4 flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-white/5">
               <div>
                 <h3 className="text-xs font-bold tracking-widest text-[#FFFFFF] uppercase">Session Details</h3>
@@ -1080,31 +1105,31 @@ function BookingsContent() {
               </div>
             </div>
 
-            <div className="p-5 border-t border-white/5 flex justify-end gap-3 bg-white/[0.01]">
+            <div className="p-5 border-t border-white/5 flex flex-col md:flex-row justify-end gap-3 bg-white/[0.01]">
               <button
                 onClick={() => handleSendWhatsapp(inspectedBooking)}
                 disabled={sendingWhatsapp}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+                className="w-full md:w-auto px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 Send WhatsApp
               </button>
               <button
                 onClick={handleMarkAsReviewed}
                 disabled={markingReviewed}
-                className="px-4 py-2 bg-[#C5A880] hover:bg-[#b0936b] text-black text-xs font-bold rounded-xl transition-all disabled:opacity-50 uppercase tracking-wider"
+                className="w-full md:w-auto px-4 py-2 bg-[#C5A880] hover:bg-[#b0936b] text-black text-xs font-bold rounded-xl transition-all disabled:opacity-50 uppercase tracking-wider"
               >
                 {markingReviewed ? "Marking..." : "Mark as Reviewed"}
               </button>
               <button
                 onClick={handleUpdateStatuses}
                 disabled={isUpdating}
-                className="px-5 py-2 bg-[#FFFFFF] hover:bg-neutral-200 text-black text-xs font-bold rounded-xl transition-all disabled:opacity-50 uppercase tracking-wider"
+                className="w-full md:w-auto px-5 py-2 bg-[#FFFFFF] hover:bg-neutral-200 text-black text-xs font-bold rounded-xl transition-all disabled:opacity-50 uppercase tracking-wider"
               >
                 {isUpdating ? "Saving..." : "Save Changes"}
               </button>
               <button
                 onClick={() => setInspectedBooking(null)}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/8 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider"
+                className="w-full md:w-auto px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/8 text-xs font-semibold rounded-xl transition-all uppercase tracking-wider"
               >
                 Close
               </button>

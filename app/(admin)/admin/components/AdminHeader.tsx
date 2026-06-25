@@ -17,7 +17,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/admin/settings": "Settings",
 }
 
-export default function AdminHeader() {
+export default function AdminHeader({ onMenuToggle }: { onMenuToggle: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const title = BREADCRUMBS[pathname] ?? "Admin"
@@ -33,14 +33,24 @@ export default function AdminHeader() {
   }
 
   if (!mounted) return (
-    <header className="glass-header flex-shrink-0 h-14 flex items-center px-4 md:px-6 pl-16 md:pl-6" />
+    <header className="glass-header flex-shrink-0 h-14 flex items-center px-4 md:px-6" />
   )
 
   return (
-    <header className="glass-header flex-shrink-0 h-14 flex items-center justify-between px-4 md:px-6 pl-16 md:pl-6">
+    <header className="glass-header flex-shrink-0 h-14 flex items-center justify-between px-4 md:px-6">
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2">
+        {/* Mobile Hamburger menu */}
+        <button
+          onClick={onMenuToggle}
+          className="md:hidden p-1.5 mr-1 rounded-lg hover:bg-white/5 transition-colors text-white/80"
+          aria-label="Toggle navigation menu"
+        >
+          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
         <span
           className="hidden md:inline tracking-wide text-xs uppercase font-medium"
           style={{ color: "var(--text-muted)" }}
