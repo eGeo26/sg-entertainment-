@@ -112,14 +112,24 @@ export default function PaymentsLedgerPage() {
     toast.success(`Copied ID: ${id}`)
   }
 
+  const totalRevenue = filteredPayments.reduce((sum, p) => sum + p.amountGHS, 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Payments Ledger</h1>
-        <p className="text-xs text-white/40 mt-1.5">
-          Monitor Hubtel transaction flows, track invoice reference logs, and initiate customer refunds
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">Payments Ledger</h1>
+          <p className="text-xs text-white/40 mt-1.5">
+            Monitor Hubtel transaction flows, track invoice reference logs, and initiate customer refunds
+          </p>
+        </div>
+        <div className="bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 flex flex-col justify-center min-w-[180px]">
+          <span className="text-[9px] font-bold tracking-wider text-white/40 uppercase">Total Revenue</span>
+          <span className="text-lg font-semibold text-white mt-0.5">
+            GH₵ {totalRevenue.toLocaleString("en-GH", { minimumFractionDigits: 2 })}
+          </span>
+        </div>
       </div>
 
       {/* Toolbar */}

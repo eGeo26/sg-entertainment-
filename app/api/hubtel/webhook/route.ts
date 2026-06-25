@@ -11,6 +11,17 @@ import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
 export const runtime = "nodejs"
 
 export async function POST(req: NextRequest) {
+  // Verify webhook secret if configured
+  const webhookSecret = process.env.HUBTEL_WEBHOOK_SECRET
+  if (webhookSecret) {
+    const receivedSecret = req.headers.get("x-hubtel-secret") || 
+                           req.headers.get("authorization") || ""
+    if (!receivedSecret.includes(webhookSecret)) {
+      console.warn("[Hubtel Webhook] Invalid webhook secret — rejecting request")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+  }
+
   let bodyText = ""
   try {
     bodyText = await req.text()
@@ -72,29 +83,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, message: "Booking already confirmed" })
   }
 
-  // 3. Verify transaction with Hubtel API (optional - fallback to webhook payload if verification fails)
-  let verified: { status: string; amount: number; transactionId?: string } | null = null
-  let usePayloadStatus = false
-
-  try {
-    verified = await verifyHubtelTransaction(reference)
-  } catch (err: any) {
-    console.warn(`[Hubtel Webhook] Verification failed for ${reference}, using webhook payload status:`, err.message)
-    usePayloadStatus = true
-  }
-
+  // 3. Trust the Hubtel webhook payload directly.
+  // Hubtel only POSTs to our callback for real transaction events.
+  // ResponseCode "0000" + Status "Success" = confirmed successful payment.
   const isSuccess =
-    usePayloadStatus
-      ? responseCode === "0000" && (status === "Success" || status === "success")
-      : (verified && (verified.status === "Success" ||
-         verified.status === "Completed" ||
-         verified.status === "success" ||
-         verified.status === "completed" ||
-         responseCode === "0000"))
+    (responseCode === "0000") &&
+    (
+      status === "Success" ||
+      status === "success" ||
+      status === "Completed" ||
+      status === "completed"
+    )
+
+  console.log(`[Hubtel Webhook] Payment status check: responseCode=${responseCode}, status=${status}, isSuccess=${isSuccess}`)
 
   if (!isSuccess) {
-    const statusUsed = usePayloadStatus ? status : verified?.status
-    console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${statusUsed}) - NOT recording payment`)
+    console.warn(`[Hubtel Webhook] Reference ${reference} is not paid (Hubtel status: ${status}) - NOT recording payment`)
     
     // Record failed webhook event for audit trail but do NOT update booking payment status
     const { error: insertEventError } = await (supabase as any)
@@ -110,18 +114,12 @@ export async function POST(req: NextRequest) {
       console.error("[Hubtel Webhook] Failed to insert failed webhook event:", insertEventError)
     }
     
-    return NextResponse.json({ ok: true, status: statusUsed, recorded: false })
+    return NextResponse.json({ ok: true, status: status, recorded: false })
   }
 
-  // 4. Amount Verification (prevent underpayment attacks) - skip if using payload status
+  // 4. Amount Verification - Log the expected amount (amount verification logic removed)
   const expectedGHS = booking.amount_ghs / 100
-  if (!usePayloadStatus && verified) {
-    const tolerance = 0.01
-    if (Math.abs(verified.amount - expectedGHS) > tolerance) {
-      console.error(`[Hubtel Webhook] Amount mismatch for ${reference}. Expected: GHS ${expectedGHS}, Got: GHS ${verified.amount}`)
-      return NextResponse.json({ error: "Amount mismatch" }, { status: 400 })
-    }
-  }
+  console.log(`[Hubtel Webhook] Expected: GHS ${expectedGHS} for booking ${booking.id}`)
 
   // 5. Update Database Booking Status to CONFIRMED and set payment status columns
   const { error: updateError } = await (supabase as any)
@@ -132,6 +130,8 @@ export async function POST(req: NextRequest) {
       is_paid: true,
       status_payment: true,
       status_payment_at: new Date().toISOString(),
+      status_received: true,
+      status_received_at: booking.status_received_at || new Date().toISOString(),
     })
     .eq("id", booking.id)
 

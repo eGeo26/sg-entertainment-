@@ -93,7 +93,17 @@ export async function PATCH(
   // Map incoming camelCase properties to DB snake_case columns
   const updateData: any = {}
   
-  if (body.status !== undefined) updateData.status = body.status
+  if (body.status !== undefined) {
+    updateData.status = body.status
+    if (body.status === "CONFIRMED") {
+      updateData.status_confirmed = true
+      updateData.status_confirmed_at = currentBooking.status_confirmed_at || new Date().toISOString()
+      updateData.status_reviewed = true
+      updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
+      updateData.status_payment = true
+      updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
+    }
+  }
   if (body.hubtelStatus !== undefined) updateData.hubtel_status = body.hubtelStatus
   if (body.adminNotes !== undefined) updateData.admin_notes = body.adminNotes
 

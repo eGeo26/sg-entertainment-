@@ -44,6 +44,17 @@ export default function SuccessContent() {
   const [pollError, setPollError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Clear booking ID from URL after 5 minutes so next visitor doesn't see it
+    const clearTimer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/') 
+      }
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearTimeout(clearTimer)
+  }, [])
+
+  useEffect(() => {
     if (!bookingId) {
       setLoadState("not-found")
       return

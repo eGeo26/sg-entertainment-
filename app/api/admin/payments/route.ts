@@ -27,8 +27,8 @@ export async function GET() {
         created_at,
         updated_at
       `)
-      .not("hubtel_reference", "is", null)
-      .order("created_at", { ascending: false })
+      .eq("is_paid", true)
+      .order("status_payment_at", { ascending: false })
 
     if (error) throw error
 
