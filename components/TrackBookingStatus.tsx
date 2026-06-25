@@ -60,6 +60,8 @@ export default function TrackBookingStatus() {
 
   const isMountedRef = useRef(true)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const prevBookingRef = useRef<BookingData | null>(null)
+  const [justUpdated, setJustUpdated] = useState(false)
 
   const loading = fetchState === "loading"
 
@@ -84,6 +86,7 @@ export default function TrackBookingStatus() {
 
       const data = await res.json()
       setBooking(data)
+      prevBookingRef.current = data
       setLastUpdated(new Date())
       setFetchState("success")
       if (showToast) toast.success("Booking retrieved successfully")
@@ -105,7 +108,7 @@ export default function TrackBookingStatus() {
     }
   }, [searchParams])
 
-  // Simple polling for booking updates (every 5000ms)
+  // Simple polling for booking updates (every 3000ms)
   useEffect(() => {
     const code = booking?.bookingCode || bookingId
     if (!code) return
@@ -116,25 +119,41 @@ export default function TrackBookingStatus() {
       try {
         const res = await fetch(`/api/bookings/${encodeURIComponent(code)}`, { cache: "no-store" })
         if (res.ok) {
-          const data = await res.json()
-          setBooking(data)
+          const newData = await res.json()
+
+          // Check if any status field actually changed
+          const prev = prevBookingRef.current
+          const hasChanged = !prev ||
+            prev.statusPayment !== newData.statusPayment ||
+            prev.statusReviewed !== newData.statusReviewed ||
+            prev.statusConfirmed !== newData.statusConfirmed ||
+            prev.statusReceived !== newData.statusReceived
+
+          prevBookingRef.current = newData
+          setBooking(newData)
           setLastUpdated(new Date())
           setFetchState("success")
           setPollError(null)
+
+          // Flash the "just updated" indicator when something changes
+          if (hasChanged && prev !== null) {
+            setJustUpdated(true)
+            setTimeout(() => setJustUpdated(false), 2000)
+          }
         } else {
           setPollError("Live updates are temporarily unavailable. The last booking details shown may be stale.")
         }
       } catch (err) {
         console.error("[Customer Tracking] Polling error:", err)
-        setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
+        setPollError("Couldn't connect for live updates.")
       }
     }
 
     // Initial poll after 1 second
     const initialPoll = setTimeout(pollBooking, 1000)
 
-    // Set up recurring poll every 5 seconds
-    pollingIntervalRef.current = setInterval(pollBooking, 5000)
+    // Set up recurring poll every 3 seconds
+    pollingIntervalRef.current = setInterval(pollBooking, 3000)
 
     return () => {
       clearTimeout(initialPoll)
@@ -310,8 +329,10 @@ export default function TrackBookingStatus() {
                 </div>
               </div>
               {lastUpdated && (
-                <span className="text-[9px] text-white/30">
-                  Updated {getRelativeTime(lastUpdated)}
+                <span className={`text-[10px] transition-colors duration-500 ${
+                  justUpdated ? 'text-emerald-400 font-semibold' : 'text-white/30'
+                }`}>
+                  {justUpdated ? '● Just updated' : `Updated ${lastUpdated ? getRelativeTime(lastUpdated) : '...'}`}
                 </span>
               )}
             </div>

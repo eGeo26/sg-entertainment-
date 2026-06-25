@@ -119,7 +119,7 @@ export default function CustomersCRMPage() {
 
       {/* Customers List/Table */}
       <div className="bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-xl overflow-hidden shadow-lg shadow-black/10">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/5 text-[10px] font-medium tracking-wider text-white/40 uppercase bg-white/[0.01]">
@@ -173,7 +173,7 @@ export default function CustomersCRMPage() {
                                {(c.totalBookings >= 3 || c.totalSpentGHS >= 1000) && (
                                  <span className="text-[8px] bg-white/10 text-white border border-white/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                    VIP
-                                 </span>
+                                  </span>
                                )}
                                {c.totalBookings >= 5 && (
                                  <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
@@ -262,6 +262,89 @@ export default function CustomersCRMPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Customer Cards */}
+        <div className="md:hidden divide-y divide-white/5">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="p-4 animate-pulse">
+                <div className="h-4 bg-white/10 rounded w-1/2 mb-2" />
+                <div className="h-3 bg-white/5 rounded w-1/3" />
+              </div>
+            ))
+          ) : filteredCustomers.length > 0 ? (
+            filteredCustomers.map((c) => {
+              const isExpanded = expandedEmail === c.email
+              return (
+                <div key={c.email} className="p-4">
+                  <div
+                    className="flex items-start justify-between cursor-pointer"
+                    onClick={() => toggleRow(c.email)}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-white text-sm">{c.name}</p>
+                        {(c.totalBookings >= 3 || c.totalSpentGHS >= 1000) && (
+                          <span className="text-[8px] bg-white/10 text-white border border-white/20 px-1.5 py-0.5 rounded font-bold uppercase">
+                            VIP
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-white/40 mt-0.5">{c.phone}</p>
+                      <p className="text-xs text-white/30">{c.email}</p>
+                    </div>
+                    <svg
+                      className={`w-3 h-3 text-white/45 mt-1 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+
+                  {/* Key stats row — always visible */}
+                  <div className="flex gap-3 mt-3">
+                    <div className="flex-1 bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center">
+                      <div className="text-[10px] text-white/40 uppercase tracking-wider">Sessions</div>
+                      <div className="text-sm font-bold text-white mt-1">{c.totalBookings}</div>
+                    </div>
+                    <div className="flex-1 bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center">
+                      <div className="text-[10px] text-white/40 uppercase tracking-wider">Total Spent</div>
+                      <div className="text-sm font-bold text-white mt-1">GH₵ {c.totalSpentGHS.toFixed(2)}</div>
+                    </div>
+                    <div className="flex-1 bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center">
+                      <div className="text-[10px] text-white/40 uppercase tracking-wider">Last Visit</div>
+                      <div className="text-[11px] font-medium text-white/70 mt-1">{formatSimpleDate(String(c.lastBooking))}</div>
+                    </div>
+                  </div>
+
+                  {/* Expandable history */}
+                  {isExpanded && (
+                    <div className="mt-4 border-l border-white/10 pl-4 space-y-3">
+                      {c.bookings.map((b) => (
+                        <div key={b.id} className="bg-white/[0.03] border border-white/5 rounded-xl p-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-xs text-white/60">{formatSimpleDate(b.sessionDate)}</p>
+                              <p className="text-xs text-white/40 mt-0.5">{b.startTime} - {b.endTime}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-white">GH₵ {b.amountGHS.toFixed(2)}</p>
+                              <StatusBadge status={b.status} size="sm" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          ) : (
+            <div className="text-center py-12 text-white/30 text-sm">
+              No customers found.
+            </div>
+          )}
         </div>
       </div>
     </div>

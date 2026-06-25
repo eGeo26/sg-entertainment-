@@ -21,6 +21,7 @@ export async function GET() {
         customer_email,
         customer_phone,
         amount_ghs,
+        is_paid,
         status,
         hubtel_status,
         session_date,
@@ -69,7 +70,7 @@ export async function GET() {
       const existing = customerMap.get(b.customer_email)
       if (existing) {
         existing.bookings.push(formattedBooking)
-        existing.totalSpentPesewas += b.hubtel_status === "SUCCESS" ? b.amount_ghs : 0
+        existing.totalSpentPesewas += (b.hubtel_status === "SUCCESS" || b.is_paid === true) ? b.amount_ghs : 0
         if (bDate > existing.lastBookingDate) {
           existing.lastBookingDate = bDate
         }
@@ -79,7 +80,7 @@ export async function GET() {
           email: b.customer_email,
           phone: b.customer_phone,
           bookings: [formattedBooking],
-          totalSpentPesewas: b.hubtel_status === "SUCCESS" ? b.amount_ghs : 0,
+          totalSpentPesewas: (b.hubtel_status === "SUCCESS" || b.is_paid === true) ? b.amount_ghs : 0,
           lastBookingDate: bDate,
         })
       }
