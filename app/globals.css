@@ -374,6 +374,14 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 .scroll-mt-20 { scroll-margin-top: 5rem; }
 
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .btn-primary, .btn-secondary {
     @apply py-3;
@@ -382,4 +390,13 @@
   .input-field {
     font-size: 16px;
   }
+  .react-calendar__tile {
+    padding: 7px 2px !important;
+    font-size: 12px !important;
+  }
+  .react-calendar__month-view__weekdays__weekday {
+    font-size: 10px !important;
+    padding: 4px 0 !important;
+  }
 }
+

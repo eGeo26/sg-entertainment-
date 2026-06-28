@@ -6,6 +6,8 @@ import Navbar from "@/components/Navbar"
 import Footer from "@/components/Footer"
 import "../globals.css"
 
+import BackgroundVideo from "@/components/BackgroundVideo"
+
 const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
@@ -30,19 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
 
         {/* ── Universal video background (persists across all pages) ── */}
-        <div className="fixed inset-0 z-0" aria-hidden="true">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            poster="/assets/studio-poster.jpg"
-            className="w-full h-full object-cover"
-          >
-            <source src="/assets/studio-bg.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/90" />
-        </div>
+        <BackgroundVideo />
 
         {/* ── Universal Navbar ─────────────────────────────────────── */}
         <Navbar />

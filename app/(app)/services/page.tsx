@@ -149,9 +149,11 @@ export default function ServicesPage() {
         <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl max-w-2xl mx-auto">
           <video
             controls
+            preload="auto"
+            playsInline
             className="w-full aspect-video object-cover"
           >
-            <source src="/assets/studio-bg.mp4" type="video/mp4" />
+            <source src="/assets/studio-bg.mp4#t=0.5" type="video/mp4" />
           </video>
         </div>
       </section>
