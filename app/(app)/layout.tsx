@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className={inter.className}>
+      <body className={`${inter.className} overflow-x-hidden`}>
 
         {/* ── Universal video background (persists across all pages) ── */}
         <BackgroundVideo />

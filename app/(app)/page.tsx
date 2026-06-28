@@ -121,77 +121,91 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12 text-center max-w-4xl mx-auto space-y-8 sm:space-y-12">
+    <main className="w-full">
+      {/* Outermost hero wrapper div */}
+      <div className="w-full max-w-full overflow-hidden relative min-h-[100svh] flex flex-col items-center justify-center py-12 space-y-8 sm:space-y-12">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+        >
+          <source src="/assets/studio-bg.mp4" type="video/mp4" />
+        </video>
 
-      {/* Hero Section */}
-      <div className="space-y-3 sm:space-y-4">
-        {/* Headline */}
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight mb-2 sm:mb-3 tracking-tight">
-          Record Your Vision
-          <br />
-          <span
-            style={{
-              background: "linear-gradient(135deg,#C5A880 0%,#A3845B 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
+        {/* Hero Section */}
+        <div className="space-y-3 sm:space-y-4 w-full relative z-10">
+          {/* Headline */}
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight mb-2 sm:mb-3 tracking-tight text-center px-4 w-full">
+            Record Your Vision
+            <br />
+            <span
+              style={{
+                background: "linear-gradient(135deg,#C5A880 0%,#A3845B 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              At S&amp;G Studio
+            </span>
+          </h1>
+          {/* Subtitle */}
+          <p className="text-white/55 text-sm sm:text-lg max-w-xl mx-auto leading-relaxed font-light text-center px-4 w-full">
+            Professional-grade recording studio — experienced engineers,
+            acoustic precision, and seamless online booking.
+          </p>
+        </div>
+
+        {/* Three CTA buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-md px-4 relative z-10">
+          {/* Location */}
+          <a
+            href="https://maps.app.goo.gl/PehA8b9KfeJqPznF6"
+            target="_blank"
+            rel="noopener noreferrer"
+            id="btn-location"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 border border-white/20 hover:border-white/50 text-white/80 hover:text-white px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium backdrop-blur-sm bg-white/5 mx-auto"
           >
-            At S&amp;G Studio
-          </span>
-        </h1>
-        {/* Subtitle */}
-        <p className="text-white/55 text-sm sm:text-lg max-w-xl mx-auto leading-relaxed font-light">
-          Professional-grade recording studio — experienced engineers,
-          acoustic precision, and seamless online booking.
-        </p>
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Location
+          </a>
+
+          {/* Book a Session — primary */}
+          <Link
+            href="/booking"
+            id="btn-book"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-black bg-studio-gold hover:bg-studio-gold/90 transition-all duration-200 mx-auto"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Book a Session
+          </Link>
+
+          {/* See Our Services */}
+          <Link
+            href="/services"
+            id="btn-services"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 border border-white/20 hover:border-white/50 text-white/80 hover:text-white px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium backdrop-blur-sm bg-white/5 mx-auto"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+            Our Services
+          </Link>
+        </div>
       </div>
 
-      {/* Three CTA buttons */}
-      <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-md">
-        {/* Location */}
-        <a
-          href="https://maps.app.goo.gl/PehA8b9KfeJqPznF6"
-          target="_blank"
-          rel="noopener noreferrer"
-          id="btn-location"
-          className="flex-1 inline-flex items-center justify-center gap-2 border border-white/20 hover:border-white/50 text-white/80 hover:text-white px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium backdrop-blur-sm bg-white/5"
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Location
-        </a>
-
-        {/* Book a Session — primary */}
-        <Link
-          href="/booking"
-          id="btn-book"
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-black bg-studio-gold hover:bg-studio-gold/90 transition-all duration-200"
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Book a Session
-        </Link>
-
-        {/* See Our Services */}
-        <Link
-          href="/services"
-          id="btn-services"
-          className="flex-1 inline-flex items-center justify-center gap-2 border border-white/20 hover:border-white/50 text-white/80 hover:text-white px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium backdrop-blur-sm bg-white/5"
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-          </svg>
-          Our Services
-        </Link>
-      </div>
-
-      <PromoFlyer />
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12 space-y-8 sm:space-y-12">
+        <PromoFlyer />
 
       {/* ── Testimonials Section ── */}
       <div className="w-full border-t border-white/10 pt-12 text-left space-y-6">
@@ -370,7 +384,7 @@ export default function HomePage() {
           </div>
         )}
       </div>
-
+      </div>
     </main>
   )
 }
