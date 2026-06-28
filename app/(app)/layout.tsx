@@ -1,5 +1,5 @@
 // app/layout.tsx
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
 import Navbar from "@/components/Navbar"
@@ -13,6 +13,12 @@ const inter = Inter({
   weight: ["300", "400", "500", "600", "700", "800", "900"],
   variable: "--font-inter",
 })
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+}
 
 export const metadata: Metadata = {
   title: "S&G Studios — Book a Professional Recording Session",

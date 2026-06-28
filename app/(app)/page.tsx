@@ -121,12 +121,12 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 text-center max-w-4xl mx-auto space-y-12">
+    <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-12 text-center max-w-4xl mx-auto space-y-8 sm:space-y-12">
 
       {/* Hero Section */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Headline */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight mb-3 tracking-tight">
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight mb-2 sm:mb-3 tracking-tight">
           Record Your Vision
           <br />
           <span
@@ -140,7 +140,7 @@ export default function HomePage() {
           </span>
         </h1>
         {/* Subtitle */}
-        <p className="text-white/55 text-base sm:text-lg max-w-xl mx-auto leading-relaxed font-light">
+        <p className="text-white/55 text-sm sm:text-lg max-w-xl mx-auto leading-relaxed font-light">
           Professional-grade recording studio — experienced engineers,
           acoustic precision, and seamless online booking.
         </p>

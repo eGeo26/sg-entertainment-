@@ -6,11 +6,36 @@ export default function BackgroundVideo() {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = true
-      videoRef.current.play().catch(() => {
-        // Autoplay may be deferred by browser power saver or interaction policies
-      })
+    const video = videoRef.current
+    if (!video) return
+
+    // Ensure all mobile autoplay flags are explicitly set on DOM node
+    video.muted = true
+    video.defaultMuted = true
+    video.setAttribute("playsinline", "true")
+    video.setAttribute("webkit-playsinline", "true")
+
+    const attemptPlay = () => {
+      if (video.paused) {
+        video.play().catch(() => {
+          // Ignore autoplay restriction errors until interaction
+        })
+      }
+    }
+
+    // Attempt initial play
+    attemptPlay()
+
+    // Listen for any mobile user gesture to unpause instantly if browser blocked initial autoplay
+    const events = ["touchstart", "touchmove", "pointerdown", "scroll", "click"]
+    const handleInteraction = () => {
+      attemptPlay()
+    }
+
+    events.forEach((evt) => window.addEventListener(evt, handleInteraction, { passive: true }))
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, handleInteraction))
     }
   }, [])
 
@@ -22,6 +47,7 @@ export default function BackgroundVideo() {
         loop
         muted
         playsInline
+        preload="auto"
         className="w-full h-full object-cover"
       >
         <source src="/assets/studio-bg.mp4" type="video/mp4" />
