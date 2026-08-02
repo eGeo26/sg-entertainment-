@@ -27,6 +27,7 @@ export interface Database {
           studio: string
           equipment: string[]
           notes: string | null
+          selected_package: string | null
           amount_ghs: number
           currency: string
 
@@ -64,6 +65,7 @@ export interface Database {
           studio?: string
           equipment?: string[]
           notes?: string | null
+          selected_package?: string | null
           amount_ghs: number
           currency?: string
 
@@ -101,6 +103,7 @@ export interface Database {
           studio?: string
           equipment?: string[]
           notes?: string | null
+          selected_package?: string | null
           amount_ghs?: number
           currency?: string
 

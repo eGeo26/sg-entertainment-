@@ -89,11 +89,12 @@ const NAV_ITEMS = [
   },
 ]
 
+import { createPortal } from "react-dom"
+
 // ── Extracted to module scope so React Rules of Hooks is satisfied ──────────
 interface SidebarContentProps {
   collapsed: boolean
   isMobile: boolean
-  isHoveredState: boolean
   systemStatus: { isPlaceholderDb: boolean }
   pathname: string
   counts: NotificationCounts
@@ -105,7 +106,6 @@ interface SidebarContentProps {
 function SidebarContent({
   collapsed,
   isMobile,
-  isHoveredState,
   systemStatus,
   pathname,
   counts,
@@ -113,7 +113,13 @@ function SidebarContent({
   onToggleCollapse,
   onSignOut,
 }: SidebarContentProps) {
-  const isCollapsed = collapsed && !isMobile && !isHoveredState
+  const isCollapsed = collapsed && !isMobile
+  const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href)
@@ -122,11 +128,11 @@ function SidebarContent({
     <div className="flex flex-col h-full">
       {/* Brand / collapse toggle */}
       <div
-        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-3" : "px-5"}`}
+        className={`py-4 transition-all duration-300 ${isCollapsed ? "px-2" : "px-5"}`}
         style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <div className="flex items-center justify-between gap-2">
-          {!isCollapsed ? (
+        {!isCollapsed ? (
+          <div className="flex items-center justify-between gap-2">
             <div className="whitespace-nowrap overflow-hidden">
               <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-primary)" }}>
                 S&amp;G Studios
@@ -142,33 +148,55 @@ function SidebarContent({
                 </span>
               </div>
             </div>
-          ) : (
-            <div className="flex-1 flex justify-center py-1">
-              <span
-                className={`w-2 h-2 rounded-full animate-pulse ${
-                  systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
-                }`}
-                title={systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
-              />
-            </div>
-          )}
 
-          {!isMobile && !isCollapsed && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggleCollapse()
-              }}
-              className="p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
-              style={{ color: "var(--text-muted)" }}
-              title="Collapse sidebar"
-            >
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-              </svg>
-            </button>
-          )}
-        </div>
+            {!isMobile && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleCollapse()
+                }}
+                className="p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+                </svg>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full animate-pulse ${
+                systemStatus.isPlaceholderDb ? "bg-amber-400" : "bg-emerald-400"
+              }`}
+              title={systemStatus.isPlaceholderDb ? "Offline Mode" : "Cloud Connected"}
+            />
+            {!isMobile && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleCollapse()
+                }}
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setTooltip({
+                    label: "Expand sidebar",
+                    top: rect.top + rect.height / 2,
+                    left: rect.right + 12,
+                  })
+                }}
+                onMouseLeave={() => setTooltip(null)}
+                className="p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Nav */}
@@ -199,12 +227,21 @@ function SidebarContent({
                   (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"
                   ;(e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"
                 }
+                if (isCollapsed) {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setTooltip({
+                    label: item.label,
+                    top: rect.top + rect.height / 2,
+                    left: rect.right + 12,
+                  })
+                }
               }}
               onMouseLeave={(e) => {
                 if (!active) {
                   (e.currentTarget as HTMLElement).style.background = "transparent"
                   ;(e.currentTarget as HTMLElement).style.color = "var(--text-muted)"
                 }
+                setTooltip(null)
               }}
             >
               {active && !isCollapsed && (
@@ -237,16 +274,21 @@ function SidebarContent({
                   )}
                 </span>
               )}
-
-              {isCollapsed && (
-                <div className="absolute left-full ml-3 px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  {item.label}
-                </div>
-              )}
             </Link>
           )
         })}
       </nav>
+
+      {/* Floating Tooltip Portal */}
+      {isMounted && isCollapsed && tooltip && createPortal(
+        <div
+          className="fixed px-2 py-1 bg-neutral-900 border border-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50 -translate-y-1/2"
+          style={{ top: `${tooltip.top}px`, left: `${tooltip.left}px` }}
+        >
+          {tooltip.label}
+        </div>,
+        document.body
+      )}
 
       {/* Footer */}
       <div
@@ -266,7 +308,6 @@ export default function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onC
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
-  const [isHovered, setIsHovered] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [systemStatus, setSystemStatus] = useState({ isPlaceholderDb: true })
   const [counts, setCounts] = useState<NotificationCounts>({ reviews: 0, bookings: 0 })
@@ -330,15 +371,12 @@ export default function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onC
 
       {/* Sidebar panel */}
       <aside
-        onMouseEnter={() => collapsed && setIsHovered(true)}
-        onMouseLeave={() => collapsed && setIsHovered(false)}
         className={`
           fixed top-0 left-0 h-full z-50 bg-[#161619] border-r border-white/10 glass-sidebar flex flex-col
           transform transition-all duration-300 ease-in-out
           md:relative md:translate-x-0 md:flex-shrink-0 md:z-30
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${isMounted && collapsed && !isHovered ? 'md:w-[68px]' : 'md:w-60'}
-          ${collapsed && isHovered ? 'md:absolute md:top-0 md:left-0 md:shadow-2xl md:border-r md:border-neutral-800' : ''}
+          ${isMounted && collapsed ? 'md:w-[68px]' : 'md:w-60'}
           w-64 md:w-auto
         `}
       >
@@ -351,27 +389,9 @@ export default function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onC
           ✖
         </button>
 
-        {/* Pin button when hovered-collapsed on desktop */}
-        {isMounted && collapsed && isHovered && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleCollapse()
-            }}
-            className="absolute top-4 right-4 z-40 p-1.5 rounded-lg transition-colors duration-150 hover:bg-neutral-800 hover:text-neutral-100 flex items-center justify-center hidden md:flex"
-            style={{ color: "var(--text-muted)" }}
-            title="Pin sidebar"
-          >
-            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
-        )}
-
         <SidebarContent
           collapsed={collapsed}
           isMobile={isOpen}
-          isHoveredState={isHovered}
           systemStatus={systemStatus}
           pathname={pathname}
           counts={counts}

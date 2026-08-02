@@ -21,12 +21,12 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "S&G Studios — Book a Professional Recording Session",
+  title: "S&G Studios | Book a Professional Recording Session",
   description:
     "Book your professional recording session at S&G Studios, Accra. Expert engineers, state-of-the-art equipment. Pay securely via Paystack.",
   keywords: "recording studio, Accra, Ghana, music production, S&G Studios, mixing, mastering, sound engineering",
   openGraph: {
-    title: "S&G Studios — Professional Recording Studio, Accra",
+    title: "S&G Studios | Professional Recording Studio, Accra",
     description: "Expert recording, mixing, and mastering in Accra. Book now.",
     type: "website",
   },
@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Navbar />
 
         {/* ── Page content ─────────────────────────────────────────── */}
-        <div className="relative z-10 pt-14 min-h-screen flex flex-col">
+        <div className="relative z-10 pt-14 min-h-[100dvh] flex flex-col">
           {children}
         </div>
 

@@ -1,6 +1,6 @@
 // app/api/bookings/create/route.ts
 // POST /api/bookings/create
-// Creates a pending booking in Supabase + initializes Hubtel payment
+// Creates or updates a pending booking in Supabase + initializes Hubtel payment
 
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
@@ -11,19 +11,28 @@ import {
   calculateTotal,
   getEndTime,
   generateBookingCode,
-  normalizePhone,
+  validatePhoneNumber,
+  PENDING_BOOKING_WINDOW_MS,
 } from "@/lib/booking"
 
 const CreateBookingSchema = z.object({
   customerName: z.string().min(2).max(100),
   customerEmail: z.string().email(),
-  customerPhone: z.string().min(9).max(16),
+  customerPhone: z
+    .string()
+    .refine((val) => val.startsWith("+"), {
+      message: "Phone number must include a country dial code (e.g. +233244123456)",
+    })
+    .refine((val) => validatePhoneNumber(val), {
+      message: "Phone number must contain 6–12 digits after the country code",
+    }),
   sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   durationHours: z.number().min(2).max(12),
   studio: z.string().default("Main Studio"),
   equipment: z.array(z.string()).default([]),
   notes: z.string().max(500).optional(),
+  selectedPackage: z.string().optional(),
 })
 
 // Helper: Convert GHS to Pesewas
@@ -44,44 +53,96 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data
-    const phone = normalizePhone(data.customerPhone)
+    // Phone is already E.164 (validated above — must start with "+")
+    const phone = data.customerPhone
     const endTime = getEndTime(data.sessionDate, data.startTime, data.durationHours)
     const { total } = calculateTotal(data.durationHours, data.equipment)
     const pesewas = ghsToPesewas(total)
-
-    // 1. Create booking record in our DB (status: AWAITING_PAYMENT)
-    const bookingId = uuidv4()
-    const reference = generateBookingCode()
+    const sessionDateISO = new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString()
 
     const supabase = createServiceClient()
+    const nowIso = new Date().toISOString()
+    const cutoffTimeIso = new Date(Date.now() - PENDING_BOOKING_WINDOW_MS).toISOString()
 
-    const { data: booking, error: insertError } = await (supabase as any)
+    // 1. Check for an existing booking from the same customer (matching phone number)
+    // for the same session date/time slot with status AWAITING_PAYMENT created within the last 45 minutes.
+    const { data: existingBooking } = await (supabase as any)
       .from("bookings")
-      .insert({
-        id: bookingId,
-        booking_code: reference,
-        customer_name: data.customerName,
-        customer_email: data.customerEmail,
-        customer_phone: phone,
-        session_date: new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString(),
-        start_time: data.startTime,
-        end_time: endTime,
-        duration_hours: data.durationHours,
-        studio: data.studio,
-        equipment: data.equipment,
-        notes: data.notes ?? null,
-        amount_ghs: pesewas,
-        hubtel_reference: reference,
-        status: "AWAITING_PAYMENT",
-        status_received: true,
-        status_received_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
+      .select("*")
+      .eq("customer_phone", phone)
+      .eq("session_date", sessionDateISO)
+      .eq("start_time", data.startTime)
+      .eq("status", "AWAITING_PAYMENT")
+      .gte("created_at", cutoffTimeIso)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    if (insertError) {
-      console.error("[Booking] Insert error:", JSON.stringify(insertError))
-      return NextResponse.json({ error: "Failed to save booking to database" }, { status: 500 })
+    let reference: string
+    let bookingId: string
+
+    if (existingBooking) {
+      // Reuse and refresh existing pending booking row
+      reference = existingBooking.booking_code || generateBookingCode()
+      bookingId = existingBooking.id
+
+      const { error: updateError } = await (supabase as any)
+        .from("bookings")
+        .update({
+          customer_name: data.customerName,
+          customer_email: data.customerEmail,
+          end_time: endTime,
+          duration_hours: data.durationHours,
+          studio: data.studio,
+          equipment: data.equipment,
+          notes: data.notes ?? null,
+          selected_package: data.selectedPackage ?? null,
+          amount_ghs: pesewas,
+          hubtel_reference: reference,
+          created_at: nowIso, // Refresh 45-min timer
+          updated_at: nowIso,
+          status_received_at: nowIso,
+        })
+        .eq("id", bookingId)
+
+      if (updateError) {
+        console.error("[Booking] Update error:", JSON.stringify(updateError))
+        return NextResponse.json({ error: "Failed to update pending booking" }, { status: 500 })
+      }
+    } else {
+      // Insert new booking record (status: AWAITING_PAYMENT)
+      bookingId = uuidv4()
+      reference = generateBookingCode()
+
+      const { error: insertError } = await (supabase as any)
+        .from("bookings")
+        .insert({
+          id: bookingId,
+          booking_code: reference,
+          customer_name: data.customerName,
+          customer_email: data.customerEmail,
+          customer_phone: phone,
+          session_date: sessionDateISO,
+          start_time: data.startTime,
+          end_time: endTime,
+          duration_hours: data.durationHours,
+          studio: data.studio,
+          equipment: data.equipment,
+          notes: data.notes ?? null,
+          selected_package: data.selectedPackage ?? null,
+          amount_ghs: pesewas,
+          hubtel_reference: reference,
+          status: "AWAITING_PAYMENT",
+          status_received: true,
+          status_received_at: nowIso,
+          created_at: nowIso,
+          updated_at: nowIso,
+        })
+
+      if (insertError) {
+        console.error("[Booking] Insert error:", JSON.stringify(insertError))
+        return NextResponse.json({ error: "Failed to save booking to database" }, { status: 500 })
+      }
     }
 
     // 2. Initialize payment transaction with Hubtel

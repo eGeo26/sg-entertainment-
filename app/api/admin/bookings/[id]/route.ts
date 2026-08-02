@@ -28,6 +28,7 @@ function mapDbToCamel(b: any) {
     studio: b.studio,
     equipment: b.equipment ?? [],
     notes: b.notes,
+    selectedPackage: b.selected_package,
     amountGHS: pesewasToGhs(b.amount_ghs),
     status: b.status,
     hubtelReference: b.hubtel_reference,

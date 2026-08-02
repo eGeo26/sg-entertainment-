@@ -33,11 +33,11 @@ export default function AdminHeader({ onMenuToggle }: { onMenuToggle: () => void
   }
 
   if (!mounted) return (
-    <header className="glass-header flex-shrink-0 h-14 flex items-center px-4 md:px-6" />
+    <header className="glass-header flex-shrink-0 h-14 flex items-center px-4 md:px-6 sticky top-0 z-20" />
   )
 
   return (
-    <header className="glass-header flex-shrink-0 h-14 flex items-center justify-between px-4 md:px-6">
+    <header className="glass-header flex-shrink-0 h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2">
@@ -101,14 +101,14 @@ export default function AdminHeader({ onMenuToggle }: { onMenuToggle: () => void
         {/* Sign out */}
         <button
           onClick={handleSignOut}
-          className="btn-glass px-2.5 py-1.5"
+          className="btn-glass px-2.5 py-1.5 text-xs flex items-center gap-1.5"
           title="Sign out"
           id="admin-signout"
         >
           <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
           </svg>
-          <span className="hidden sm:inline text-xs">Sign out</span>
+          <span>Sign out</span>
         </button>
       </div>
     </header>

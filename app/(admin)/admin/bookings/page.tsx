@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import StatusBadge from "../components/StatusBadge"
-import { calculateTotal } from "@/lib/booking"
+import { calculateTotal, normalizePhone, COUNTRY_DIAL_CODES } from "@/lib/booking"
 import { EQUIPMENT_OPTIONS, TIME_SLOTS } from "@/types"
 import { toast } from "sonner"
 import { createBrowserSupabaseClient } from "@/lib/supabase"
@@ -24,6 +24,7 @@ interface Booking {
   studio: string
   equipment: string[]
   notes: string | null
+  selectedPackage?: string | null
   amountGHS: number
   currency: string
   hubtelReference: string | null
@@ -54,6 +55,15 @@ interface FetchBookingsResponse {
   page: number
   pages: number
   stats: StatsData
+}
+
+function getExpiryCountdown(createdAtStr: string): string | null {
+  const created = new Date(createdAtStr).getTime()
+  const expiresAt = created + 45 * 60 * 1000
+  const remainingMs = expiresAt - Date.now()
+  if (remainingMs <= 0) return null
+  const remainingMins = Math.ceil(remainingMs / (60 * 1000))
+  return `Clears in ~${remainingMins} min if unpaid`
 }
 
 function BookingsContent() {
@@ -109,6 +119,7 @@ function BookingsContent() {
     amountGHS: 0,
     isPriceOverridden: false,
   })
+  const [manualDialCode, setManualDialCode] = useState("+233")
 
   // Fetch Bookings
   const fetchBookings = useCallback(async () => {
@@ -459,13 +470,14 @@ function BookingsContent() {
     }
 
     try {
+      const fullPhone = normalizePhone(manualDialCode, manualForm.customerPhone)
       const res = await fetch("/api/admin/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerName: manualForm.customerName,
           customerEmail: manualForm.customerEmail,
-          customerPhone: manualForm.customerPhone,
+          customerPhone: fullPhone,
           sessionDate: manualForm.sessionDate,
           startTime: manualForm.startTime,
           durationHours: Number(manualForm.durationHours),
@@ -688,6 +700,8 @@ function BookingsContent() {
           >
             <option className="bg-[#111]" value="ALL">All Statuses</option>
             <option className="bg-[#111]" value="CONFIRMED">Confirmed</option>
+            <option className="bg-[#111]" value="AWAITING_PAYMENT">Awaiting Payment</option>
+            <option className="bg-[#111]" value="EXPIRED">Expired</option>
             <option className="bg-[#111]" value="CANCELLED">Cancelled</option>
             <option className="bg-[#111]" value="REFUNDED">Refunded</option>
             <option className="bg-[#111]" value="FAILED">Failed</option>
@@ -797,6 +811,11 @@ function BookingsContent() {
                         <div>
                           <p className="font-semibold text-white/95">{b.customerName}</p>
                           <p className="text-[10px] text-white/40 mt-0.5">{b.customerEmail} · {b.customerPhone}</p>
+                          {b.selectedPackage && (
+                            <p className="text-[10px] text-[#C5A880] mt-1 font-medium">
+                              Also wants: {b.selectedPackage} — settle in person
+                            </p>
+                          )}
                           {/* Alert: duplicate only */}
                           {isDuplicate && (
                             <div className="mt-1.5">
@@ -820,7 +839,12 @@ function BookingsContent() {
                         </p>
                       </td>
                       <td className="px-4 py-4 font-semibold text-[#FFFFFF]">
-                        GH₵ {b.amountGHS.toFixed(2)}
+                        <div>GH₵ {b.amountGHS.toFixed(2)}</div>
+                        {b.status === "AWAITING_PAYMENT" && getExpiryCountdown(b.createdAt) && (
+                          <div className="text-[9px] text-amber-300/80 font-normal mt-0.5">
+                            {getExpiryCountdown(b.createdAt)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         {/* Fulfillment pipeline checkboxes */}
@@ -948,6 +972,11 @@ function BookingsContent() {
                     <div>
                       <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
                       <p className="text-[10px] text-white/40 mt-0.5 font-mono">{b.bookingCode}</p>
+                      {b.selectedPackage && (
+                        <p className="text-[10px] text-[#C5A880] mt-1 font-medium">
+                          Also wants: {b.selectedPackage} — settle in person
+                        </p>
+                      )}
                       {isDuplicate && (
                         <span className="inline-block mt-1 text-[8px] bg-white/5 text-white/50 border border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                           Duplicate
@@ -956,6 +985,11 @@ function BookingsContent() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-white">GH₵ {b.amountGHS.toFixed(2)}</p>
+                      {b.status === "AWAITING_PAYMENT" && getExpiryCountdown(b.createdAt) && (
+                        <p className="text-[9px] text-amber-300/80 mt-0.5">
+                          {getExpiryCountdown(b.createdAt)}
+                        </p>
+                      )}
                       <p className="text-[10px] text-white/40 mt-0.5">
                         {(() => {
                           const d = b.sessionDate.slice(0, 10)
@@ -1092,7 +1126,19 @@ function BookingsContent() {
                 <div>
                   <span className="block text-[9px] text-white/35 uppercase tracking-wider mb-1 font-bold">Payment</span>
                   <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
-                  <div className="mt-1"><StatusBadge status={inspectedBooking.status} /></div>
+                  <div className="mt-1 flex flex-col gap-1 items-start">
+                    <StatusBadge status={inspectedBooking.status} />
+                    {inspectedBooking.status === "AWAITING_PAYMENT" && getExpiryCountdown(inspectedBooking.createdAt) && (
+                      <span className="text-[9px] text-amber-300/80 font-medium">
+                        {getExpiryCountdown(inspectedBooking.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                  {inspectedBooking.selectedPackage && (
+                    <p className="text-[10px] text-[#C5A880] mt-2 font-medium">
+                      Also wants: {inspectedBooking.selectedPackage} — settle in person
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1224,14 +1270,27 @@ function BookingsContent() {
 
                   <div className="space-y-1">
                     <label className="block text-[10px] text-white/50 uppercase tracking-wide">Customer Phone *</label>
-                    <input
-                      type="text"
-                      required
-                      value={manualForm.customerPhone}
-                      onChange={(e) => setManualForm((prev) => ({ ...prev, customerPhone: e.target.value }))}
-                      placeholder="e.g. 0244123456"
-                      className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={manualDialCode}
+                        onChange={(e) => setManualDialCode(e.target.value)}
+                        className="bg-white/5 border border-white/8 rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-[#FFFFFF] cursor-pointer"
+                      >
+                        {COUNTRY_DIAL_CODES.map((c, i) => (
+                          <option key={`${c.code}-${c.dial}-${i}`} value={c.dial} className="bg-[#111] text-white">
+                            {c.flag} {c.dial} ({c.name})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        required
+                        value={manualForm.customerPhone}
+                        onChange={(e) => setManualForm((prev) => ({ ...prev, customerPhone: e.target.value }))}
+                        placeholder="e.g. 0244123456"
+                        className="flex-1 bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#FFFFFF]"
+                      />
+                    </div>
                   </div>
                 </div>
 

@@ -17,16 +17,22 @@ export default function StepIndicator({ steps, currentStep }: Props) {
 
   return (
     <div className="w-full relative">
-      {/* Background connector line */}
-      <div 
-        className="absolute top-[14px] h-[1px] bg-white/10 -z-0 transition-all duration-300"
-        style={{ left: `${circleOffsetPercent}%`, right: `${circleOffsetPercent}%` }}
-      />
-      {/* Filled connector line */}
-      <div 
-        className="absolute top-[14px] h-[1px] bg-studio-gold -z-0 transition-all duration-300"
-        style={{ left: `${circleOffsetPercent}%`, width: `${currentFilledPercent}%` }}
-      />
+      {/* Connector lines between step circles */}
+      {steps.slice(0, -1).map((_, i) => {
+        const stepWidthPercent = 100 / steps.length
+        const leftPercent = circleOffsetPercent + i * stepWidthPercent
+        const isCompleted = i < currentIndex
+        return (
+          <div key={i} className="absolute top-[14px] h-[1px] -z-0 pointer-events-none" style={{ left: `${leftPercent}%`, width: `${stepWidthPercent}%` }}>
+            {/* Background line segment with 22px margin (14px radius + 8px gap on each side) */}
+            <div className="absolute inset-y-0 left-[22px] right-[22px] bg-white/10" />
+            {/* Filled line segment */}
+            {isCompleted && (
+              <div className="absolute inset-y-0 left-[22px] right-[22px] bg-studio-gold transition-all duration-300" />
+            )}
+          </div>
+        )
+      })}
 
       <div className="flex justify-between items-start w-full relative z-10">
         {steps.map((step, i) => {

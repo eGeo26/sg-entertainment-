@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase"
 import { TIME_SLOTS, STUDIO_HOURS } from "@/types"
+import { PENDING_BOOKING_WINDOW_MS } from "@/lib/booking"
 
 // Parse "HH:mm" to minutes-since-midnight
 function toMinutes(time: string): number {
@@ -31,8 +32,8 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = createServiceClient()
 
-    // 1. Fetch confirmed/awaiting bookings for this date
-    //    AWAITING_PAYMENT holds expire after 30 minutes — treat them as active
+    // 1. Fetch active confirmed/awaiting bookings for this date (EXPIRED status is strictly excluded)
+    //    AWAITING_PAYMENT holds expire after 45 minutes (PENDING_BOOKING_WINDOW_MS)
     const windowStart = `${date}T00:00:00Z`
     const windowEnd = `${date}T23:59:59Z`
 
@@ -54,16 +55,15 @@ export async function GET(req: NextRequest) {
     if (blockedError) throw blockedError
 
     const now = Date.now()
-    const THIRTY_MIN_MS = 30 * 60 * 1000
 
     // Build active intervals in minutes-since-midnight
     const intervals: { start: number; end: number }[] = []
 
     for (const b of (bookings ?? [])) {
-      // Expire stale AWAITING_PAYMENT holds (>30 minutes old)
+      // Expire stale AWAITING_PAYMENT holds (>45 minutes old)
       if (b.status === "AWAITING_PAYMENT") {
         const createdAt = new Date(b.created_at).getTime()
-        if (now - createdAt > THIRTY_MIN_MS) continue
+        if (now - createdAt > PENDING_BOOKING_WINDOW_MS) continue
       }
       intervals.push({
         start: toMinutes(b.start_time),

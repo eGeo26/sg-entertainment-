@@ -10,7 +10,16 @@ export interface BookingFormData {
   studio: string
   equipment: string[]
   notes?: string
+  selectedPackage?: string
 }
+
+export const REMOTE_PACKAGES = [
+  { id: "full_stem_mix_mastering", name: "Full Stem Mix & Mastering", priceGHS: 2000 },
+  { id: "waves_mix_mastering",     name: "Waves Mix & Mastering",     priceGHS: 1000 },
+  { id: "mp3_mix_mastering",       name: "MP3 Mix & Mastering",       priceGHS: 700 },
+  { id: "full_production",         name: "Full Production",           priceGHS: 5000 },
+] as const
+
 
 export interface BookingSlot {
   date: string              // "YYYY-MM-DD"

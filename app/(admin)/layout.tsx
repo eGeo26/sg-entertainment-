@@ -11,7 +11,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "S&G Studios — Admin Dashboard",
+  title: "S&G Studios | Admin Dashboard",
   description: "Admin dashboard for S&G Entertainment studio booking system.",
   robots: "noindex, nofollow",
 }

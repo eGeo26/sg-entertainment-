@@ -32,6 +32,15 @@ export default function BookingFlow() {
     if (searchParams.get("track") === "true") {
       setActiveTab("track")
     }
+    const serviceParam = searchParams.get("service")
+    const packageParam = searchParams.get("package")
+    if (serviceParam || packageParam) {
+      setForm((prev) => ({
+        ...prev,
+        notes: serviceParam ? `Service: ${serviceParam}${prev.notes ? ` · ${prev.notes}` : ''}` : prev.notes,
+        selectedPackage: packageParam ?? prev.selectedPackage,
+      }))
+    }
   }, [searchParams])
 
   const [form, setForm] = useState<Partial<BookingFormData>>({

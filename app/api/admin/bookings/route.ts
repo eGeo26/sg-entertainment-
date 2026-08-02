@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
-import { getEndTime, generateBookingCode, normalizePhone } from "@/lib/booking"
+import { getEndTime, generateBookingCode, validatePhoneNumber, PENDING_BOOKING_WINDOW_MS } from "@/lib/booking"
 
 const ghsToPesewas = (ghs: number) => Math.round(ghs * 100)
 const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
@@ -27,6 +27,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const supabase = createServiceClient()
+
+    // 0. On-read lazy expiry: Mark any AWAITING_PAYMENT booking > 45 minutes old as EXPIRED
+    const cutoffTimeIso = new Date(Date.now() - PENDING_BOOKING_WINDOW_MS).toISOString()
+    await (supabase as any)
+      .from("bookings")
+      .update({ status: "EXPIRED", updated_at: new Date().toISOString() })
+      .eq("status", "AWAITING_PAYMENT")
+      .lt("created_at", cutoffTimeIso)
 
     // 1. Build filtering query for the requested page
     let query = (supabase as any)
@@ -94,6 +102,7 @@ export async function GET(req: NextRequest) {
       studio: b.studio,
       equipment: b.equipment ?? [],
       notes: b.notes,
+      selectedPackage: b.selected_package,
       amountGHS: pesewasToGhs(b.amount_ghs),
       currency: b.currency ?? "GHS",
       hubtelReference: b.hubtel_reference,
@@ -133,7 +142,14 @@ export async function GET(req: NextRequest) {
 const ManualBookingSchema = z.object({
   customerName: z.string().min(2).max(100),
   customerEmail: z.string().email(),
-  customerPhone: z.string().min(9).max(16),
+  customerPhone: z
+    .string()
+    .refine((val) => val.startsWith("+"), {
+      message: "Phone number must include a country dial code (e.g. +233244123456)",
+    })
+    .refine((val) => validatePhoneNumber(val), {
+      message: "Phone number must contain 6–12 digits after the country code",
+    }),
   sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   durationHours: z.number().min(1).max(12),
@@ -155,7 +171,8 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data
-    const phone = normalizePhone(data.customerPhone)
+    // Phone is already E.164 (validated above — must start with "+")
+    const phone = data.customerPhone
     const endTime = getEndTime(data.sessionDate, data.startTime, data.durationHours)
     const bookingId = uuidv4()
     const bookingCode = generateBookingCode()

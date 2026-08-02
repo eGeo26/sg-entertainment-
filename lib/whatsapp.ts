@@ -83,7 +83,7 @@ export function customerConfirmationMessage(d: BookingNotificationData): string 
     d.equipment.length > 0 ? d.equipment.join(", ") : "None"
 
   return `
-✅ *Booking Confirmed — S&G Entertainment*
+✅ *Booking Confirmed: S&G Entertainment*
 
 Hi ${d.customerName}! Your studio session is confirmed. Here are your booking details:
 
@@ -111,7 +111,7 @@ function ownerNewBookingMessage(d: BookingNotificationData): string {
     d.equipment.length > 0 ? d.equipment.join(", ") : "None"
 
   return `
-🔔 *New Booking — S&G Entertainment*
+🔔 *New Booking: S&G Entertainment*
 
 A new paid booking has been confirmed!
 
@@ -133,7 +133,7 @@ ${d.notes ? `📝 *Client notes:* ${d.notes}` : ""}
 
 function customerCancellationMessage(d: BookingNotificationData): string {
   return `
-⚠️ *Booking Cancelled — S&G Entertainment*
+⚠️ *Booking Cancelled: S&G Entertainment*
 
 Hi ${d.customerName}, your booking has been cancelled.
 

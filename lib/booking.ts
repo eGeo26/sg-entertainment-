@@ -12,6 +12,11 @@ const MIN_MINUTES = 150            // 2h 30m minimum
 const RATE_PER_30MIN = 60          // GHS per additional 30 min
 const MAX_HOURS = parseInt(process.env.NEXT_PUBLIC_MAX_HOURS ?? "12")
 
+// Shared hold / expiry window for pending (AWAITING_PAYMENT) bookings
+export const PENDING_BOOKING_WINDOW_MINUTES = 45
+export const PENDING_BOOKING_WINDOW_MS = PENDING_BOOKING_WINDOW_MINUTES * 60 * 1000
+
+
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 export function calcSessionBase(durationHours: number): number {
@@ -106,17 +111,51 @@ export function validateBookingHours(hours: number): boolean {
   return validateBookingMinutes(Math.round(hours * 60))
 }
 
-export function validateGhanaPhone(phone: string): boolean {
-  // Ghana mobile: +233 2X XXXXXXX or 02X XXXXXXX (MTN, Vodafone, AirtelTigo)
-  const cleaned = phone.replace(/\s+/g, "")
-  return /^(\+233|0)(2[0-9]|5[0-9])\d{7}$/.test(cleaned)
+// Country dial codes for international phone selector
+export interface CountryDialCode {
+  code: string
+  name: string
+  dial: string
+  flag: string
 }
 
-export function normalizePhone(phone: string): string {
-  const cleaned = phone.replace(/\s+/g, "")
+export const COUNTRY_DIAL_CODES: CountryDialCode[] = [
+  { code: "GH", name: "Ghana",          dial: "+233", flag: "🇬🇭" },
+  { code: "NG", name: "Nigeria",         dial: "+234", flag: "🇳🇬" },
+  { code: "GB", name: "United Kingdom",  dial: "+44",  flag: "🇬🇧" },
+  { code: "US", name: "United States",   dial: "+1",   flag: "🇺🇸" },
+  { code: "CA", name: "Canada",          dial: "+1",   flag: "🇨🇦" },
+  { code: "CI", name: "Côte d'Ivoire",   dial: "+225", flag: "🇨🇮" },
+  { code: "TG", name: "Togo",            dial: "+228", flag: "🇹🇬" },
+  { code: "BJ", name: "Benin",           dial: "+229", flag: "🇧🇯" },
+  { code: "KE", name: "Kenya",           dial: "+254", flag: "🇰🇪" },
+  { code: "ZA", name: "South Africa",    dial: "+27",  flag: "🇿🇦" },
+  { code: "DE", name: "Germany",         dial: "+49",  flag: "🇩🇪" },
+  { code: "FR", name: "France",          dial: "+33",  flag: "🇫🇷" },
+  { code: "NL", name: "Netherlands",     dial: "+31",  flag: "🇳🇱" },
+].sort((a, b) => (a.name === "Ghana" ? -1 : b.name === "Ghana" ? 1 : a.name.localeCompare(b.name)))
+
+export function validatePhoneNumber(phoneOrDial: string, localNumber?: string): boolean {
+  let fullLocal = localNumber !== undefined ? localNumber : phoneOrDial
+  const digits = fullLocal.replace(/\D/g, "")
+  return digits.length >= 6 && digits.length <= 12
+}
+
+export function normalizePhone(dialCodeOrPhone: string, localNumber?: string): string {
+  if (localNumber !== undefined) {
+    const dial = dialCodeOrPhone.startsWith("+") ? dialCodeOrPhone : "+" + dialCodeOrPhone
+    let cleanLocal = localNumber.replace(/\D/g, "")
+    if (cleanLocal.startsWith("0")) {
+      cleanLocal = cleanLocal.slice(1)
+    }
+    return `${dial}${cleanLocal}`
+  }
+  
+  const cleaned = dialCodeOrPhone.replace(/\s+/g, "")
+  if (cleaned.startsWith("+")) return cleaned
   if (cleaned.startsWith("0")) return "+233" + cleaned.slice(1)
   if (cleaned.startsWith("233")) return "+" + cleaned
-  return cleaned
+  return "+" + cleaned
 }
 
 // ── Reference / booking code generation ──────────────────────────────────────

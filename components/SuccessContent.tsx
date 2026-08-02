@@ -127,7 +127,7 @@ export default function SuccessContent() {
           </h1>
           <p className="text-white/50 text-sm mb-6">
             {loadState === "not-found"
-              ? "We couldn't find that booking reference. If you paid, don't worry — we received it and will confirm shortly via WhatsApp and email."
+              ? "We couldn't find that booking reference. If you paid, don't worry. We received it and will confirm shortly via WhatsApp and email."
               : loadState === "server-error"
               ? "The booking server had trouble loading your receipt. Please try again in a moment."
               : "We couldn't connect to the booking server. Please check your connection and try again."}

@@ -153,13 +153,13 @@ export default function HomePage() {
           </h1>
           {/* Subtitle */}
           <p className="text-white/55 text-sm sm:text-lg max-w-xl mx-auto leading-relaxed font-light text-center px-4 w-full">
-            Professional-grade recording studio — experienced engineers,
+            Professional-grade recording studio with experienced engineers,
             acoustic precision, and seamless online booking.
           </p>
         </div>
 
         {/* Three CTA buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-md px-4 relative z-10">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-2xl px-4 relative z-10">
           {/* Location */}
           <a
             href="https://maps.app.goo.gl/PehA8b9KfeJqPznF6"
@@ -178,7 +178,7 @@ export default function HomePage() {
 
           {/* Book a Session — primary */}
           <Link
-            href="/booking"
+            href="/services"
             id="btn-book"
             className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-black bg-studio-gold hover:bg-studio-gold/90 transition-all duration-200 mx-auto"
           >

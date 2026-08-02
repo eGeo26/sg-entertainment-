@@ -151,6 +151,9 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
               <Row label="Name"  value={form.customerName} />
               <Row label="Email" value={form.customerEmail} />
               <Row label="Phone" value={form.customerPhone} />
+              {form.selectedPackage && (
+                <Row label="Add-on Package" value={`${form.selectedPackage} (Settle in person)`} />
+              )}
               {form.notes && <Row label="Notes" value={form.notes} />}
             </div>
           </div>
@@ -163,9 +166,15 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
                 <span className="text-white/50">Studio time ({minutesToDisplay(form.durationHours)})</span>
                 <span className="text-white/80">GHS {baseRate.toLocaleString()}</span>
               </div>
+              {form.selectedPackage && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#C5A880]/80">Package: {form.selectedPackage}</span>
+                  <span className="text-[#C5A880]/80">Settle in person</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-white/8">
-              <span className="text-white text-sm font-semibold">Total Due</span>
+              <span className="text-white text-sm font-semibold">Total Due Online</span>
               <span className="text-xl font-bold text-white">
                 GHS {total.toLocaleString()}
               </span>
@@ -228,7 +237,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
               </span>
             ) : (
               <span className="flex items-center justify-center gap-1.5">
-                Pay Now — GHS {total.toLocaleString()}
+                Pay Now: GHS {total.toLocaleString()}
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>

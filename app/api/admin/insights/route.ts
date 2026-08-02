@@ -4,12 +4,22 @@ import { NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { startOfMonth, subMonths, endOfMonth } from "date-fns"
 
+import { PENDING_BOOKING_WINDOW_MS } from "@/lib/booking"
+
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
     const supabase = createServiceClient()
+
+    // 0. On-read lazy expiry: Mark any AWAITING_PAYMENT booking > 45 minutes old as EXPIRED
+    const cutoffTimeIso = new Date(Date.now() - PENDING_BOOKING_WINDOW_MS).toISOString()
+    await (supabase as any)
+      .from("bookings")
+      .update({ status: "EXPIRED", updated_at: new Date().toISOString() })
+      .eq("status", "AWAITING_PAYMENT")
+      .lt("created_at", cutoffTimeIso)
 
     // 1. Confirmed vs. Pending Revenue
     const { data: confirmedBookingsData, error: confirmedError } = await (supabase as any)
@@ -111,7 +121,7 @@ export async function GET() {
       .slice(0, 5)
 
     // 5. Pipeline status distribution
-    const statuses = ["AWAITING_PAYMENT", "CONFIRMED", "CANCELLED", "REFUNDED", "FAILED"]
+    const statuses = ["AWAITING_PAYMENT", "CONFIRMED", "CANCELLED", "REFUNDED", "FAILED", "EXPIRED"]
     const statusCounts = await Promise.all(
       statuses.map(async (s) => {
         const { count } = await (supabase as any)

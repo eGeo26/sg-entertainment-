@@ -17,11 +17,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="admin-body min-h-screen relative overflow-hidden text-[#F5F5F5] bg-[#161619]">
+    <div className="admin-body min-h-[100dvh] relative overflow-hidden text-[#F5F5F5] bg-[#161619]">
       {/* Deep dark mesh gradient background */}
       <div className="admin-mesh-bg" aria-hidden="true" />
 
-      <div className="relative z-10 flex h-screen overflow-hidden">
+      <div className="relative z-10 flex h-[100dvh] overflow-hidden">
         <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <AdminHeader onMenuToggle={() => setSidebarOpen(prev => !prev)} />
