@@ -19,11 +19,11 @@ export async function POST(
     const supabase = createServiceClient()
     const { data: booking, error: fetchErr } = await (supabase as any)
       .from("bookings")
-      .select("id, producer_marked_done")
+      .select("id, pushed_to_producer, producer_marked_done")
       .eq("id", bookingId)
       .single()
 
-    if (fetchErr || !booking) {
+    if (fetchErr || !booking || !booking.pushed_to_producer) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
