@@ -52,6 +52,7 @@ const PROGRESS_STAGES = [
 export default function TrackBookingStatus() {
   const searchParams = useSearchParams()
   const [bookingId, setBookingId] = useState("")
+  const [contact, setContact] = useState("")
   const [booking, setBooking] = useState<BookingData | null>(null)
   const [fetchState, setFetchState] = useState<FetchState>("idle")
   const [searched, setSearched] = useState(false)
@@ -71,14 +72,21 @@ export default function TrackBookingStatus() {
     return "network-error"
   }
 
-  const fetchBooking = async (id: string, showToast = false) => {
+  const bookingUrl = (id: string, contactValue: string) => {
+    const query = new URLSearchParams()
+    const trimmedContact = contactValue.trim()
+    query.set(trimmedContact.includes("@") ? "email" : "phone", trimmedContact)
+    return `/api/bookings/${encodeURIComponent(id)}?${query.toString()}`
+  }
+
+  const fetchBooking = async (id: string, contactValue: string, showToast = false) => {
     setFetchState("loading")
     setSearched(true)
     setBooking(null)
     setPollError(null)
 
     try {
-      const res = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { cache: "no-store" })
+      const res = await fetch(bookingUrl(id, contactValue), { cache: "no-store" })
       if (!res.ok) {
         setFetchState(classifyFetchError(res))
         return null
@@ -103,21 +111,30 @@ export default function TrackBookingStatus() {
     if (idParam) {
       const trimmed = idParam.trim()
       setBookingId(trimmed)
-
-      fetchBooking(trimmed)
+      const storedContact = localStorage.getItem("last_booking_contact")
+      if (storedContact) {
+        try {
+          const parsed = JSON.parse(storedContact)
+          const value = parsed.email || parsed.phone || ""
+          setContact(value)
+          if (value) fetchBooking(trimmed, value)
+        } catch {
+          // Ignore malformed legacy browser storage.
+        }
+      }
     }
   }, [searchParams])
 
   // Simple polling for booking updates (every 3000ms)
   useEffect(() => {
     const code = booking?.bookingCode || bookingId
-    if (!code) return
+    if (!code || !contact.trim()) return
 
     const pollBooking = async () => {
       if (!isMountedRef.current) return
 
       try {
-        const res = await fetch(`/api/bookings/${encodeURIComponent(code)}`, { cache: "no-store" })
+        const res = await fetch(bookingUrl(code, contact), { cache: "no-store" })
         if (res.ok) {
           const newData = await res.json()
 
@@ -152,8 +169,8 @@ export default function TrackBookingStatus() {
     // Initial poll after 1 second
     const initialPoll = setTimeout(pollBooking, 1000)
 
-    // Set up recurring poll every 3 seconds
-    pollingIntervalRef.current = setInterval(pollBooking, 3000)
+    // Keep status updates responsive; the guest endpoint has a dedicated 40/min ceiling.
+    pollingIntervalRef.current = setInterval(pollBooking, 3_000)
 
     return () => {
       clearTimeout(initialPoll)
@@ -161,7 +178,7 @@ export default function TrackBookingStatus() {
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [booking?.bookingCode, bookingId])
+  }, [booking?.bookingCode, bookingId, contact])
 
   // Update relative timestamp every second
   useEffect(() => {
@@ -177,12 +194,12 @@ export default function TrackBookingStatus() {
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!bookingId.trim()) {
-      toast.error("Please enter a Booking ID")
+    if (!bookingId.trim() || !contact.trim()) {
+      toast.error("Please enter your Booking ID and booking email or phone")
       return
     }
 
-    await fetchBooking(bookingId.trim(), true)
+    await fetchBooking(bookingId.trim(), contact, true)
   }
 
   const handleCopyId = () => {
@@ -305,6 +322,18 @@ export default function TrackBookingStatus() {
                 )}
               </button>
             </div>
+            <label className="block text-[10px] text-white/50 uppercase tracking-widest font-bold mt-4 mb-2">
+              Booking Email or Phone
+            </label>
+            <input
+              type="text"
+              required
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="Enter the email or phone used to book"
+              autoComplete="email"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C5A880] transition-all"
+            />
           </div>
         </div>
       </form>

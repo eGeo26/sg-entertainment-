@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
+import CollapsibleStatRow from "../components/CollapsibleStatRow"
 import {
   BarChart,
   Bar,
@@ -136,57 +137,34 @@ export default function InsightsPage() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Confirmed vs. Pending */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Confirmed vs. Pending Rev</p>
-          <div className="mt-2 flex justify-between items-baseline">
-            <h3 className="text-3xl font-light text-white">
-              <AnimatedNumber value={data.revenueOverview.confirmedGHS} prefix="GH₵ " decimals={0} />
-            </h3>
-            <span className="text-[10px] text-white/60 font-semibold">
-              Pending: GH₵ {data.revenueOverview.pendingGHS.toFixed(0)}
-            </span>
-          </div>
-          <p className="text-[9px] text-white/30 mt-1.5">Confirmed: {data.revenueOverview.confirmedCount} | Awaiting: {data.revenueOverview.pendingCount}</p>
-        </div>
-
-        {/* MoM margins */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">MoM Growth Margin</p>
-          <div className="mt-2 flex justify-between items-baseline">
-            <h3 className="text-3xl font-light text-white">
-              <AnimatedNumber value={data.compareMoM.currentMonthGHS} prefix="GH₵ " decimals={0} />
-            </h3>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
-              data.compareMoM.percentChange >= 0
-                ? "bg-white/10 text-white"
-                : "bg-white/5 text-white/40"
-            }`}>
-              {data.compareMoM.percentChange >= 0 ? "▲" : "▼"}{Math.abs(data.compareMoM.percentChange).toFixed(1)}%
-            </span>
-          </div>
-          <p className="text-[9px] text-white/30 mt-1.5">Previous Month: GH₵ {data.compareMoM.prevMonthGHS.toFixed(0)}</p>
-        </div>
-
-        {/* AOV */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Average Order Value (AOV)</p>
-          <h3 className="text-3xl font-light text-white mt-2">
-            <AnimatedNumber value={data.metrics.aovGHS} prefix="GH₵ " decimals={2} />
-          </h3>
-          <p className="text-[9px] text-white/30 mt-1.5">Based on verified bookings</p>
-        </div>
-
-        {/* Total Hours Booked */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Total Session Hours Booked</p>
-          <h3 className="text-3xl font-light text-white mt-2">
-            <AnimatedNumber value={data.metrics.totalHoursBooked} suffix=" hrs" />
-          </h3>
-          <p className="text-[9px] text-white/30 mt-1.5">Confirmed recording time</p>
-        </div>
-      </div>
+      <CollapsibleStatRow
+        stats={[
+          {
+            label: "Confirmed vs. Pending Rev",
+            value: `GH₵ ${data.revenueOverview.confirmedGHS.toFixed(0)}`,
+            subtext: `Pending: GH₵ ${data.revenueOverview.pendingGHS.toFixed(0)}`,
+            accent: "gold",
+          },
+          {
+            label: "MoM Growth Margin",
+            value: `GH₵ ${data.compareMoM.currentMonthGHS.toFixed(0)}`,
+            subtext: `Previous Month: GH₵ ${data.compareMoM.prevMonthGHS.toFixed(0)}`,
+            accent: "green",
+          },
+          {
+            label: "Average Order Value (AOV)",
+            value: `GH₵ ${data.metrics.aovGHS.toFixed(2)}`,
+            subtext: "Based on verified bookings",
+            accent: "blue",
+          },
+          {
+            label: "Total Session Hours",
+            value: `${data.metrics.totalHoursBooked} hrs`,
+            subtext: "Confirmed recording time",
+            accent: "amber",
+          },
+        ]}
+      />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

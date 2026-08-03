@@ -84,9 +84,11 @@ export async function POST(req: NextRequest) {
 
   // 3. Verify transaction status directly with Hubtel (don't trust callback alone)
   let verifiedStatus: string
+  let verifiedAmount: number
   try {
     const verification = await verifyHubtelTransaction(clientReference)
     verifiedStatus = verification.status
+    verifiedAmount = verification.amount
     console.log(`[callback] Hubtel verification for ${clientReference}: status=${verifiedStatus}`)
   } catch (err) {
     if (err instanceof HubtelError) {
@@ -94,10 +96,12 @@ export async function POST(req: NextRequest) {
     } else {
       console.error("[callback] Verification exception:", err)
     }
-    // Return 200 to Hubtel but log the issue; a re-delivery may succeed
-    // If HUBTEL_MERCHANT_ACCOUNT_NUMBER is not yet set, fall back to the callback's own status
-    console.warn("[callback] Falling back to callback-reported status:", status)
-    verifiedStatus = status
+    // Fail closed: callback fields are attacker-controlled and can never replace
+    // authoritative verification with Hubtel. A legitimate retry can succeed later.
+    return NextResponse.json(
+      { received: true, skipped: "verification_failed" },
+      { status: 200 }
+    )
   }
 
   // 5. Determine outcome
@@ -109,7 +113,7 @@ export async function POST(req: NextRequest) {
   // 6. Find the booking
   const { data: booking, error: lookupError } = await (supabase as any)
     .from("bookings")
-    .select("id, booking_code, status, customer_name, customer_email")
+    .select("id, booking_code, status, customer_name, customer_email, amount_ghs")
     .eq("booking_code", clientReference)
     .maybeSingle()
 
@@ -123,6 +127,15 @@ export async function POST(req: NextRequest) {
   if (booking.status === "CONFIRMED" || booking.status === "PAID" || booking.status === "FAILED") {
     console.log(`[callback] Booking ${clientReference} already in terminal state: ${booking.status} — skipping update.`)
     return NextResponse.json({ received: true, skipped: "already_terminal" }, { status: 200 })
+  }
+
+  const expectedAmountGHS = Number(booking.amount_ghs) / 100
+  if (!Number.isFinite(verifiedAmount) || Math.abs(verifiedAmount - expectedAmountGHS) > 0.009) {
+    console.error(`[callback] Amount mismatch for ${clientReference}: expected ${expectedAmountGHS}, verified ${verifiedAmount}`)
+    return NextResponse.json(
+      { received: true, skipped: "amount_mismatch" },
+      { status: 200 }
+    )
   }
 
   // 7. Update booking status in Supabase

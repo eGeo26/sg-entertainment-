@@ -9,7 +9,7 @@ import AdminHeader from "./components/AdminHeader"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isLoginPage = pathname === "/admin/login"
+  const isLoginPage = pathname === "/prof-boss/login"
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   if (isLoginPage) {

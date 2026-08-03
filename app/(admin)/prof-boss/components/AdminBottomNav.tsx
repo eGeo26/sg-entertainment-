@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 
 const BOTTOM_ITEMS = [
   {
-    href: "/admin",
+    href: "/prof-boss",
     label: "Overview",
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -15,7 +15,7 @@ const BOTTOM_ITEMS = [
     ),
   },
   {
-    href: "/admin/bookings",
+    href: "/prof-boss/bookings",
     label: "Bookings",
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -24,7 +24,7 @@ const BOTTOM_ITEMS = [
     ),
   },
   {
-    href: "/admin/payments",
+    href: "/prof-boss/payments",
     label: "Payments",
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -33,7 +33,7 @@ const BOTTOM_ITEMS = [
     ),
   },
   {
-    href: "/admin/settings",
+    href: "/prof-boss/settings",
     label: "Settings",
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -48,7 +48,7 @@ export default function AdminBottomNav() {
   const pathname = usePathname()
 
   const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href)
+    href === "/prof-boss" ? pathname === "/prof-boss" : pathname.startsWith(href)
 
   return (
     <div

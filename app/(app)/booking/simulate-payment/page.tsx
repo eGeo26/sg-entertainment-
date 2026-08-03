@@ -31,10 +31,15 @@ function SimulatePaymentContent() {
       router.push("/booking")
       return
     }
+    const safeBookingId = bookingId
 
     async function loadBooking() {
       try {
-        const res = await fetch(`/api/bookings/${bookingId}`)
+        const stored = JSON.parse(localStorage.getItem("last_booking_contact") || "{}")
+        const query = new URLSearchParams()
+        if (stored.email) query.set("email", stored.email)
+        else if (stored.phone) query.set("phone", stored.phone)
+        const res = await fetch(`/api/bookings/${encodeURIComponent(safeBookingId)}?${query.toString()}`)
         if (!res.ok) throw new Error("Booking not found")
         const data = await res.json()
         setBooking(data)

@@ -3,6 +3,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase"
 
 export async function POST(req: NextRequest) {
+  const simulationEnabled =
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_PAYMENT_SIMULATION === "true"
+
+  if (!simulationEnabled) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
   try {
     const { bookingId, action } = await req.json()
 

@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import StatusBadge from "../components/StatusBadge"
+import CollapsibleStatRow from "../components/CollapsibleStatRow"
 import { calculateTotal, normalizePhone, COUNTRY_DIAL_CODES } from "@/lib/booking"
 import { EQUIPMENT_OPTIONS, TIME_SLOTS } from "@/types"
 import { toast } from "sonner"
@@ -41,6 +42,8 @@ interface Booking {
   isPacked: boolean
   isDelivered: boolean
   adminNotes: string | null
+  pushedToProducer?: boolean
+  producerMarkedDone?: boolean
 }
 
 interface StatsData {
@@ -71,6 +74,7 @@ function BookingsContent() {
   const router = useRouter()
 
   // Filter States
+  const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState(searchParams.get("search") ?? "")
   const [status, setStatus] = useState(searchParams.get("status") ?? "ALL")
   const [fromDate, setFromDate] = useState(searchParams.get("from") ?? "")
@@ -83,6 +87,7 @@ function BookingsContent() {
   const [loadError, setLoadError] = useState<"network" | "server" | "unauthorized" | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [newBookingIds, setNewBookingIds] = useState<Set<string>>(new Set())
+  const [expandedMobileBookingId, setExpandedMobileBookingId] = useState<string | null>(null)
 
   // Selection States
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -367,6 +372,44 @@ function BookingsContent() {
     }
   }
 
+  const handlePushToProducer = async (booking: Booking) => {
+    if (booking.status !== "CONFIRMED") {
+      toast.error("Available once payment is confirmed")
+      return
+    }
+    if (!booking.selectedPackage) {
+      toast.error("Only bookings with a selected add-on package can be pushed to producer")
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/push-producer`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to push to producer")
+      }
+      const data = await res.json()
+      toast.success(
+        data.pushedToProducer
+          ? "Booking pushed to Producer Portal"
+          : "Booking removed from Producer Portal"
+      )
+      if (inspectedBooking?.id === booking.id) {
+        setInspectedBooking({ ...inspectedBooking, pushedToProducer: data.pushedToProducer })
+      }
+      fetchBookings()
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to update producer portal push")
+    }
+  }
+
+  const explainUnavailableProducerPush = () => {
+    toast.info("Push to Producer becomes available once payment is confirmed.")
+  }
+
   const handleCancelBooking = async (id: string) => {
     if (!window.confirm("Cancel this booking? This cannot be undone.")) return
     try {
@@ -592,32 +635,28 @@ function BookingsContent() {
   return (
     <div className="space-y-6">
       {/* Metrics widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="glass-card p-5">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Total Confirmed Revenue</p>
-          {loading ? <div className="skeleton h-9 w-40 mt-3" /> : (
-            <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
-              GH₵ {data?.stats?.totalRevenueGHS?.toLocaleString("en-GH", { minimumFractionDigits: 2 }) ?? "0.00"}
-            </p>
-          )}
-        </div>
-        <div className="glass-card p-5">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Active Confirmed Bookings</p>
-          {loading ? <div className="skeleton h-9 w-32 mt-3" /> : (
-            <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
-              {data?.stats?.activeBookings ?? 0} Sessions
-            </p>
-          )}
-        </div>
-        <div className="glass-card p-5">
-          <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Granted Sessions</p>
-          {loading ? <div className="skeleton h-9 w-32 mt-3" /> : (
-            <p className="text-3xl font-light tracking-tight mt-2" style={{ color: "var(--text-primary)" }}>
-              {data?.stats?.grantedSessions ?? 0} Granted
-            </p>
-          )}
-        </div>
-      </div>
+      <CollapsibleStatRow
+        stats={[
+          {
+            label: "Total Confirmed Revenue",
+            value: `GH₵ ${data?.stats?.totalRevenueGHS?.toLocaleString("en-GH", { minimumFractionDigits: 2 }) ?? "0.00"}`,
+            accent: "gold",
+            loading: loading,
+          },
+          {
+            label: "Active Confirmed Bookings",
+            value: `${data?.stats?.activeBookings ?? 0} Sessions`,
+            accent: "green",
+            loading: loading,
+          },
+          {
+            label: "Granted Sessions",
+            value: `${data?.stats?.grantedSessions ?? 0} Granted`,
+            accent: "amber",
+            loading: loading,
+          },
+        ]}
+      />
 
       {/* Action panel */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -679,61 +718,74 @@ function BookingsContent() {
       )}
 
       {/* Filter toolbar */}
-      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-        <div className="space-y-1">
-          <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Search</label>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name, email, phone, ID..."
-            className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
-          />
+      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        {/* Mobile filter toggle header */}
+        <div className="sm:hidden flex items-center justify-between cursor-pointer pb-2" onClick={() => setFilterOpen((prev) => !prev)}>
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 21l3.39-.62C9.28 20.73 10.6 21 12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z" />
+            </svg>
+            <span className="text-xs font-bold uppercase tracking-wider text-white/80">Search &amp; Filters</span>
+          </div>
+          <span className="text-xs text-amber-400 font-semibold">{filterOpen ? "Hide Filters ▲" : "Show Filters ▼"}</span>
         </div>
 
-        <div className="space-y-1">
-          <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Status</label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
+        <div className={`${filterOpen ? "grid" : "hidden sm:grid"} grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end pt-2 sm:pt-0`}>
+          <div className="space-y-1">
+            <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Search</label>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Name, email, phone, ID..."
+              className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
+            >
+              <option className="bg-[#111]" value="ALL">All Statuses</option>
+              <option className="bg-[#111]" value="CONFIRMED">Confirmed</option>
+              <option className="bg-[#111]" value="AWAITING_PAYMENT">Awaiting Payment</option>
+              <option className="bg-[#111]" value="EXPIRED">Expired</option>
+              <option className="bg-[#111]" value="CANCELLED">Cancelled</option>
+              <option className="bg-[#111]" value="REFUNDED">Refunded</option>
+              <option className="bg-[#111]" value="FAILED">Failed</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">From Date</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">To Date</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
+            />
+          </div>
+
+          <button
+            onClick={clearFilters}
+            className="w-full py-2 border border-white/8 hover:border-white/20 text-white/60 hover:text-white bg-white/5 rounded-lg text-xs font-semibold tracking-wider uppercase transition-all"
           >
-            <option className="bg-[#111]" value="ALL">All Statuses</option>
-            <option className="bg-[#111]" value="CONFIRMED">Confirmed</option>
-            <option className="bg-[#111]" value="AWAITING_PAYMENT">Awaiting Payment</option>
-            <option className="bg-[#111]" value="EXPIRED">Expired</option>
-            <option className="bg-[#111]" value="CANCELLED">Cancelled</option>
-            <option className="bg-[#111]" value="REFUNDED">Refunded</option>
-            <option className="bg-[#111]" value="FAILED">Failed</option>
-          </select>
+            Reset Filters
+          </button>
         </div>
-
-        <div className="space-y-1">
-          <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">From Date</label>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-[9px] text-white/40 uppercase tracking-widest font-bold">To Date</label>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="w-full bg-white/5 border border-white/8 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#FFFFFF]/50"
-          />
-        </div>
-
-        <button
-          onClick={clearFilters}
-          className="w-full py-2 border border-white/8 hover:border-white/20 text-white/60 hover:text-white bg-white/5 rounded-lg text-xs font-semibold tracking-wider uppercase transition-all"
-        >
-          Reset Filters
-        </button>
       </div>
 
       {/* Bookings Table */}
@@ -748,7 +800,7 @@ function BookingsContent() {
                     type="checkbox"
                     checked={data ? selectedIds.length === data.bookings.length && data.bookings.length > 0 : false}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="accent-[#FFFFFF] rounded"
+                    className="w-4 h-4 accent-red-500 rounded cursor-pointer"
                   />
                 </th>
                 <th className="px-4 py-3">Customer Details</th>
@@ -804,7 +856,7 @@ function BookingsContent() {
                           type="checkbox"
                           checked={selectedIds.includes(b.id)}
                           onChange={(e) => handleSelectRow(b.id, e.target.checked)}
-                          className="accent-[#FFFFFF] rounded"
+                          className="w-4 h-4 accent-red-500 rounded cursor-pointer"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -849,30 +901,30 @@ function BookingsContent() {
                       <td className="px-4 py-4">
                         {/* Fulfillment pipeline checkboxes */}
                         <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] text-white/50 hover:text-white">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-white/60 hover:text-white">
                             <input
                               type="checkbox"
                               checked={b.isPaid}
                               onChange={() => handleToggleLogisticsField(b, "isPaid")}
-                              className="accent-emerald-500 rounded"
+                              className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
                             />
                             Paid
                           </label>
-                          <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] text-white/50 hover:text-white">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-white/60 hover:text-white">
                             <input
                               type="checkbox"
                               checked={b.isPacked}
                               onChange={() => handleToggleLogisticsField(b, "isPacked")}
-                              className="accent-emerald-500 rounded"
+                              className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
                             />
                             Reviewed
                           </label>
-                          <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] text-white/50 hover:text-white">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-white/60 hover:text-white">
                             <input
                               type="checkbox"
                               checked={b.isDelivered}
                               onChange={() => handleToggleLogisticsField(b, "isDelivered")}
-                              className="accent-emerald-500 rounded"
+                              className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
                             />
                             Granted
                           </label>
@@ -880,6 +932,53 @@ function BookingsContent() {
                       </td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex justify-end items-center gap-1.5">
+                          {b.selectedPackage && (
+                            <span
+                              className="inline-block"
+                              onClick={b.status !== "CONFIRMED" ? explainUnavailableProducerPush : undefined}
+                              onKeyDown={b.status !== "CONFIRMED" ? (event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault()
+                                  explainUnavailableProducerPush()
+                                }
+                              } : undefined}
+                              role={b.status !== "CONFIRMED" ? "button" : undefined}
+                              tabIndex={b.status !== "CONFIRMED" ? 0 : undefined}
+                            >
+                              <button
+                                onClick={() => handlePushToProducer(b)}
+                                disabled={b.status !== "CONFIRMED"}
+                                className={`px-2 py-1 border rounded-md text-[10px] font-semibold transition-all ${
+                                  b.status !== "CONFIRMED"
+                                    ? "bg-white/[0.02] text-white/25 border-white/5 cursor-not-allowed pointer-events-none"
+                                    : b.pushedToProducer
+                                    ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                    : "bg-white/5 hover:bg-white/10 text-white/70 border-white/10"
+                                }`}
+                                title={b.status !== "CONFIRMED" ? "Available once payment is confirmed" : b.pushedToProducer ? "Click to unpush from producer portal" : "Push package booking to producer portal"}
+                              >
+                                {b.pushedToProducer ? (
+                                  b.producerMarkedDone ? (
+                                    <span className="flex items-center gap-1">
+                                      <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                      </svg>
+                                      Producer: Done
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1">
+                                      <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                      </svg>
+                                      Pushed
+                                    </span>
+                                  )
+                                ) : (
+                                  "Push to Producer"
+                                )}
+                              </button>
+                            </span>
+                          )}
                           <button
                             onClick={() => openInspection(b)}
                             className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/75 hover:text-white border border-white/5 rounded-md text-[10px] font-semibold"
@@ -941,10 +1040,10 @@ function BookingsContent() {
           </div>
         )}
         {/* ── Mobile card list (below md) ── */}
-        <div className="block md:hidden divide-y divide-white/5">
+        <div className="block md:hidden p-3 space-y-3">
           {loading ? (
             Array.from({ length: 3 }).map((_, idx) => (
-              <div key={idx} className="animate-pulse p-4 space-y-3">
+              <div key={idx} className="animate-pulse rounded-2xl border border-white/10 bg-white/[0.025] p-5 space-y-3">
                 <div className="skeleton h-4 w-40" />
                 <div className="skeleton h-3 w-32" />
                 <div className="skeleton h-3 w-24" />
@@ -958,26 +1057,46 @@ function BookingsContent() {
           ) : data?.bookings && data.bookings.length > 0 ? (
             data.bookings.map((b) => {
               const isDuplicate = hasDuplicateWarning(b, data.bookings)
+              const isExpanded = expandedMobileBookingId === b.id
+              const statusHint = b.status === "AWAITING_PAYMENT"
+                ? "Not paid yet"
+                : b.producerMarkedDone
+                  ? "Paid · Producer completed"
+                  : b.isDelivered
+                    ? "Paid · Access granted"
+                    : b.isPacked
+                      ? "Paid · Reviewed"
+                      : b.status === "CONFIRMED"
+                        ? "Paid, awaiting review"
+                        : b.status.toLowerCase().replaceAll("_", " ")
               return (
                 <div
                   key={b.id}
-                  className={`p-4 space-y-3 ${
+                  className={`rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition-all duration-200 ${
                     newBookingIds.has(b.id)
-                      ? "bg-white/[0.08] animate-in slide-in-from-top-2 fade-in duration-300"
-                      : ""
+                      ? "bg-white/[0.08] animate-in slide-in-from-top-2 fade-in duration-300 border-[var(--sg-gold)]/30"
+                      : "hover:bg-white/[0.04]"
                   }`}
                 >
                   {/* Card header */}
-                  <div className="flex items-start justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedMobileBookingId(isExpanded ? null : b.id)}
+                    className="w-full flex items-start justify-between gap-3 text-left"
+                    aria-expanded={isExpanded}
+                    aria-controls={`mobile-booking-${b.id}`}
+                  >
                     <div>
                       <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
-                      <p className="text-[10px] text-white/40 mt-0.5 font-mono">{b.bookingCode}</p>
-                      {b.selectedPackage && (
+                      <p className={`text-[10px] mt-1 font-semibold ${b.status === "AWAITING_PAYMENT" ? "text-amber-300/75" : "text-white/45"}`}>
+                        {statusHint}
+                      </p>
+                      {isExpanded && b.selectedPackage && (
                         <p className="text-[10px] text-[#C5A880] mt-1 font-medium">
                           Also wants: {b.selectedPackage} — settle in person
                         </p>
                       )}
-                      {isDuplicate && (
+                      {isExpanded && isDuplicate && (
                         <span className="inline-block mt-1 text-[8px] bg-white/5 text-white/50 border border-white/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                           Duplicate
                         </span>
@@ -985,23 +1104,28 @@ function BookingsContent() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-white">GH₵ {b.amountGHS.toFixed(2)}</p>
-                      {b.status === "AWAITING_PAYMENT" && getExpiryCountdown(b.createdAt) && (
+                      {isExpanded && b.status === "AWAITING_PAYMENT" && getExpiryCountdown(b.createdAt) && (
                         <p className="text-[9px] text-amber-300/80 mt-0.5">
                           {getExpiryCountdown(b.createdAt)}
                         </p>
                       )}
-                      <p className="text-[10px] text-white/40 mt-0.5">
+                      {isExpanded && <p className="text-[10px] text-white/40 mt-0.5">
                         {(() => {
                           const d = b.sessionDate.slice(0, 10)
                           const [yr, mo, dy] = d.split("-").map(Number)
                           return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                         })()}
-                      </p>
+                      </p>}
+                      <svg className={`ml-auto mt-2 text-white/35 transition-transform ${isExpanded ? "rotate-180" : ""}`} width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
-                  </div>
+                  </button>
 
-                  {/* Replace the existing badge divs with these toggle buttons */}
-                  <div className="flex gap-2 flex-wrap mt-3" onClick={(e) => e.stopPropagation()}>
+                  {isExpanded && <div id={`mobile-booking-${b.id}`} className="mt-5 pt-4 border-t border-white/10 space-y-4">
+                  <p className="text-[10px] text-white/35 font-mono tracking-wider">#{b.bookingCode}</p>
+                  {/* Fulfillment actions */}
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => handleToggleLogisticsField(b, 'isPaid')}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all active:scale-95 ${
@@ -1032,12 +1156,58 @@ function BookingsContent() {
                           : 'bg-white/5 text-white/40 border-white/10'
                       }`}
                     >
-                      {b.isDelivered ? '✓' : '○'} Confirmed
+                      {b.isDelivered ? '✓' : '○'} Granted
                     </button>
                   </div>
 
                   {/* Actions — full width */}
                   <div className="flex flex-col gap-2 pt-1">
+                    {b.selectedPackage && (
+                      <div
+                        onClick={b.status !== "CONFIRMED" ? explainUnavailableProducerPush : undefined}
+                        onKeyDown={b.status !== "CONFIRMED" ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault()
+                            explainUnavailableProducerPush()
+                          }
+                        } : undefined}
+                        role={b.status !== "CONFIRMED" ? "button" : undefined}
+                        tabIndex={b.status !== "CONFIRMED" ? 0 : undefined}
+                      >
+                        <button
+                          onClick={() => handlePushToProducer(b)}
+                          disabled={b.status !== "CONFIRMED"}
+                          title={b.status !== "CONFIRMED" ? "Available once payment is confirmed" : undefined}
+                          className={`w-full py-2 border rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
+                            b.status !== "CONFIRMED"
+                              ? "bg-white/[0.02] text-white/25 border-white/5 cursor-not-allowed pointer-events-none"
+                              : b.pushedToProducer
+                              ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                              : "bg-white/5 hover:bg-white/10 text-white/80 border-white/10"
+                          }`}
+                        >
+                          {b.pushedToProducer ? (
+                            b.producerMarkedDone ? (
+                              <span className="flex items-center justify-center gap-1.5">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                                Producer: Done
+                              </span>
+                            ) : (
+                              <span className="flex items-center justify-center gap-1.5">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                </svg>
+                                Pushed to Producer
+                              </span>
+                            )
+                          ) : (
+                            "Push to Producer"
+                          )}
+                        </button>
+                      </div>
+                    )}
                     <button
                       onClick={() => openInspection(b)}
                       className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/75 hover:text-white border border-white/10 rounded-lg text-xs font-semibold uppercase tracking-wider"
@@ -1061,6 +1231,7 @@ function BookingsContent() {
                       )}
                     </div>
                   </div>
+                  </div>}
                 </div>
               )
             })

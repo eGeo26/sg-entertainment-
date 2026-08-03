@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { createBrowserSupabaseClient } from "@/lib/supabase"
-import PasswordInput from "@/app/(admin)/admin/components/PasswordInput"
+import PasswordInput from "../components/PasswordInput"
 
 export default function SettingsConsolePage() {
   const [loading, setLoading] = useState(false)
@@ -232,6 +232,15 @@ export default function SettingsConsolePage() {
           )}
         </div>
 
+        {/* Producer Portal Management */}
+        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-3">
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-2">Producer Portal Password Reset</h3>
+          <p className="text-[10px] text-white/40 leading-relaxed">
+            If the producer is locked out of <code className="text-amber-400">/beatsbylouder</code>, generate a new temporary access password. The new password will be displayed on-screen ONCE.
+          </p>
+          <ProducerResetControl />
+        </div>
+
         {/* Destructive Zone */}
         <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-5 space-y-3.5">
           <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider border-b border-red-500/10 pb-2">Destructive Zone</h3>
@@ -272,3 +281,58 @@ export default function SettingsConsolePage() {
     </div>
   )
 }
+
+function ProducerResetControl() {
+  const [resetting, setResetting] = useState(false)
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+
+  const handleReset = async () => {
+    setResetting(true)
+    try {
+      const res = await fetch("/api/admin/producer-reset", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Reset failed")
+      setGeneratedPassword(data.newPassword)
+      toast.success("Producer password reset successfully")
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset password")
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  return (
+    <div>
+      {generatedPassword ? (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400">
+              New Producer Password (Shown ONCE)
+            </span>
+            <button
+              onClick={() => setGeneratedPassword(null)}
+              className="text-xs text-white/50 hover:text-white"
+            >
+              Dismiss ✖
+            </button>
+          </div>
+          <div className="bg-black/50 border border-white/10 rounded-lg p-3 text-center font-mono text-base font-bold text-amber-300 select-all">
+            {generatedPassword}
+          </div>
+          <p className="text-[10px] text-amber-200/60 leading-tight">
+            Copy and relay this password directly to the producer. Once dismissed, it cannot be retrieved again.
+          </p>
+        </div>
+      ) : (
+        <button
+          onClick={handleReset}
+          disabled={resetting}
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-semibold rounded-xl uppercase tracking-wider transition-all disabled:opacity-50"
+        >
+          {resetting ? "Generating New Password..." : "Reset Producer Password"}
+        </button>
+      )}
+    </div>
+  )
+}
+

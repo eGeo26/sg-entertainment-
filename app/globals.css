@@ -76,6 +76,13 @@
 
   * { box-sizing: border-box; }
 
+  /* Prevent iOS Safari auto-zoom on input focus by setting min 16px font size on mobile */
+  @media (max-width: 767px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
+
   button, a {
     -webkit-tap-highlight-color: transparent;
   }

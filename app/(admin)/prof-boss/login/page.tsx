@@ -4,7 +4,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { createBrowserSupabaseClient } from "@/lib/supabase"
 import PasswordInput from "../components/PasswordInput"
 
 export default function AdminLoginPage() {
@@ -22,17 +21,22 @@ export default function AdminLoginPage() {
 
     setLoading(true)
     try {
-      const supabase = createBrowserSupabaseClient()
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
 
-      if (error) {
+      if (!response.ok) {
         // Don't leak whether the email exists — always show a generic message
-        toast.error("Invalid credentials. Please try again.")
+        toast.error(response.status === 429
+          ? "Too many sign-in attempts. Please wait a minute and try again."
+          : "Invalid credentials. Please try again.")
         return
       }
 
       toast.success("Signed in successfully")
-      router.push("/admin")
+      router.push("/prof-boss")
       router.refresh()
     } catch (err) {
       console.error("[Login Error]:", err)

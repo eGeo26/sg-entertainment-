@@ -7,6 +7,7 @@ import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
 import { createServiceClient } from "@/lib/supabase"
 import { initializeHubtelTransaction } from "@/lib/hubtel"
+import { enforceRateLimit } from "@/lib/rate-limit"
 import {
   calculateTotal,
   getEndTime,
@@ -41,6 +42,9 @@ function ghsToPesewas(amount: number): number {
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, "booking-creation")
+  if (rateLimited) return rateLimited
+
   try {
     const body = await req.json()
     const parsed = CreateBookingSchema.safeParse(body)

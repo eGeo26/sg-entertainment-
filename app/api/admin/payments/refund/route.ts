@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
+import { isSafeBookingIdentifier } from "@/lib/guest-booking"
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession()
@@ -15,16 +16,17 @@ export async function POST(req: NextRequest) {
 
   const { bookingId, reason } = await req.json()
 
-  if (!bookingId) {
-    return NextResponse.json({ error: "bookingId is required" }, { status: 400 })
+  if (!isSafeBookingIdentifier(bookingId)) {
+    return NextResponse.json({ error: "A valid bookingId is required" }, { status: 400 })
   }
 
   const supabase = createServiceClient()
 
+  const lookupColumn = bookingId.includes("-") && bookingId.length === 36 ? "id" : "booking_code"
   const { data: booking, error: selectError } = await (supabase as any)
     .from("bookings")
     .select("*")
-    .or(`id.eq.${bookingId},booking_code.eq.${bookingId}`)
+    .eq(lookupColumn, bookingId)
     .maybeSingle()
 
   if (selectError || !booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 })

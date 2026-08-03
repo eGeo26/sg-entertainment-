@@ -21,14 +21,35 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sngent.com"),
   title: "S&G Studios | Book a Professional Recording Session",
   description:
-    "Book your professional recording session at S&G Studios, Accra. Expert engineers, state-of-the-art equipment. Pay securely via Paystack.",
+    "Book your professional recording session at S&G Studios, Accra. Expert engineers, state-of-the-art equipment. Pay securely via Hubtel.",
   keywords: "recording studio, Accra, Ghana, music production, S&G Studios, mixing, mastering, sound engineering",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "S&G Studios | Professional Recording Studio, Accra",
     description: "Expert recording, mixing, and mastering in Accra. Book now.",
+    url: "https://sngent.com",
+    siteName: "S&G Studios",
+    images: [
+      {
+        url: "/assets/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "S&G Studios — Professional Recording Studio, Accra",
+      },
+    ],
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "S&G Studios | Professional Recording Studio, Accra",
+    description: "Expert recording, mixing, and mastering in Accra. Book now.",
+    images: ["/assets/og-image.png"],
   },
 }
 

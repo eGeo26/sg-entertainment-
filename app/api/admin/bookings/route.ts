@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
-import { getEndTime, generateBookingCode, validatePhoneNumber, PENDING_BOOKING_WINDOW_MS } from "@/lib/booking"
+import { deleteStaleAwaitingPaymentBookings, getEndTime, generateBookingCode, validatePhoneNumber } from "@/lib/booking"
 
 const ghsToPesewas = (ghs: number) => Math.round(ghs * 100)
 const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
@@ -28,13 +28,10 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = createServiceClient()
 
-    // 0. On-read lazy expiry: Mark any AWAITING_PAYMENT booking > 45 minutes old as EXPIRED
-    const cutoffTimeIso = new Date(Date.now() - PENDING_BOOKING_WINDOW_MS).toISOString()
-    await (supabase as any)
-      .from("bookings")
-      .update({ status: "EXPIRED", updated_at: new Date().toISOString() })
-      .eq("status", "AWAITING_PAYMENT")
-      .lt("created_at", cutoffTimeIso)
+    // 0. On-read cleanup: permanently remove unpaid holds once their shared window expires.
+    const staleBookingDeleteError = await deleteStaleAwaitingPaymentBookings(supabase)
+
+    if (staleBookingDeleteError) throw staleBookingDeleteError
 
     // 1. Build filtering query for the requested page
     let query = (supabase as any)
@@ -51,11 +48,15 @@ export async function GET(req: NextRequest) {
       query = query.lte("session_date", `${to}T23:59:59Z`)
     }
     if (search) {
-      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(search)
+      const normalizedSearch = search.trim()
+      if (normalizedSearch.length > 100 || !/^[A-Za-z0-9@+.\-\s]+$/.test(normalizedSearch)) {
+        return NextResponse.json({ error: "Invalid search value" }, { status: 400 })
+      }
+      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalizedSearch)
       if (looksLikeUuid) {
-        query = query.eq("id", search)
+        query = query.eq("id", normalizedSearch)
       } else {
-        query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,customer_phone.ilike.%${search}%,booking_code.ilike.%${search}%`)
+        query = query.or(`customer_name.ilike.%${normalizedSearch}%,customer_email.ilike.%${normalizedSearch}%,customer_phone.ilike.%${normalizedSearch}%,booking_code.ilike.%${normalizedSearch}%`)
       }
     }
 
@@ -118,6 +119,8 @@ export async function GET(req: NextRequest) {
       isPacked: b.status_reviewed ?? false,
       isDelivered: b.status_confirmed ?? false,
       adminNotes: b.admin_notes,
+      pushedToProducer: b.pushed_to_producer ?? false,
+      producerMarkedDone: b.producer_marked_done ?? false,
       createdAt: b.created_at,
       updatedAt: b.updated_at,
     }))

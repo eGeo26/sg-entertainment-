@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createServiceClient } from "@/lib/supabase"
 import { initiateHubtelTransaction, HubtelError } from "@/lib/hubtel"
+import { enforceRateLimit } from "@/lib/rate-limit"
 
 // ── Request validation ─────────────────────────────────────────────────────────
 
@@ -33,6 +34,9 @@ const InitiateSchema = z.object({
 // ── Route handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, "payment-initiation")
+  if (rateLimited) return rateLimited
+
   // 1. Parse + validate body
   let body: unknown
   try {
@@ -51,7 +55,6 @@ export async function POST(req: NextRequest) {
 
   const {
     bookingCode,
-    amountGHS,
     customerName,
     customerEmail,
     customerPhone,
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
   // 2. Confirm the booking exists in our DB
   const { data: booking, error: lookupError } = await (supabase as any)
     .from("bookings")
-    .select("id, booking_code, status, customer_name, customer_email, customer_phone")
+    .select("id, booking_code, status, customer_name, customer_email, customer_phone, amount_ghs")
     .eq("booking_code", bookingCode)
     .maybeSingle()
 
@@ -80,9 +83,15 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  const chargeAmountGHS = Number(booking.amount_ghs) / 100
+  if (!Number.isFinite(chargeAmountGHS) || chargeAmountGHS <= 0) {
+    console.error("[initiate] Booking has an invalid stored amount:", bookingCode)
+    return NextResponse.json({ error: "Booking amount is invalid." }, { status: 500 })
+  }
+
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")
 
-  console.log(`[initiate] Calling Hubtel for ${bookingCode}, GHS ${amountGHS}`)
+  console.log(`[initiate] Calling Hubtel for ${bookingCode}, GHS ${chargeAmountGHS}`)
 
   // Use HUBTEL_CALLBACK_URL from environment variable
   const callbackUrl = process.env.HUBTEL_CALLBACK_URL
@@ -99,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const hubtelResult = await initiateHubtelTransaction({
-      totalAmount: amountGHS,
+      totalAmount: chargeAmountGHS,
       description: description || `Studio booking — ref: ${bookingCode}`,
       clientReference: bookingCode,
       callbackUrl,
@@ -118,7 +127,7 @@ export async function POST(req: NextRequest) {
       authorizationUrl: hubtelResult.checkoutUrl,
       checkoutId: hubtelResult.checkoutId,
       clientReference: hubtelResult.clientReference,
-      amountGHS,
+      amountGHS: chargeAmountGHS,
       currency: "GHS",
     })
   } catch (err) {

@@ -78,16 +78,21 @@ export async function getAdminSession() {
   try {
     const supabase = await createSessionClient()
     const {
-      data: { session },
+      data: { user },
       error,
-    } = await supabase.auth.getSession()
+    } = await supabase.auth.getUser()
 
     if (error) {
-      console.error("[Supabase Auth] getSession error:", error.message)
+      console.error("[Supabase Auth] getUser error:", error.message)
       return null
     }
 
-    return session
+    if (user?.app_metadata?.role !== "admin") {
+      console.warn("[Supabase Auth] Authenticated user does not have the admin role")
+      return null
+    }
+
+    return user
   } catch (err) {
     console.error("[Supabase Auth] Could not get session:", err)
     return null

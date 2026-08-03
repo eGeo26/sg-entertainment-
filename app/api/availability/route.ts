@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase"
 import { TIME_SLOTS, STUDIO_HOURS } from "@/types"
-import { PENDING_BOOKING_WINDOW_MS } from "@/lib/booking"
+import { deleteStaleAwaitingPaymentBookings } from "@/lib/booking"
 
 // Parse "HH:mm" to minutes-since-midnight
 function toMinutes(time: string): number {
@@ -32,8 +32,13 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = createServiceClient()
 
-    // 1. Fetch active confirmed/awaiting bookings for this date (EXPIRED status is strictly excluded)
-    //    AWAITING_PAYMENT holds expire after 45 minutes (PENDING_BOOKING_WINDOW_MS)
+    // 1. Permanently remove every stale unpaid hold before calculating availability.
+    //    This uses the same shared window as booking creation and the admin list.
+    const staleBookingDeleteError = await deleteStaleAwaitingPaymentBookings(supabase)
+
+    if (staleBookingDeleteError) throw staleBookingDeleteError
+
+    // 2. Fetch active confirmed/awaiting bookings for this date.
     const windowStart = `${date}T00:00:00Z`
     const windowEnd = `${date}T23:59:59Z`
 
@@ -46,7 +51,7 @@ export async function GET(req: NextRequest) {
 
     if (bookingsError) throw bookingsError
 
-    // 2. Fetch blocked slots for this date
+    // 3. Fetch blocked slots for this date
     const { data: blocked, error: blockedError } = await (supabase as any)
       .from("blocked_slots")
       .select("start_time, end_time")
@@ -54,17 +59,10 @@ export async function GET(req: NextRequest) {
 
     if (blockedError) throw blockedError
 
-    const now = Date.now()
-
     // Build active intervals in minutes-since-midnight
     const intervals: { start: number; end: number }[] = []
 
     for (const b of (bookings ?? [])) {
-      // Expire stale AWAITING_PAYMENT holds (>45 minutes old)
-      if (b.status === "AWAITING_PAYMENT") {
-        const createdAt = new Date(b.created_at).getTime()
-        if (now - createdAt > PENDING_BOOKING_WINDOW_MS) continue
-      }
       intervals.push({
         start: toMinutes(b.start_time),
         end: toMinutes(b.end_time),
@@ -78,7 +76,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 3. Evaluate each TIME_SLOT
+    // 4. Evaluate each TIME_SLOT
     const slots = TIME_SLOTS.map((time) => {
       const slotStart = toMinutes(time)
       const slotEnd = slotStart + duration

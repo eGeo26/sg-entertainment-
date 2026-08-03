@@ -117,9 +117,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, status: status, recorded: false })
   }
 
-  // 4. Amount Verification - Log the expected amount (amount verification logic removed)
+  // 4. Independently verify successful status and amount with Hubtel.
   const expectedGHS = booking.amount_ghs / 100
-  console.log(`[Hubtel Webhook] Expected: GHS ${expectedGHS} for booking ${booking.id}`)
+  let verification
+  try {
+    verification = await verifyHubtelTransaction(reference)
+  } catch (verificationError) {
+    console.error("[Hubtel Webhook] Authoritative verification failed:", verificationError)
+    return NextResponse.json({ error: "Payment verification failed" }, { status: 502 })
+  }
+
+  const verifiedSuccess = ["Success", "Completed", "successful"].includes(verification.status)
+  const amountMatches = Math.abs(verification.amount - expectedGHS) <= 0.009
+  if (!verifiedSuccess || !amountMatches) {
+    console.error(`[Hubtel Webhook] Verification mismatch for ${reference}: status=${verification.status}, amount=${verification.amount}, expected=${expectedGHS}`)
+    return NextResponse.json({ error: "Payment verification mismatch" }, { status: 422 })
+  }
 
   // 5. Update Database Booking Status to CONFIRMED and set payment status columns
   const { error: updateError } = await (supabase as any)

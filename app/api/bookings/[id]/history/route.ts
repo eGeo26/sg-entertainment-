@@ -3,22 +3,26 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase"
+import { findGuestBooking, getGuestContact } from "@/lib/guest-booking"
+import { enforceRateLimit } from "@/lib/rate-limit"
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createServiceClient()
+    const rateLimited = enforceRateLimit(req, "guest-booking-history", 40)
+    if (rateLimited) return rateLimited
 
-    // First, find the booking by either id or booking_code
-    const { data: booking, error: bookingError } = await (supabase as any)
-      .from("bookings")
-      .select("id")
-      .or(`id.eq.${params.id},booking_code.eq.${params.id}`)
-      .single()
+    const booking = await findGuestBooking(
+      supabase as any,
+      params.id,
+      "id, customer_email, customer_phone",
+      getGuestContact(req.nextUrl.searchParams)
+    )
 
-    if (bookingError || !booking) {
+    if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 

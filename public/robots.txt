@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api/
+
+Allow: /
+Allow: /services
+Allow: /booking
+
+Sitemap: https://sngent.com/sitemap.xml

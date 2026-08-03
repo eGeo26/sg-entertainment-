@@ -35,11 +35,27 @@ export default function BookingFlow() {
     const serviceParam = searchParams.get("service")
     const packageParam = searchParams.get("package")
     if (serviceParam || packageParam) {
-      setForm((prev) => ({
-        ...prev,
-        notes: serviceParam ? `Service: ${serviceParam}${prev.notes ? ` · ${prev.notes}` : ''}` : prev.notes,
-        selectedPackage: packageParam ?? prev.selectedPackage,
-      }))
+      setForm((prev) => {
+        const autoPackage = packageParam ?? (serviceParam === "Full Production" ? "Full Production" : prev.selectedPackage)
+        if (!serviceParam) {
+          return {
+            ...prev,
+            selectedPackage: autoPackage,
+          }
+        }
+        const serviceString = `Service: ${serviceParam}`
+        if (prev.notes?.includes(serviceString)) {
+          return {
+            ...prev,
+            selectedPackage: autoPackage,
+          }
+        }
+        return {
+          ...prev,
+          notes: prev.notes ? `${serviceString} · ${prev.notes}` : serviceString,
+          selectedPackage: autoPackage,
+        }
+      })
     }
   }, [searchParams])
 
@@ -87,6 +103,10 @@ export default function BookingFlow() {
       
       // Store initiated booking code for floating tracking bar
       localStorage.setItem("last_initiated_booking_id", json.bookingId)
+      localStorage.setItem("last_booking_contact", JSON.stringify({
+        email: data.customerEmail,
+        phone: data.customerPhone,
+      }))
 
       window.location.href = json.authorizationUrl
     } catch (err: unknown) {

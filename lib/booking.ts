@@ -16,6 +16,17 @@ const MAX_HOURS = parseInt(process.env.NEXT_PUBLIC_MAX_HOURS ?? "12")
 export const PENDING_BOOKING_WINDOW_MINUTES = 45
 export const PENDING_BOOKING_WINDOW_MS = PENDING_BOOKING_WINDOW_MINUTES * 60 * 1000
 
+export async function deleteStaleAwaitingPaymentBookings(supabase: any) {
+  const cutoffTimeIso = new Date(Date.now() - PENDING_BOOKING_WINDOW_MS).toISOString()
+  const { error } = await supabase
+    .from("bookings")
+    .delete()
+    .eq("status", "AWAITING_PAYMENT")
+    .lt("created_at", cutoffTimeIso)
+
+  return error
+}
+
 
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
@@ -182,4 +193,3 @@ export function generateBookingCode(): string {
 export function generatePaystackReference(bookingId: string): string {
   return generateBookingCode()
 }
-

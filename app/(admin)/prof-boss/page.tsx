@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import StatCard from "./components/StatCard"
+import CollapsibleStatRow from "./components/CollapsibleStatRow"
 import StatusBadge from "./components/StatusBadge"
 import { toast } from "sonner"
 import {
@@ -198,52 +199,54 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Bookings"
-          value={stats?.totalBookings ?? 0}
-          subtext="All initiated checkouts"
-          accent="gold"
-          icon={
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Confirmed"
-          value={stats?.confirmedBookings ?? 0}
-          subtext="Paid & confirmed via Hubtel"
-          accent="green"
-          icon={
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Granted Sessions"
-          value={stats?.grantedSessions ?? 0}
-          subtext="Sessions completed & granted"
-          accent="amber"
-          icon={
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Total Revenue"
-          value={formatGHS(stats?.revenueGHS ?? 0)}
-          subtext="From confirmed payments"
-          accent="blue"
-          icon={
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-16.5 0a2.25 2.25 0 01-2.25-2.25M3.75 4.5l1.5 8.25m16.5-8.25v2.25m0-2.25a2.25 2.25 0 00-2.25-2.25M21.75 8.25l-1.5 8.25m-16.5-8.25h16.5M3.75 12h16.5m-16.5 0v3.75m0 0a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-3.75m-18 0A2.25 2.25 0 005.25 18h13.5A2.25 2.25 0 0021 15.75v-3.75" />
-            </svg>
-          }
-        />
-      </div>
+      <CollapsibleStatRow
+        stats={[
+          {
+            label: "Total Bookings",
+            value: stats?.totalBookings ?? 0,
+            subtext: "All initiated checkouts",
+            accent: "gold",
+            icon: (
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+            ),
+          },
+          {
+            label: "Confirmed",
+            value: stats?.confirmedBookings ?? 0,
+            subtext: "Paid & confirmed via Hubtel",
+            accent: "green",
+            icon: (
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ),
+          },
+          {
+            label: "Granted Sessions",
+            value: stats?.grantedSessions ?? 0,
+            subtext: "Sessions completed & granted",
+            accent: "amber",
+            icon: (
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ),
+          },
+          {
+            label: "Total Revenue",
+            value: formatGHS(stats?.revenueGHS ?? 0),
+            subtext: "From confirmed payments",
+            accent: "blue",
+            icon: (
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5m-16.5 0a2.25 2.25 0 01-2.25-2.25M3.75 4.5l1.5 8.25m16.5-8.25v2.25m0-2.25a2.25 2.25 0 00-2.25-2.25M21.75 8.25l-1.5 8.25m-16.5-8.25h16.5M3.75 12h16.5m-16.5 0v3.75m0 0a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-3.75m-18 0A2.25 2.25 0 005.25 18h13.5A2.25 2.25 0 0021 15.75v-3.75" />
+              </svg>
+            ),
+          },
+        ]}
+      />
 
       {/* Analytics Chart Row */}
       <div className="glass-card p-5 md:p-6">
@@ -321,7 +324,7 @@ export default function AdminDashboardPage() {
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>Latest checkout activities</p>
           </div>
           <Link
-            href="/admin/bookings"
+            href="/prof-boss/bookings"
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
             style={{ color: "var(--sg-gold)" }}
           >
@@ -464,7 +467,7 @@ export default function AdminDashboardPage() {
 
             <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-overlay)" }}>
               <Link
-                href={`/admin/bookings?search=${selectedBooking.bookingCode}`}
+                href={`/prof-boss/bookings?search=${selectedBooking.bookingCode}`}
                 className="btn-gold text-xs uppercase tracking-wider"
               >
                 Manage Booking

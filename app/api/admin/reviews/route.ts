@@ -26,6 +26,9 @@ function mapDbToCamel(r: any) {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await getAdminSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   try {
     const supabase = createServiceClient()
     const { data: reviews, error } = await (supabase as any)

@@ -61,6 +61,18 @@ export default function SuccessContent() {
     }
 
     let cancelled = false
+    let contactQuery = ""
+    try {
+      const stored = JSON.parse(localStorage.getItem("last_booking_contact") || "{}")
+      const value = stored.email || stored.phone
+      if (value) {
+        const query = new URLSearchParams()
+        query.set(stored.email ? "email" : "phone", value)
+        contactQuery = `?${query.toString()}`
+      }
+    } catch {
+      // A missing or malformed local value will produce the same generic not-found response.
+    }
 
     const classify = (res: Response): LoadState => {
       if (res.status === 404) return "not-found"
@@ -70,7 +82,7 @@ export default function SuccessContent() {
 
     const fetchBooking = async (isPoll = false) => {
       try {
-        const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}`, { cache: "no-store" })
+        const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}${contactQuery}`, { cache: "no-store" })
         if (!res.ok) {
           if (!cancelled && !isPoll) setLoadState(classify(res))
           if (!cancelled && isPoll) setPollError("Live updates are temporarily unavailable. The details shown may be stale.")
@@ -93,7 +105,8 @@ export default function SuccessContent() {
     }
 
     fetchBooking()
-    const interval = setInterval(() => fetchBooking(true), 3000)
+    // Keep payment-status updates responsive; the guest endpoint allows 40/min.
+    const interval = setInterval(() => fetchBooking(true), 3_000)
 
     return () => {
       cancelled = true

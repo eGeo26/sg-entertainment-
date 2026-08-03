@@ -4,18 +4,26 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase"
 import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
+import { enforceRateLimit } from "@/lib/rate-limit"
+import { findGuestBooking, getGuestContact } from "@/lib/guest-booking"
 
 const pesewasToGhs = (p: number | null) => (p ?? 0) / 100
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Status pages poll every three seconds; allow normal sustained polling while
+    // retaining a per-IP ceiling for abusive enumeration attempts.
+    const rateLimited = enforceRateLimit(req, "guest-booking-tracking", 40)
+    if (rateLimited) return rateLimited
+
     const supabase = createServiceClient()
-    const { data: bookingByCode, error: codeError } = await (supabase as any)
-      .from("bookings")
-      .select(`
+    const booking = await findGuestBooking(
+      supabase as any,
+      params.id,
+      `
         id,
         booking_code,
         customer_name,
@@ -42,51 +50,11 @@ export async function GET(
         status_reviewed_at,
         status_confirmed,
         status_confirmed_at
-      `)
-      .eq("booking_code", params.id)
-      .maybeSingle()
+      `,
+      getGuestContact(req.nextUrl.searchParams)
+    )
 
-    // Fallback: if not found by booking_code, try internal UUID id
-    let booking = bookingByCode
-    let error = codeError
-    if (!bookingByCode && (!codeError || codeError.code === "PGRST116")) {
-      const { data: bookingById, error: idError } = await (supabase as any)
-        .from("bookings")
-        .select(`
-          id,
-          booking_code,
-          customer_name,
-          customer_email,
-          customer_phone,
-          session_date,
-          start_time,
-          end_time,
-          duration_hours,
-          studio,
-          equipment,
-          notes,
-          amount_ghs,
-          status,
-          hubtel_reference,
-          is_paid,
-          created_at,
-          updated_at,
-          status_received,
-          status_received_at,
-          status_payment,
-          status_payment_at,
-          status_reviewed,
-          status_reviewed_at,
-          status_confirmed,
-          status_confirmed_at
-        `)
-        .eq("id", params.id)
-        .maybeSingle()
-      booking = bookingById
-      error = idError
-    }
-
-    if (error || !booking) {
+    if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
