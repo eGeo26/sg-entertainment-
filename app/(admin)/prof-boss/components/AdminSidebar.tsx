@@ -369,9 +369,9 @@ export default function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onC
       {/* Sidebar panel */}
       <aside
         className={`
-          fixed top-0 left-0 h-full z-50 bg-[#161619] border-r border-white/10 glass-sidebar flex flex-col
+          fixed top-0 left-0 h-[100dvh] z-50 bg-[#161619] border-r border-white/10 glass-sidebar flex flex-col
           transform transition-all duration-300 ease-in-out
-          md:relative md:translate-x-0 md:flex-shrink-0 md:z-30
+          md:sticky md:top-0 md:self-start md:translate-x-0 md:flex-shrink-0 md:z-30
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           ${isMounted && collapsed ? 'md:w-[68px]' : 'md:w-60'}
           w-64 md:w-auto

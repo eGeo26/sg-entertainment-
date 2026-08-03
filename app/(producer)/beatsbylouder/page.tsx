@@ -228,12 +228,12 @@ export default function ProducerPortalPage() {
   const furtherOutBookings = visibleBookings.filter((b) => !isWithin7Days(b.sessionDate))
 
   return (
-    <div className="min-h-screen bg-[#08080c] text-[#F0EFE8] p-4 md:p-6 lg:p-8 relative overflow-hidden">
+    <div className="min-h-screen bg-[#08080c] text-[#F0EFE8] p-4 md:p-6 lg:p-8 relative">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_78%_0%,rgba(197,168,128,0.10),transparent_42%)]" />
       <div className="max-w-6xl mx-auto space-y-6 relative pb-4">
 
         {/* Top Header */}
-        <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 pb-5 border-b border-white/[0.08]">
+        <header className="sticky top-0 z-30 flex flex-col lg:flex-row lg:items-start justify-between gap-5 pb-5 pt-1 border-b border-white/[0.08] bg-[#08080c]/95 backdrop-blur-xl">
           <div className="max-w-2xl">
             <p className="mb-2 text-[9px] tracking-[0.2em] uppercase font-bold text-[var(--sg-gold)]">
               Producer Portal · Beats By Louder
