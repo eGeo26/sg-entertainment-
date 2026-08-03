@@ -1,6 +1,14 @@
 // next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/favicon.ico",
+        destination: "/favicon-file",
+      },
+    ]
+  },
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client"],
   },

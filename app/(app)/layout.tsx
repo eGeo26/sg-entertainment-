@@ -27,7 +27,8 @@ export const metadata: Metadata = {
     "Book your professional recording session at S&G Studios, Accra. Expert engineers, state-of-the-art equipment. Pay securely via Hubtel.",
   keywords: "recording studio, Accra, Ghana, music production, S&G Studios, mixing, mastering, sound engineering",
   icons: {
-    icon: "/favicon.ico",
+    // Increment this version whenever app/favicon.ico changes.
+    icon: "/favicon.ico?v=1",
     apple: "/apple-touch-icon.png",
   },
   openGraph: {

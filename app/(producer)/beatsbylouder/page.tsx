@@ -186,7 +186,7 @@ export default function ProducerPortalPage() {
             <div>
               <p className="text-[10px] tracking-widest uppercase font-bold text-[var(--sg-gold)]">S&amp;G Studios</p>
               <h1 className="text-2xl font-bold tracking-tight text-[#F0EFE8] mt-0.5">Beats By Louder</h1>
-              <p className="text-xs text-[#F0EFE8]/50 mt-1">Producer Portal Verification</p>
+              <p className="text-xs text-[#F0EFE8]/50 mt-1">Producer verification</p>
             </div>
           </div>
 
@@ -211,7 +211,7 @@ export default function ProducerPortalPage() {
           </form>
 
           <div className="pt-2 text-center">
-            <p className="text-[10px] text-[#F0EFE8]/30 tracking-wider uppercase">Authorized Producer Access Only</p>
+            <p className="text-[10px] text-[#F0EFE8]/30 tracking-wider uppercase">Authorized access only</p>
           </div>
         </div>
       </div>
@@ -228,32 +228,30 @@ export default function ProducerPortalPage() {
   const furtherOutBookings = visibleBookings.filter((b) => !isWithin7Days(b.sessionDate))
 
   return (
-    <div className="min-h-screen bg-[#09090f] text-[#F0EFE8] p-4 sm:p-6 md:p-10">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#08080c] text-[#F0EFE8] p-4 md:p-6 lg:p-8 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_78%_0%,rgba(197,168,128,0.10),transparent_42%)]" />
+      <div className="max-w-6xl mx-auto space-y-6 relative pb-4">
 
         {/* Top Header */}
-        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-7 border-b border-white/10">
-          <div>
-            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[var(--sg-gold)]">
+        <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 pb-5 border-b border-white/[0.08]">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-[9px] tracking-[0.2em] uppercase font-bold text-[var(--sg-gold)]">
               Producer Portal · Beats By Louder
             </p>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-[-0.025em] leading-tight text-[#F0EFE8]">
-              {activeView === "assigned" ? "Assigned sessions" : "Completed sessions"}
+            <h1 className="text-xl font-light tracking-[0.2em] text-white uppercase">
+              {activeView === "assigned" ? "Assigned Sessions" : "Completed Sessions"}
             </h1>
-            <p className="mt-2 text-sm text-white/40">
-              {activeView === "assigned" ? "Production work currently assigned to you." : "A polished archive of finished production sessions."}
+            <p className="text-xs text-white/40 mt-1.5">
+              {activeView === "assigned" ? "Sessions assigned to you." : "Finished sessions."}
             </p>
           </div>
 
-          <div className="flex items-end gap-2 self-end sm:self-auto">
-            <div className="text-right">
-              <p className="mb-1.5 text-[9px] uppercase tracking-wider text-white/30">
-                {lastSynced ? `Last synced ${lastSynced.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Not synced yet"}
-              </p>
+          <div className="flex flex-col items-center lg:items-end gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 onClick={fetchBookings}
                 disabled={loading}
-                className="px-3.5 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-xs font-semibold text-white/65 hover:text-white transition-colors flex items-center gap-2"
+                className="h-9 px-3 rounded-lg border border-white/10 bg-white/[0.025] hover:bg-white/[0.07] text-[11px] font-semibold text-white/65 hover:text-white transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 title="Refresh sessions"
               >
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className={loading ? "animate-spin" : ""}>
@@ -261,67 +259,93 @@ export default function ProducerPortalPage() {
                 </svg>
                 Refresh
               </button>
+              <Link
+                href="/beatsbylouder/settings"
+                className="h-9 px-3 rounded-lg border border-[var(--sg-gold)]/30 bg-[var(--sg-gold)]/[0.08] hover:bg-[var(--sg-gold)]/[0.14] text-[11px] font-semibold text-[var(--sg-gold)] transition-colors flex items-center gap-1.5"
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.244c.275.476.174 1.079-.24 1.438l-.977.85a1.125 1.125 0 00-.38 1.058c.005.085.008.17.008.255 0 .086-.003.171-.008.255-.023.379.123.75.38 1.058l.977.85c.414.36.515.962.24 1.438l-1.296 2.244a1.125 1.125 0 01-1.37.49l-1.217-.456a1.125 1.125 0 00-1.075.124 6.47 6.47 0 01-.22.127 1.125 1.125 0 00-.645.87l-.213 1.281c-.09.542-.56.94-1.11.94h-2.592c-.55 0-1.02-.398-1.11-.94l-.213-1.281a1.125 1.125 0 00-.645-.87 6.52 6.52 0 01-.22-.127 1.125 1.125 0 00-1.075-.124l-1.217.456a1.125 1.125 0 01-1.37-.49L3.566 15.78a1.125 1.125 0 01.24-1.438l.977-.85c.286-.249.408-.63.38-1.058A4.2 4.2 0 015.155 12c0-.086.003-.171.008-.255a1.125 1.125 0 00-.38-1.058l-.977-.85a1.125 1.125 0 01-.24-1.438l1.296-2.244a1.125 1.125 0 011.37-.49l1.217.456c.355.133.75.072 1.075-.124.072-.044.146-.086.22-.127.332-.184.582-.496.645-.87l.213-1.281z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Account Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="h-9 px-3 rounded-lg border border-white/10 bg-white/[0.025] hover:bg-white/[0.07] text-[11px] font-semibold text-white/65 hover:text-white transition-colors"
+              >
+                Sign Out
+              </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-3.5 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-xs font-semibold text-white/65 hover:text-white transition-colors"
-            >
-              Sign Out
-            </button>
+            <p className="px-1 text-[9px] uppercase tracking-[0.14em] text-white/25">
+              {lastSynced ? `Last synced ${lastSynced.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Not synced yet"}
+            </p>
           </div>
         </header>
 
-        <nav className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.025] p-1.5" aria-label="Producer session views">
-          {(["assigned", "completed"] as const).map((view) => {
-            const count = view === "assigned" ? assignedBookings.length : completedBookings.length
-            const selected = activeView === view
-            return (
-              <button
-                key={view}
-                type="button"
-                onClick={() => setActiveView(view)}
-                className={`rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${selected ? "bg-[var(--sg-gold)] text-black shadow-lg" : "text-white/50 hover:bg-white/5 hover:text-white"}`}
-                aria-pressed={selected}
-              >
-                {view === "assigned" ? "Assigned" : "Completed"} <span className={selected ? "text-black/60" : "text-white/30"}>({count})</span>
-              </button>
-            )
-          })}
-        </nav>
+        <div className="grid gap-2 rounded-xl border border-white/[0.08] bg-white/[0.018] p-2 sm:grid-cols-[minmax(280px,0.9fr)_minmax(300px,1.1fr)] sm:items-center">
+          <nav className="grid grid-cols-2 gap-1 rounded-xl bg-black/20 p-1" aria-label="Producer session views">
+            {(["assigned", "completed"] as const).map((view) => {
+              const count = view === "assigned" ? assignedBookings.length : completedBookings.length
+              const selected = activeView === view
+              return (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => setActiveView(view)}
+                  className={`rounded-lg px-3 py-2 text-[11px] font-bold tracking-wide transition-all ${selected ? "bg-[var(--sg-gold)] text-black shadow-[0_6px_18px_rgba(197,168,128,0.16)]" : "text-white/45 hover:bg-white/5 hover:text-white/80"}`}
+                  aria-pressed={selected}
+                >
+                  {view === "assigned" ? "Assigned" : "Completed"} <span className={selected ? "text-black/55" : "text-white/25"}>· {count}</span>
+                </button>
+              )
+            })}
+          </nav>
 
-        <div className="relative">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m1.35-5.4a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z" />
-          </svg>
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search sessions by client name"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.025] py-3 pl-11 pr-4 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[var(--sg-gold)]/60"
-          />
+          <div className="relative">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m1.35-5.4a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z" />
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by client"
+              className="w-full rounded-lg border border-white/[0.08] bg-black/20 py-2.5 pl-11 pr-4 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-[var(--sg-gold)]/50 focus:bg-black/30 transition-colors"
+            />
+          </div>
         </div>
 
         {loading && bookings.length === 0 ? (
           <div className="py-24 text-center space-y-3">
             <div className="animate-spin h-6 w-6 border-2 border-[var(--sg-gold)] border-t-transparent rounded-full mx-auto" />
-            <p className="text-white/40 text-xs tracking-wider uppercase">Loading assigned sessions...</p>
+            <p className="text-white/40 text-xs tracking-wider uppercase">Loading sessions...</p>
           </div>
         ) : visibleBookings.length === 0 ? (
-          <div className="py-20 text-center bg-white/[0.02] border border-white/10 rounded-2xl p-8 space-y-2">
-            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3 text-white/30">
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] px-6 py-12 flex items-center justify-center overflow-hidden relative">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(197,168,128,0.055),transparent_34%)]" />
+            <div className="relative max-w-sm text-center">
+              <div className="relative mx-auto mb-5 h-20 w-20">
+                <div className="absolute inset-0 rounded-full border border-[var(--sg-gold)]/15" />
+                <div className="absolute inset-2.5 rounded-full border border-dashed border-white/10" />
+                <div className="absolute inset-5 rounded-full bg-[var(--sg-gold)]/[0.09] border border-[var(--sg-gold)]/20 flex items-center justify-center text-[var(--sg-gold)] shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
+                  <svg width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 18V5l11-2v13" />
+                    <circle cx="6" cy="18" r="3" />
+                    <circle cx="17" cy="16" r="3" />
+                  </svg>
+                </div>
+                <span className="absolute right-1 top-3 h-2 w-2 rounded-full bg-[var(--sg-gold)]/55" />
+                <span className="absolute bottom-2 left-2 h-1.5 w-1.5 rounded-full bg-white/25" />
+              </div>
+              <h3 className="text-sm font-semibold text-white/80">
+                {activeView === "assigned" ? "Nothing assigned yet" : "Nothing completed yet"}
+              </h3>
+              <p className="mt-2 text-xs text-white/35">
+                {activeView === "assigned"
+                  ? "New sessions will appear here."
+                  : "Completed sessions will appear here."}
+              </p>
             </div>
-            <h3 className="text-sm font-semibold text-white/80">
-              {activeView === "assigned" ? "No Assigned Deliverables" : "No Completed Sessions Yet"}
-            </h3>
-            <p className="text-xs text-white/40 max-w-sm mx-auto">
-              {activeView === "assigned"
-                ? "When studio management pushes package bookings to your portal, they will appear here automatically."
-                : "Sessions you mark Done will move here, keeping the Assigned view focused on active work."}
-            </p>
           </div>
         ) : (
           <div className="space-y-10">
@@ -332,7 +356,7 @@ export default function ProducerPortalPage() {
                 <div className="flex items-center gap-2 pb-1 border-b border-white/5">
                   <span className="w-2 h-2 rounded-full bg-[var(--sg-gold)] animate-pulse" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--sg-gold)]">
-                    {activeView === "assigned" ? "Upcoming Sessions — Next 7 Days" : "Recently Scheduled Sessions"} ({within7DaysBookings.length})
+                    {activeView === "assigned" ? "Next 7 Days" : "Recent"} ({within7DaysBookings.length})
                   </h2>
                 </div>
 
@@ -358,7 +382,7 @@ export default function ProducerPortalPage() {
                 <div className="flex items-center gap-2 pb-1 border-b border-white/5">
                   <span className="w-2 h-2 rounded-full bg-white/30" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-white/50">
-                    {activeView === "assigned" ? "Future Sessions" : "Completed Archive"} ({furtherOutBookings.length})
+                    {activeView === "assigned" ? "Later Sessions" : "Archive"} ({furtherOutBookings.length})
                   </h2>
                 </div>
 
@@ -379,12 +403,6 @@ export default function ProducerPortalPage() {
           </div>
         )}
 
-        <footer className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-white/10 text-[11px] text-white/35">
-          <p>Beats By Louder · S&amp;G Studios Producer Portal</p>
-          <Link href="/beatsbylouder/settings" className="text-white/55 hover:text-[var(--sg-gold)] transition-colors font-semibold">
-            Account settings
-          </Link>
-        </footer>
       </div>
     </div>
   )
@@ -461,7 +479,7 @@ function BookingCard({
       <div className="grid grid-cols-2 gap-4 text-xs">
         <div>
           <span className="block text-[10px] text-white/40 uppercase tracking-wider font-semibold">
-            Session Schedule
+            Schedule
           </span>
           <span className="text-[#F0EFE8] font-semibold block mt-1">
             {formatDate(booking.sessionDate)}
@@ -473,7 +491,7 @@ function BookingCard({
 
         <div>
           <span className="block text-[10px] text-white/40 uppercase tracking-wider font-semibold">
-            Deliverable Package
+            Deliverable
           </span>
           <span className="text-[var(--sg-gold)] font-bold block mt-1">
             {booking.packageName || "Add-On Package"}
@@ -490,7 +508,7 @@ function BookingCard({
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3.75h10.5v4.5H6.75v-4.5zM6.75 15.75h10.5v4.5H6.75v-4.5z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 17.25H4.5A2.25 2.25 0 012.25 15V10.5A2.25 2.25 0 014.5 8.25h15a2.25 2.25 0 012.25 2.25V15a2.25 2.25 0 01-2.25 2.25h-2.25" />
         </svg>
-        Print Session Sheet
+        Print Sheet
       </button>
     </div>
   )
