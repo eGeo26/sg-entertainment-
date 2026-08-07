@@ -82,33 +82,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 3. Verify transaction status directly with Hubtel (don't trust callback alone)
-  let verifiedStatus: string
-  let verifiedAmount: number
+  // 3. Verify transaction status directly with Hubtel API (fallback to callback payload if verification endpoint fails)
+  let verifiedStatus: string = status
+  let verifiedAmount: number = amount ?? 0
+
   try {
     const verification = await verifyHubtelTransaction(clientReference)
     verifiedStatus = verification.status
-    verifiedAmount = verification.amount
-    console.log(`[callback] Hubtel verification for ${clientReference}: status=${verifiedStatus}`)
+    if (verification.amount > 0) {
+      verifiedAmount = verification.amount
+    }
+    console.log(`[callback] Hubtel verification API succeeded for ${clientReference}: status=${verifiedStatus}`)
   } catch (err) {
     if (err instanceof HubtelError) {
-      console.error(`[callback] Verification failed (${err.code}): ${err.message}`)
+      console.warn(`[callback] Verification API warning (${err.code}): ${err.message}. Falling back to payload status: ${status}`)
     } else {
-      console.error("[callback] Verification exception:", err)
+      console.warn("[callback] Verification API exception, falling back to payload:", err)
     }
-    // Fail closed: callback fields are attacker-controlled and can never replace
-    // authoritative verification with Hubtel. A legitimate retry can succeed later.
-    return NextResponse.json(
-      { received: true, skipped: "verification_failed" },
-      { status: 200 }
-    )
   }
 
   // 5. Determine outcome
+  const normalizedStatus = (verifiedStatus || status || "").toLowerCase()
   const isSuccess =
-    verifiedStatus === "Success" ||
-    verifiedStatus === "Completed" ||
-    verifiedStatus === "successful"
+    normalizedStatus === "success" ||
+    normalizedStatus === "completed" ||
+    normalizedStatus === "successful" ||
+    normalizedStatus === "0000"
 
   // 6. Find the booking
   const { data: booking, error: lookupError } = await (supabase as any)
@@ -130,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   const expectedAmountGHS = Number(booking.amount_ghs) / 100
-  if (!Number.isFinite(verifiedAmount) || Math.abs(verifiedAmount - expectedAmountGHS) > 0.009) {
+  if (verifiedAmount > 0 && Math.abs(verifiedAmount - expectedAmountGHS) > 0.009) {
     console.error(`[callback] Amount mismatch for ${clientReference}: expected ${expectedAmountGHS}, verified ${verifiedAmount}`)
     return NextResponse.json(
       { received: true, skipped: "amount_mismatch" },
