@@ -14,6 +14,7 @@ import {
   generateBookingCode,
   validatePhoneNumber,
   PENDING_BOOKING_WINDOW_MS,
+  toGhanaDateString,
 } from "@/lib/booking"
 
 const CreateBookingSchema = z.object({
@@ -59,14 +60,48 @@ export async function POST(req: NextRequest) {
     const data = parsed.data
     // Phone is already E.164 (validated above — must start with "+")
     const phone = data.customerPhone
+
+    // ── Ghana-anchored past-date guard ─────────────────────────────────────
+    // Reject any booking whose sessionDate is before today in Accra (UTC+0).
+    // This prevents calendar-bypass attacks via direct API calls.
+    const todayGhana = toGhanaDateString()
+    if (data.sessionDate < todayGhana) {
+      return NextResponse.json(
+        { error: "Cannot book a session in the past." },
+        { status: 400 }
+      )
+    }
+    // ————————————————————————————————————————————————————————————
+
     const endTime = getEndTime(data.sessionDate, data.startTime, data.durationHours)
     const { total } = calculateTotal(data.durationHours, data.equipment)
     const pesewas = ghsToPesewas(total)
     const sessionDateISO = new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString()
 
     const supabase = createServiceClient()
+
+    // ── Closed-date enforcement ──────────────────────────────────────────────
+    // Reject the booking if the admin has manually closed this date.
+    // Checked server-side to prevent calendar-bypass via direct API calls.
+    const { data: closedDateRaw } = await (supabase as any)
+      .from("closed_dates")
+      .select("note")
+      .eq("date", data.sessionDate)
+      .maybeSingle()
+
+    const closedDate = closedDateRaw as { note: string | null } | null
+
+    if (closedDate) {
+      const reason = closedDate.note
+        ? `This date is closed: ${closedDate.note}`
+        : "This date has been closed by the studio. Please choose a different date."
+      return NextResponse.json({ error: reason }, { status: 400 })
+    }
+    // ————————————————————————————————————————————————————————————
+
     const nowIso = new Date().toISOString()
     const cutoffTimeIso = new Date(Date.now() - PENDING_BOOKING_WINDOW_MS).toISOString()
+
 
     // 1. Check for an existing booking from the same customer (matching phone number)
     // for the same session date/time slot with status AWAITING_PAYMENT created within the last 45 minutes.
@@ -178,11 +213,16 @@ export async function POST(req: NextRequest) {
       amount: pesewas,
       currency: "GHS",
     })
-  } catch (err) {
-    console.error("[Booking] Create error:", JSON.stringify(err))
+  } catch (err: any) {
+    console.error("[Booking] Create error:", err)
+    const detailMessage = err?.message || (typeof err === "string" ? err : "Failed to create booking. Please try again.")
     return NextResponse.json(
-      { error: "Failed to create booking. Please try again." },
-      { status: 500 }
+      {
+        error: detailMessage,
+        details: err?.raw ?? null,
+        code: err?.code ?? null,
+      },
+      { status: err?.httpStatus || 500 }
     )
   }
 }

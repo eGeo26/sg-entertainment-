@@ -101,9 +101,11 @@ export const EQUIPMENT_OPTIONS = [
   { id: "mixing_engineer", label: "In-house Mixing Engineer", priceGHS: 150 },
 ] as const
 
+// Studio operates 24 hours. These constants are kept for reference only;
+// the availability API enforces no hour gate — all 24 TIME_SLOTS are bookable.
 export const STUDIO_HOURS = {
-  open: "08:00",
-  close: "22:00",
+  open: "00:00",
+  close: "24:00",
 } as const
 
 // Time slots: 00:00 to 23:00 in 1-hour steps (24 hours support)

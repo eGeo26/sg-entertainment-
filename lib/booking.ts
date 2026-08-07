@@ -1,7 +1,7 @@
 // lib/booking.ts
 // Booking utilities — pricing, date/time helpers, validation
 
-import { format, addHours, addMinutes, parseISO, isAfter, isBefore, startOfDay } from "date-fns"
+import { format, addMinutes } from "date-fns"
 import { EQUIPMENT_OPTIONS } from "@/types"
 
 // Session pricing:
@@ -100,13 +100,63 @@ export function formatDisplayTime(time: string): string {
   return format(d, "hh:mm a")
 }
 
-export function isDateAvailable(dateStr: string): boolean {
-  const date = parseISO(dateStr)
-  const now = new Date()
-  const leadHours = parseInt(process.env.NEXT_PUBLIC_BOOKING_LEAD_HOURS ?? "2")
-  const minDate = addHours(now, leadHours)
-  return isAfter(date, startOfDay(minDate))
+/**
+ * Returns today's date string (YYYY-MM-DD) in Ghana local time (Africa/Accra, UTC+0, no DST).
+ * Using Intl guarantees the same result for every visitor regardless of their browser/OS timezone.
+ */
+export function toGhanaDateString(date: Date = new Date()): string {
+  return date.toLocaleDateString("en-CA", { timeZone: "Africa/Accra" })
+  // en-CA uses YYYY-MM-DD format, which is what we need for ISO date comparisons
 }
+
+/**
+ * Returns the current time in Ghana as { hours, minutes } (24-hour).
+ * Used to apply the same-day lead-hours check without touching cross-day logic.
+ */
+export function getGhanaTime(): { hours: number; minutes: number } {
+  const now = new Date()
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Accra",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(now)
+  const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0")
+  const m = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0")
+  return { hours: h, minutes: m }
+}
+
+/**
+ * Checks whether a given date string (YYYY-MM-DD) is available for booking.
+ *
+ * Rules (all anchored to Africa/Accra, UTC+0):
+ *  - Past dates:   always false.
+ *  - Future dates: always true — zero lead-hours restriction applied cross-day.
+ *  - Today:        true only if at least one TIME_SLOT (last = 23:00 = 1380 min)
+ *                  remains >= leadHours ahead of the current Ghana clock.
+ *                  e.g. with 2h lead: today greys out at 21:00 Ghana time because
+ *                  cutoff (21:00 + 2h = 23:00) == last slot, so no slot is strictly
+ *                  ahead. At 21:01 the cutoff exceeds 23:00 → no slots left today.
+ *
+ * Lead-hours NEVER touches tomorrow or any future date — that was the original bug.
+ */
+export function isDateAvailable(dateStr: string): boolean {
+  const todayGhana = toGhanaDateString()
+  if (dateStr < todayGhana) return false  // past date — never bookable
+  if (dateStr > todayGhana) return true   // future date — always fully bookable
+
+  // ── Same day (today in Ghana) ────────────────────────────────────────────
+  // Today is available only if at least one TIME_SLOT is still reachable
+  // within the lead-hours window. The last slot starts at 23:00 (1380 min).
+  // If the lead-hours cutoff has already passed 23:00, today has no slots left.
+  const { hours, minutes } = getGhanaTime()
+  const leadHours     = parseInt(process.env.NEXT_PUBLIC_BOOKING_LEAD_HOURS ?? "2")
+  const nowMinutes    = hours * 60 + minutes
+  const cutoffMinutes = nowMinutes + leadHours * 60
+  // cutoff must be <= 23:00 (1380 min) for at least the last slot to be available
+  return cutoffMinutes <= 23 * 60
+}
+
 
 export function buildISODateTime(date: string, time: string): string {
   return `${date}T${time}:00+00:00`

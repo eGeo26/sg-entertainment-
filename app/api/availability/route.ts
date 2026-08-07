@@ -4,8 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase"
-import { TIME_SLOTS, STUDIO_HOURS } from "@/types"
-import { deleteStaleAwaitingPaymentBookings } from "@/lib/booking"
+import { TIME_SLOTS } from "@/types"
+import { deleteStaleAwaitingPaymentBookings, toGhanaDateString, getGhanaTime } from "@/lib/booking"
 
 // Parse "HH:mm" to minutes-since-midnight
 function toMinutes(time: string): number {
@@ -13,8 +13,7 @@ function toMinutes(time: string): number {
   return h * 60 + m
 }
 
-const OPEN_MINUTES = toMinutes(STUDIO_HOURS.open)   // 08:00 → 480
-const CLOSE_MINUTES = toMinutes(STUDIO_HOURS.close) // 22:00 → 1320
+
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -59,6 +58,30 @@ export async function GET(req: NextRequest) {
 
     if (blockedError) throw blockedError
 
+    // 3b. Check if this date has been manually closed by admin
+    const { data: closedDateRaw, error: closedError } = await (supabase as any)
+      .from("closed_dates")
+      .select("id, note")
+      .eq("date", date)
+      .maybeSingle()
+
+    if (closedError) throw closedError
+
+    const closedDate = closedDateRaw as { id: string; note: string | null } | null
+
+    // If the date is closed, return all slots as unavailable immediately
+    if (closedDate) {
+      const allUnavailable = TIME_SLOTS.map((time) => ({
+        start: `${date}T${time}:00Z`,
+        end: new Date(new Date(`${date}T${time}:00Z`).getTime() + duration * 60000).toISOString(),
+        available: false,
+      }))
+      return NextResponse.json(
+        { date, slots: allUnavailable, closed: true, closedNote: closedDate.note ?? null },
+        { headers: { "Cache-Control": "no-store" } }
+      )
+    }
+
     // Build active intervals in minutes-since-midnight
     const intervals: { start: number; end: number }[] = []
 
@@ -76,15 +99,30 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 4. Evaluate each TIME_SLOT
+    // 4. Compute same-day lead-hours cutoff (all values in minutes-since-midnight, Ghana time).
+    //    sameDayCutoffMinutes is only meaningful when date === todayGhana.
+    //    For every other date the sentinel -1 disables the check entirely —
+    //    tomorrow and all future dates are unaffected.
+    const todayGhana = toGhanaDateString()
+    const isToday    = date === todayGhana
+    const leadHours  = parseInt(process.env.NEXT_PUBLIC_BOOKING_LEAD_HOURS ?? "2")
+    let sameDayCutoffMinutes = -1  // sentinel: disabled
+    if (isToday) {
+      const { hours, minutes } = getGhanaTime()
+      sameDayCutoffMinutes = hours * 60 + minutes + leadHours * 60
+    }
+
+    // 5. Evaluate each TIME_SLOT
     const slots = TIME_SLOTS.map((time) => {
       const slotStart = toMinutes(time)
-      const slotEnd = slotStart + duration
+      const slotEnd   = slotStart + duration
 
-      // Must start at/after open and end at/before close
-      const withinHours = slotStart >= OPEN_MINUTES && slotEnd <= CLOSE_MINUTES
+      // For today only: slot is unavailable if its start time has not yet cleared
+      // the lead-hours window from the current Ghana clock.
+      // For all other dates: sameDayCutoffMinutes === -1 → always false.
+      const isTooSoon = sameDayCutoffMinutes >= 0 && slotStart < sameDayCutoffMinutes
 
-      // Check overlap with any booked interval
+      // Check overlap with any booked/blocked interval
       const hasOverlap = intervals.some(
         (b) => slotStart < b.end && slotEnd > b.start
       )
@@ -92,12 +130,22 @@ export async function GET(req: NextRequest) {
       return {
         start: `${date}T${time}:00Z`,
         end: new Date(new Date(`${date}T${time}:00Z`).getTime() + duration * 60000).toISOString(),
-        available: withinHours && !hasOverlap,
+        available: !isTooSoon && !hasOverlap,
       }
     })
 
+    const isDev = process.env.NODE_ENV !== "production"
+    const debugNow = new Date()
     return NextResponse.json(
-      { date, slots },
+      {
+        date,
+        slots,
+        ...(isDev && {
+          debugGhanaTime: getGhanaTime(),
+          debugGhanaDate: todayGhana,
+          debugSystemTime: debugNow.toISOString(),
+        }),
+      },
       { headers: { "Cache-Control": "public, max-age=10, no-cache" } }
     )
   } catch (err) {

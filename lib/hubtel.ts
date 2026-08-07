@@ -171,14 +171,15 @@ export async function initiateHubtelTransaction(
   }
 
   let json: HubtelApiResponse
+  const rawText = await res.text()
   try {
-    json = await res.json()
+    json = JSON.parse(rawText)
   } catch {
-    console.error("[Hubtel] Non-JSON response, status:", res.status)
+    console.error("[Hubtel] Non-JSON response | Status:", res.status, "| Raw Body:", rawText)
     throw new HubtelError(
       "invalid_response",
-      "Received an unexpected response from the payment gateway.",
-      null,
+      `Received an unexpected response from the payment gateway (HTTP ${res.status}: ${rawText || "Empty Body"})`,
+      { status: res.status, body: rawText },
       res.status
     )
   }

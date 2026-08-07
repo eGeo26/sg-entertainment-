@@ -3,10 +3,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import Calendar from "react-calendar"
-import { format, addDays, isBefore, startOfDay, addMinutes } from "date-fns"
+import { format, addDays, addMinutes } from "date-fns"
 import clsx from "clsx"
 import { BookingFormData, TIME_SLOTS } from "@/types"
-import { isDateAvailable } from "@/lib/booking"
+import { isDateAvailable, toGhanaDateString } from "@/lib/booking"
 import "react-calendar/dist/Calendar.css"
 
 const SESSION_RATE = 300
@@ -42,6 +42,8 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
   const [selectedTime, setSelectedTime] = useState<string>(form.startTime ?? "")
   const [slots, setSlots] = useState<Record<string, SlotStatus>>({})
   const [loadingSlots, setLoadingSlots] = useState(false)
+  // Closed dates: map of "YYYY-MM-DD" -> note (or null)
+  const [closedDates, setClosedDates] = useState<Map<string, string | null>>(new Map())
 
   // Refs for auto-scroll targets
   const timeSlotsRef = useRef<HTMLDivElement>(null)
@@ -98,8 +100,39 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
     if (dateStr) fetchAvailability(dateStr)
   }, [dateStr, fetchAvailability])
 
-  const isDisabledDate = (date: Date) =>
-    isBefore(date, startOfDay(new Date())) || !isDateAvailable(format(date, "yyyy-MM-dd"))
+  // Fetch closed dates from the public API (no auth needed)
+  useEffect(() => {
+    async function loadClosedDates() {
+      try {
+        const res = await fetch("/api/closed-dates", { cache: "no-store" })
+        if (!res.ok) return
+        const { closedDates: list } = await res.json()
+        const map = new Map<string, string | null>(
+          (list ?? []).map((cd: { date: string; note: string | null }) => [cd.date, cd.note])
+        )
+        setClosedDates(map)
+      } catch {
+        // Non-critical — calendar degrades gracefully without closed-date markers
+      }
+    }
+    loadClosedDates()
+  }, [])
+
+  // "Today" anchored to Ghana (Africa/Accra, UTC+0) — same value for every visitor worldwide.
+  // This ensures minDate, maxDate, and tileDisabled all use the studio's local calendar.
+  const ghanaToday = toGhanaDateString() // "YYYY-MM-DD"
+  const [gY, gM, gD] = ghanaToday.split("-").map(Number)
+  const ghanaTodayDate = new Date(gY, gM - 1, gD) // local midnight, same wall-clock day as Accra
+
+  const isDisabledDate = (date: Date) => {
+    const ds = format(date, "yyyy-MM-dd")
+    // Disable past dates (anchored to Ghana today, not visitor clock)
+    if (ds < ghanaToday) return true
+    // Disable manually-closed dates
+    if (closedDates.has(ds)) return true
+    // Disable dates the isDateAvailable helper marks unavailable
+    return !isDateAvailable(ds)
+  }
 
   const endTime = selectedTime ? getEndTimestamp(dateStr, selectedTime, DURATION_MINUTES) : null
   const price = SESSION_RATE
@@ -127,10 +160,29 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
           }}
           value={selectedDate}
           tileDisabled={({ date }) => isDisabledDate(date)}
-          minDate={addDays(new Date(), 0)}
-          maxDate={addDays(new Date(), 90)}
+          tileContent={({ date, view }) => {
+            if (view !== "month") return null
+            const ds = format(date, "yyyy-MM-dd")
+            const note = closedDates.get(ds)
+            if (note === undefined) return null // date not closed
+            const tooltipText = note
+              ? `Closed: ${note}`
+              : "Studio closed — no bookings available"
+            return (
+              <span
+                title={tooltipText}
+                aria-label={tooltipText}
+                className="block text-[8px] leading-none font-bold text-amber-400 mt-0.5 uppercase tracking-tight"
+              >
+                Closed
+              </span>
+            )
+          }}
+          minDate={ghanaTodayDate}
+          maxDate={addDays(ghanaTodayDate, 90)}
           locale="en-GH"
         />
+
       </div>
 
       {/* Info: Duration (Fixed) + Time Slots */}
