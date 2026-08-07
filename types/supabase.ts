@@ -182,6 +182,30 @@ export interface Database {
           created_at?: string
         }
       }
+      closed_dates: {
+        Row: {
+          id: string
+          date: string
+          note: string | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          date: string
+          note?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          date?: string
+          note?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+      }
+
       reviews: {
         Row: {
           id: string
