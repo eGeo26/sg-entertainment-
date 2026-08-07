@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
       amountGHS: total,
       description: `Studio Session: ${data.sessionDate} (${data.startTime} - ${endTime})`,
       clientReference: reference,
-      callbackUrl: `${appUrl}/api/hubtel/webhook`,
+      callbackUrl: callbackUrl,
       returnUrl: `${appUrl}/success?reference=${reference}&booking_id=${reference}`,
       cancellationUrl: `${appUrl}/booking?cancelled=true&reference=${reference}`,
     })
