@@ -66,7 +66,7 @@ function getExpiryCountdown(createdAtStr: string): string | null {
   const remainingMs = expiresAt - Date.now()
   if (remainingMs <= 0) return null
   const remainingMins = Math.ceil(remainingMs / (60 * 1000))
-  return `Clears in ~${remainingMins} min if unpaid`
+  return `Clears ~${remainingMins} min if unpaid`
 }
 
 function BookingsContent() {
