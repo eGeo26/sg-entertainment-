@@ -43,6 +43,9 @@ function mapDbToCamel(b: any) {
     isPacked: b.status_reviewed ?? false,
     isDelivered: b.status_confirmed ?? false,
     adminNotes: b.admin_notes,
+    extensionHours: b.extension_hours ?? 0,
+    extensionAmount: pesewasToGhs(b.extension_amount),
+    extendedAt: b.extended_at,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
   }

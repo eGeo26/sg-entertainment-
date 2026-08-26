@@ -55,9 +55,60 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // LocalBusiness structured data — reads from NEXT_PUBLIC_STUDIO_* env vars.
+  // Update the env vars with real values before final deployment.
+  const studioName     = process.env.NEXT_PUBLIC_STUDIO_NAME     ?? "S&G Entertainment"
+  const studioLocation = process.env.NEXT_PUBLIC_STUDIO_LOCATION ?? "Taifa, Accra, Ghana"
+  const studioPhone    = process.env.NEXT_PUBLIC_STUDIO_PHONE    ?? ""
+  const studioEmail    = process.env.NEXT_PUBLIC_STUDIO_EMAIL    ?? ""
+  const appUrl         = "https://sngent.com"
+
+  const localBusinessSchema = {
+    "@context": "https://schema.org",
+    "@type": "MusicStore",
+    "additionalType": "RecordingStudio",
+    "name": studioName,
+    "description": "Professional recording studio offering music recording, mixing, mastering, and full production services in Accra, Ghana.",
+    "url": appUrl,
+    "telephone": studioPhone,
+    "email": studioEmail,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Accra",
+      "addressRegion": "Greater Accra",
+      "addressCountry": "GH",
+      "streetAddress": studioLocation,
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": "5.6037",
+      "longitude": "-0.1870",
+    },
+    "openingHoursSpecification": {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"
+      ],
+      "opens": "00:00",
+      "closes": "23:59",
+    },
+    "priceRange": "GHS 300+",
+    "currenciesAccepted": "GHS",
+    "paymentAccepted": "Mobile Money, Card",
+    "image": `${appUrl}/assets/og-image.png`,
+    "logo": `${appUrl}/assets/sg-logo.png`,
+    "sameAs": [],
+  }
+
   return (
     <html lang="en" className={inter.variable}>
       <body className={`${inter.className} overflow-x-hidden`}>
+
+        {/* ── LocalBusiness JSON-LD structured data ──────────────────── */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+        />
 
         {/* ── Universal video background (persists across all pages) ── */}
         <BackgroundVideo />
@@ -78,3 +129,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
+

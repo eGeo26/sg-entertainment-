@@ -49,7 +49,10 @@ export async function GET(
         status_reviewed,
         status_reviewed_at,
         status_confirmed,
-        status_confirmed_at
+        status_confirmed_at,
+        extension_hours,
+        extension_amount,
+        extended_at
       `,
       getGuestContact(req.nextUrl.searchParams)
     )
@@ -117,6 +120,9 @@ export async function GET(
       statusReviewedAt: booking.status_reviewed_at,
       statusConfirmed: booking.status_confirmed,
       statusConfirmedAt: booking.status_confirmed_at,
+      extensionHours: booking.extension_hours ?? 0,
+      extensionAmount: pesewasToGhs(booking.extension_amount),
+      extendedAt: booking.extended_at,
       displayDate: formatDisplayDate(dateStr),
       displayStartTime: formatDisplayTime(booking.start_time),
       displayEndTime: formatDisplayTime(booking.end_time),

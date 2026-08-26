@@ -44,6 +44,9 @@ interface Booking {
   adminNotes: string | null
   pushedToProducer?: boolean
   producerMarkedDone?: boolean
+  extensionHours?: number
+  extensionAmount?: number
+  extendedAt?: string | null
 }
 
 interface StatsData {
@@ -911,8 +914,13 @@ function BookingsContent() {
                             return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                           })()}
                         </p>
-                        <p className="text-[10px] text-white/40 mt-0.5">
-                          {b.startTime} – {b.endTime} ({b.durationHours} hrs)
+                        <p className="text-[10px] text-white/40 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span>{b.startTime} – {b.endTime} ({b.durationHours} hrs)</span>
+                          {b.extensionHours && b.extensionHours > 0 ? (
+                            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/20">
+                              +{b.extensionHours}h
+                            </span>
+                          ) : null}
                         </p>
                       </td>
                       <td className="px-4 py-4 font-semibold text-[#FFFFFF]">
@@ -1121,7 +1129,14 @@ function BookingsContent() {
                     aria-controls={`mobile-booking-${b.id}`}
                   >
                     <div>
-                      <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
+                        {b.extensionHours && b.extensionHours > 0 ? (
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/20">
+                            +{b.extensionHours}h
+                          </span>
+                        ) : null}
+                      </div>
                       <p className={`text-[10px] mt-1 font-semibold ${b.status === "AWAITING_PAYMENT" ? "text-amber-300/75" : "text-white/45"}`}>
                         {statusHint}
                       </p>
@@ -1326,16 +1341,44 @@ function BookingsContent() {
                     })()}
                   </p>
                   <p className="text-white/50 text-[10px] mt-0.5">{inspectedBooking.startTime} - {inspectedBooking.endTime}</p>
-                  <p className="text-white/50 text-[10px] mt-0.5">({inspectedBooking.durationHours} hours)</p>
+                  <p className="text-white/50 text-[10px] mt-0.5">
+                    ({inspectedBooking.durationHours} hours
+                    {inspectedBooking.extensionHours && inspectedBooking.extensionHours > 0
+                      ? ` — includes ${inspectedBooking.extensionHours}h extra`
+                      : ""})
+                  </p>
                 </div>
                 <div>
                   <span className="block text-[9px] text-white/35 uppercase tracking-wider mb-1 font-bold">Payment</span>
-                  <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                  {inspectedBooking.extensionHours && inspectedBooking.extensionHours > 0 ? (
+                    <div className="space-y-0.5 text-xs text-white/60 mb-1">
+                      <p className="font-bold text-[#FFFFFF] text-base">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                      <div className="flex justify-between text-[10px] gap-4">
+                        <span>Base (2.5h):</span>
+                        <span className="text-white/80">GH₵ 300.00</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] gap-4">
+                        <span>Extension (+{inspectedBooking.extensionHours}h):</span>
+                        <span className="text-amber-300">GH₵ {(inspectedBooking.extensionHours * 120).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                  )}
                   <div className="mt-1 flex flex-col gap-1 items-start">
                     <StatusBadge status={inspectedBooking.status} />
                     {inspectedBooking.status === "AWAITING_PAYMENT" && getExpiryCountdown(inspectedBooking.createdAt) && (
                       <span className="text-[9px] text-amber-300/80 font-medium">
                         {getExpiryCountdown(inspectedBooking.createdAt)}
+                      </span>
+                    )}
+                    {inspectedBooking.extendedAt && (
+                      <span className="text-[9px] text-amber-400 font-medium mt-1">
+                        Extended by +{inspectedBooking.extensionHours}h on{" "}
+                        {(() => {
+                          const d = new Date(inspectedBooking.extendedAt)
+                          return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                        })()}
                       </span>
                     )}
                   </div>

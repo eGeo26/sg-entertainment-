@@ -15,6 +15,7 @@ import {
   validatePhoneNumber,
   PENDING_BOOKING_WINDOW_MS,
   toGhanaDateString,
+  EXTRA_HOUR_RATE_GHS,
 } from "@/lib/booking"
 
 const CreateBookingSchema = z.object({
@@ -35,6 +36,7 @@ const CreateBookingSchema = z.object({
   equipment: z.array(z.string()).default([]),
   notes: z.string().max(500).optional(),
   selectedPackage: z.string().optional(),
+  extensionHours: z.number().int().min(0).max(8).optional(),
 })
 
 // Helper: Convert GHS to Pesewas
@@ -79,6 +81,8 @@ export async function POST(req: NextRequest) {
     const sessionDateISO = new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString()
 
     const supabase = createServiceClient()
+    const extensionHours = data.extensionHours ?? 0
+    const extensionAmount = extensionHours * EXTRA_HOUR_RATE_GHS * 100 // in pesewas
 
     // ── Closed-date enforcement ──────────────────────────────────────────────
     // Reject the booking if the admin has manually closed this date.
@@ -138,6 +142,9 @@ export async function POST(req: NextRequest) {
           selected_package: data.selectedPackage ?? null,
           amount_ghs: pesewas,
           hubtel_reference: reference,
+          extension_hours: extensionHours,
+          extension_amount: extensionAmount,
+          extended_at: null,
           created_at: nowIso, // Refresh 45-min timer
           updated_at: nowIso,
           status_received_at: nowIso,
@@ -174,6 +181,9 @@ export async function POST(req: NextRequest) {
           status: "AWAITING_PAYMENT",
           status_received: true,
           status_received_at: nowIso,
+          extension_hours: extensionHours,
+          extension_amount: extensionAmount,
+          extended_at: null,
           created_at: nowIso,
           updated_at: nowIso,
         })

@@ -6,15 +6,15 @@ export interface BookingFormData {
   customerPhone: string
   sessionDate: string       // "YYYY-MM-DD"
   startTime: string         // "HH:mm"
-  durationHours: number     // can be fractional e.g. 2.5
+  durationHours: number     // can be fractional e.g. 2.5; includes any extension
   studio: string
   equipment: string[]
   notes?: string
   selectedPackage?: string
+  extensionHours?: number   // whole hours added on top of base 2.5h (0 or positive integer)
 }
 
 export const REMOTE_PACKAGES = [
-  { id: "payment_test_temporary",  name: "Payment Test — Temporary (GHS 2.00)", priceGHS: 2 },
   { id: "full_stem_mix_mastering", name: "Full Stem Mix & Mastering", priceGHS: 2000 },
   { id: "waves_mix_mastering",     name: "Waves Mix & Mastering",     priceGHS: 1000 },
   { id: "mp3_mix_mastering",       name: "MP3 Mix & Mastering",       priceGHS: 700 },

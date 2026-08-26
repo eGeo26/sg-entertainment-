@@ -270,9 +270,10 @@ export async function verifyHubtelTransaction(
       signal: AbortSignal.timeout(20_000),
     })
   } catch (err: any) {
+    console.error("[Hubtel] verifyHubtelTransaction fetch error:", err)
     throw new HubtelError(
       err?.name === "TimeoutError" ? "timeout" : "network",
-      "Could not verify transaction status with Hubtel.",
+      `Could not verify transaction status with Hubtel. Error: ${err.message || err}`,
       err
     )
   }

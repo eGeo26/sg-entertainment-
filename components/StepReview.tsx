@@ -139,6 +139,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
             <p className="text-white font-semibold text-sm">{displayDate}</p>
             <p className="text-white/65 text-xs mt-0.5">
               {formatDisplayTime(form.startTime)} – {formatDisplayTime(endTime)} · {minutesToDisplay(form.durationHours)}
+              {form.extensionHours && form.extensionHours > 0 ? ` (2h 30m base + ${form.extensionHours}h extra)` : ""}
             </p>
             <p className="text-white/40 text-xs">{form.studio} · S&amp;G Entertainment, Accra</p>
           </div>
@@ -161,10 +162,23 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
           <div className="border-t border-white/8 pt-3">
             <p className="text-white/35 text-xs uppercase tracking-wider mb-2">Pricing</p>
             <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-white/50">Studio time ({minutesToDisplay(form.durationHours)})</span>
-                <span className="text-white/80">GHS {baseRate.toLocaleString()}</span>
-              </div>
+              {form.extensionHours && form.extensionHours > 0 ? (
+                <>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-white/50">Base session (2h 30m)</span>
+                    <span className="text-white/80">GHS 300</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-amber-300/80">+{form.extensionHours} hr{form.extensionHours > 1 ? "s" : ""} extension</span>
+                    <span className="text-amber-300/80">GHS {(form.extensionHours * 120).toLocaleString()}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Studio time ({minutesToDisplay(form.durationHours)})</span>
+                  <span className="text-white/80">GHS {baseRate.toLocaleString()}</span>
+                </div>
+              )}
               {form.selectedPackage && (
                 <div className="flex justify-between text-xs">
                   <span className="text-[#C5A880]/80">Package: {form.selectedPackage}</span>

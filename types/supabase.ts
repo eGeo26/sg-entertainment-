@@ -49,6 +49,9 @@ export interface Database {
           status_reviewed_at: string | null
           status_confirmed: boolean | null
           status_confirmed_at: string | null
+          extension_hours: number | null
+          extension_amount: number | null
+          extended_at: string | null
         }
         Insert: {
           id?: string
@@ -87,6 +90,9 @@ export interface Database {
           status_reviewed_at?: string | null
           status_confirmed?: boolean | null
           status_confirmed_at?: string | null
+          extension_hours?: number | null
+          extension_amount?: number | null
+          extended_at?: string | null
         }
         Update: {
           id?: string
@@ -125,6 +131,9 @@ export interface Database {
           status_reviewed_at?: string | null
           status_confirmed?: boolean | null
           status_confirmed_at?: string | null
+          extension_hours?: number | null
+          extension_amount?: number | null
+          extended_at?: string | null
         }
       }
       booking_status_history: {

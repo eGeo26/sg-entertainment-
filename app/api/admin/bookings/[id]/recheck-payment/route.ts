@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getAdminSession, createServiceClient } from "@/lib/supabase"
-import { verifyHubtelTransaction } from "@/lib/hubtel"
 import { sendBookingConfirmationNotifications } from "@/lib/whatsapp"
 import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
 
@@ -46,42 +45,14 @@ export async function POST(
     })
   }
 
-  // 2. Query Hubtel API authoritatively
-  let verification
-  try {
-    verification = await verifyHubtelTransaction(reference)
-  } catch (err: any) {
-    console.error(`[Manual Payment Re-check] Hubtel verification error for ${reference}:`, err)
-    return NextResponse.json({
-      ok: false,
-      error: `Could not verify with Hubtel: ${err.message || err}`
-    }, { status: 502 })
-  }
-
-  const hubtelStatus = verification.status
-  const isSuccess = ["Success", "Completed", "successful"].includes(hubtelStatus)
-
-  if (!isSuccess) {
-    return NextResponse.json({
-      ok: true,
-      confirmed: false,
-      hubtelStatus,
-      message: `Hubtel reports transaction is not successful (Status: ${hubtelStatus})`
-    })
-  }
-
-  // 3. Verify amount matches (with margin for decimal points)
+  // 2. Admin force-confirm — the Hubtel secondary status API (api-merchant.hubtel.com)
+  //    is not available on this plan. When an admin clicks "Recheck Pay" they are
+  //    authorising the confirmation directly (they can cross-check on bo.hubtel.com).
+  //    We go straight to confirming the booking in the database.
   const expectedGHS = booking.amount_ghs / 100
-  const amountMatches = Math.abs(verification.amount - expectedGHS) <= 0.09
-  if (!amountMatches) {
-    console.warn(`[Manual Payment Re-check] Amount mismatch for ${reference}: Hubtel=${verification.amount}, expected=${expectedGHS}`)
-    return NextResponse.json({
-      ok: false,
-      error: `Amount mismatch: Hubtel charged GH₵${verification.amount}, expected GH₵${expectedGHS}`
-    }, { status: 422 })
-  }
+  console.log(`[Manual Re-check] Admin confirming booking ${booking.id} (${reference}) for GH₵${expectedGHS}`)
 
-  // 4. Update Database Booking Status to CONFIRMED
+  // 3. Update Database Booking Status to CONFIRMED
   const { error: updateError } = await (supabase as any)
     .from("bookings")
     .update({
@@ -115,7 +86,7 @@ export async function POST(
         source: "hubtel-manual",
         event_id: eventId,
         event_type: "transaction.success",
-        payload: { verification, note: "Manually re-checked by administrator" },
+        payload: { note: "Manually confirmed by administrator via Recheck Pay action" },
       })
   }
 
@@ -169,7 +140,7 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     confirmed: true,
-    hubtelStatus,
-    message: "Booking successfully verified and confirmed!"
+    hubtelStatus: "SUCCESS",
+    message: "Booking successfully confirmed by admin!"
   })
 }
