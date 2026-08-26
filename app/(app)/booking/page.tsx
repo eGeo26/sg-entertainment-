@@ -1,7 +1,21 @@
 // app/booking/page.tsx
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import BookingFlow from "@/components/BookingFlow"
 import ClosedDateBanner from "@/components/ClosedDateBanner"
+
+export const metadata: Metadata = {
+  title: "Book a Recording Session | S&G Studios, Accra",
+  description:
+    "Reserve your professional studio session at S&G Studios in Accra. Choose your date and time, add equipment, and pay securely via Hubtel Mobile Money or Card. Sessions from GHS 300.",
+  openGraph: {
+    title: "Book a Recording Session | S&G Studios, Accra",
+    description:
+      "Reserve your studio session online — pay securely via Hubtel. Sessions from GHS 300.",
+    url: "https://sngent.com/booking",
+  },
+}
+
 
 export default function BookingPage() {
   return (

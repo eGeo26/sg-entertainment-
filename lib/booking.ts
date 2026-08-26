@@ -12,6 +12,21 @@ const MIN_MINUTES = 150            // 2h 30m minimum
 const RATE_PER_30MIN = 60          // GHS per additional 30 min
 const MAX_HOURS = parseInt(process.env.NEXT_PUBLIC_MAX_HOURS ?? "12")
 
+// Extension (top-up) pricing:
+//   Derived from the standard rate: 2.5h / GHS 300 ≈ GHS 120/hour.
+//   Change this single constant to adjust the extension hourly rate without
+//   touching any other pricing logic.
+export const EXTRA_HOUR_RATE_GHS = 120
+
+/**
+ * Returns the GHS cost for N whole extra hours beyond the base 2.5h session.
+ * Returns 0 when extensionHours is 0 or undefined.
+ */
+export function calcExtensionTotal(extensionHours: number | undefined): number {
+  if (!extensionHours || extensionHours <= 0) return 0
+  return Math.floor(extensionHours) * EXTRA_HOUR_RATE_GHS
+}
+
 // Shared hold / expiry window for pending (AWAITING_PAYMENT) bookings
 export const PENDING_BOOKING_WINDOW_MINUTES = 45
 export const PENDING_BOOKING_WINDOW_MS = PENDING_BOOKING_WINDOW_MINUTES * 60 * 1000
@@ -42,16 +57,6 @@ export function calculateTotal(
   selectedEquipment: string[],
   selectedPackage?: string
 ): { baseRate: number; equipmentTotal: number; total: number; breakdown: string[] } {
-  // Intercept the payment test package to override total to GHS 2.00
-  if (selectedPackage === "Payment Test — Temporary (GHS 2.00)") {
-    return {
-      baseRate: 2,
-      equipmentTotal: 0,
-      total: 2,
-      breakdown: ["TEMPORARY PAYMENT TEST ONLY: GHS 2.00"],
-    }
-  }
-
   const baseRate = calcSessionBase(durationHours)
   const durationDisplay = minutesToDisplay(Math.round(durationHours * 60))
 

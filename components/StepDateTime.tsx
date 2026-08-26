@@ -6,11 +6,12 @@ import Calendar from "react-calendar"
 import { format, addDays, addMinutes } from "date-fns"
 import clsx from "clsx"
 import { BookingFormData, TIME_SLOTS } from "@/types"
-import { isDateAvailable, toGhanaDateString } from "@/lib/booking"
+import { isDateAvailable, toGhanaDateString, EXTRA_HOUR_RATE_GHS } from "@/lib/booking"
 import "react-calendar/dist/Calendar.css"
 
 const SESSION_RATE = 300
 const DURATION_MINUTES = 150 // locked at 2h 30m
+const MAX_EXTENSION_HOURS = 8 // maximum extra whole hours selectable
 
 function minutesToDisplay(m: number): string {
   const h = Math.floor(m / 60)
@@ -40,6 +41,7 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
     return new Date(yr, mo - 1, dy)
   })
   const [selectedTime, setSelectedTime] = useState<string>(form.startTime ?? "")
+  const [extensionHours, setExtensionHours] = useState<number>(form.extensionHours ?? 0)
   const [slots, setSlots] = useState<Record<string, SlotStatus>>({})
   const [loadingSlots, setLoadingSlots] = useState(false)
   // Closed dates: map of "YYYY-MM-DD" -> note (or null)
@@ -135,7 +137,12 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
   }
 
   const endTime = selectedTime ? getEndTimestamp(dateStr, selectedTime, DURATION_MINUTES) : null
+  // Extended end time includes the extra hours
+  const totalDurationMinutes = DURATION_MINUTES + extensionHours * 60
+  const extendedEndTime = selectedTime ? getEndTimestamp(dateStr, selectedTime, totalDurationMinutes) : null
   const price = SESSION_RATE
+  const extensionTotal = extensionHours * EXTRA_HOUR_RATE_GHS
+  const grandTotal = price + extensionTotal
   const canProceed = !!selectedDate && !!selectedTime
 
   const handleNext = () => {
@@ -143,7 +150,8 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
     updateForm({
       sessionDate: dateStr,
       startTime: selectedTime,
-      durationHours: DURATION_MINUTES / 60, // 2.5
+      durationHours: totalDurationMinutes / 60,  // e.g. 4.5 for 2.5h base + 2h extension
+      extensionHours,
     })
     onNext()
   }
@@ -231,26 +239,99 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
               })}
             </div>
 
-            {selectedTime && endTime && (
+            {selectedTime && extendedEndTime && (
               <div className="mt-3 p-2.5 bg-white/5 border border-white/10 rounded-lg">
                 <p className="text-white/80 text-xs font-medium text-center">
-                  {selectedTime} → {endTime} · {minutesToDisplay(DURATION_MINUTES)}
+                  {selectedTime} → {extendedEndTime} · {minutesToDisplay(totalDurationMinutes)}
                 </p>
               </div>
             )}
           </div>
 
+          {/* Extension / top-up stepper — shown after time is selected */}
+          {selectedTime && (
+            <div className="card bg-black/40 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-base font-semibold text-white">Need more time?</h2>
+                  <p className="text-white/40 text-xs mt-0.5">Add extra whole hours · GHS {EXTRA_HOUR_RATE_GHS}/hr</p>
+                </div>
+                {extensionHours > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-400/20">
+                    +{extensionHours}h added
+                  </span>
+                )}
+              </div>
+
+              {/* Stepper */}
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <button
+                  type="button"
+                  id="btn-ext-minus"
+                  onClick={() => setExtensionHours((h) => Math.max(0, h - 1))}
+                  disabled={extensionHours === 0}
+                  aria-label="Remove one extra hour"
+                  className={clsx(
+                    "w-10 h-10 rounded-xl border text-lg font-bold transition-all flex items-center justify-center",
+                    extensionHours === 0
+                      ? "border-white/8 text-white/20 cursor-not-allowed"
+                      : "border-white/20 text-white hover:border-white/40 hover:bg-white/5 active:scale-95"
+                  )}
+                >
+                  −
+                </button>
+                <div className="flex flex-col items-center min-w-[4rem]">
+                  <span className="text-2xl font-bold text-white tabular-nums">{extensionHours}</span>
+                  <span className="text-white/30 text-[10px] uppercase tracking-widest mt-0.5">
+                    {extensionHours === 1 ? "extra hour" : "extra hours"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  id="btn-ext-plus"
+                  onClick={() => setExtensionHours((h) => Math.min(MAX_EXTENSION_HOURS, h + 1))}
+                  disabled={extensionHours >= MAX_EXTENSION_HOURS}
+                  aria-label="Add one extra hour"
+                  className={clsx(
+                    "w-10 h-10 rounded-xl border text-lg font-bold transition-all flex items-center justify-center",
+                    extensionHours >= MAX_EXTENSION_HOURS
+                      ? "border-white/8 text-white/20 cursor-not-allowed"
+                      : "border-white/20 text-white hover:border-white/40 hover:bg-white/5 active:scale-95"
+                  )}
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Live price summary */}
+              <div className="p-3 bg-white/4 border border-white/8 rounded-xl space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Base session (2h 30m)</span>
+                  <span className="text-white/80">GHS {SESSION_RATE.toLocaleString()}</span>
+                </div>
+                {extensionHours > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-amber-300/80">+{extensionHours} hr{extensionHours > 1 ? "s" : ""} extension</span>
+                    <span className="text-amber-300/80">
+                      {extensionHours} × GHS {EXTRA_HOUR_RATE_GHS} = GHS {extensionTotal.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-1.5 border-t border-white/8">
+                  <span className="text-white text-sm font-semibold">
+                    {extensionHours > 0
+                      ? `Total · ${minutesToDisplay(totalDurationMinutes)}`
+                      : `Session total · ${minutesToDisplay(DURATION_MINUTES)}`}
+                  </span>
+                  <span className="text-white font-bold text-base">GHS {grandTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Price preview + Continue */}
           {selectedTime && (
             <div ref={pricingRef} className="scroll-mt-20">
-              <div className="card bg-black/30 backdrop-blur-sm mb-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/55 text-sm">Session total</span>
-                  <span className="font-bold text-lg text-white">
-                    GHS {price.toLocaleString()}
-                  </span>
-                </div>
-              </div>
 
               <button
                 ref={continueRef}

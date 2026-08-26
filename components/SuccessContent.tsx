@@ -29,6 +29,9 @@ interface BookingData {
   statusConfirmedAt?: string
   statusReviewed?: boolean
   statusReviewedAt?: string
+  extensionHours?: number
+  extensionAmount?: number
+  extendedAt?: string | null
 }
 
 type LoadState = "loading" | "success" | "not-found" | "network-error" | "server-error"
@@ -42,6 +45,88 @@ export default function SuccessContent() {
   const [loadState, setLoadState] = useState<LoadState>("loading")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [pollError, setPollError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Extension/top-up state variables
+  const [extraHours, setExtraHours] = useState(1)
+  const [extending, setExtending] = useState(false)
+  const [extensionError, setExtensionError] = useState<string | null>(null)
+
+  const handleExtendSession = async () => {
+    if (!booking) return
+    setExtending(true)
+    setExtensionError(null)
+    try {
+      const res = await fetch("/api/payments/hubtel/initiate-extension", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingCode: booking.bookingCode,
+          extraHours,
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to initiate extension payment.")
+      }
+
+      if (data.authorizationUrl) {
+        window.location.href = data.authorizationUrl
+      } else {
+        throw new Error("No payment authorization URL returned.")
+      }
+    } catch (err: any) {
+      console.error("[Extend Session] Error:", err)
+      setExtensionError(err.message || "An unexpected error occurred.")
+      setExtending(false)
+    }
+  }
+
+  const fetchBooking = async (isPoll = false) => {
+    if (!bookingId) return
+    let contactQuery = ""
+    try {
+      const stored = JSON.parse(localStorage.getItem("last_booking_contact") || "{}")
+      const value = stored.email || stored.phone
+      if (value) {
+        const query = new URLSearchParams()
+        query.set(stored.email ? "email" : "phone", value)
+        contactQuery = `?${query.toString()}`
+      }
+    } catch {}
+
+    try {
+      const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}${contactQuery}`, { cache: "no-store" })
+      if (!res.ok) {
+        if (!isPoll) {
+          if (res.status === 404) setLoadState("not-found")
+          else if (res.status >= 500) setLoadState("server-error")
+          else setLoadState("network-error")
+        } else {
+          setPollError("Live updates are temporarily unavailable. The details shown may be stale.")
+        }
+        return
+      }
+      const data = await res.json()
+      setBooking(data)
+      setLastUpdated(new Date())
+      setLoadState("success")
+      setPollError(null)
+    } catch {
+      if (isPoll) {
+        setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
+      } else {
+        setLoadState("network-error")
+      }
+    }
+  }
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchBooking(true)
+    setIsRefreshing(false)
+  }
 
   useEffect(() => {
     // Clear booking ID from URL after 5 minutes so next visitor doesn't see it
@@ -60,57 +145,26 @@ export default function SuccessContent() {
       return
     }
 
-    let cancelled = false
-    let contactQuery = ""
-    try {
-      const stored = JSON.parse(localStorage.getItem("last_booking_contact") || "{}")
-      const value = stored.email || stored.phone
-      if (value) {
-        const query = new URLSearchParams()
-        query.set(stored.email ? "email" : "phone", value)
-        contactQuery = `?${query.toString()}`
-      }
-    } catch {
-      // A missing or malformed local value will produce the same generic not-found response.
-    }
-
-    const classify = (res: Response): LoadState => {
-      if (res.status === 404) return "not-found"
-      if (res.status >= 500) return "server-error"
-      return "network-error"
-    }
-
-    const fetchBooking = async (isPoll = false) => {
-      try {
-        const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}${contactQuery}`, { cache: "no-store" })
-        if (!res.ok) {
-          if (!cancelled && !isPoll) setLoadState(classify(res))
-          if (!cancelled && isPoll) setPollError("Live updates are temporarily unavailable. The details shown may be stale.")
-          return
-        }
-        const data = await res.json()
-        if (cancelled) return
-        setBooking(data)
-        setLastUpdated(new Date())
-        setLoadState("success")
-        setPollError(null)
-      } catch {
-        if (cancelled) return
-        if (isPoll) {
-          setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
-        } else {
-          setLoadState("network-error")
-        }
-      }
-    }
-
     fetchBooking()
-    // Keep payment-status updates responsive; the guest endpoint allows 40/min.
-    const interval = setInterval(() => fetchBooking(true), 3_000)
+
+    // Adaptive polling: poll every 3s for the first 40 polls (2 minutes), then slow down to 15s.
+    let count = 0
+    let timerId: NodeJS.Timeout
+    let active = true
+
+    const poll = async () => {
+      if (!active) return
+      await fetchBooking(true)
+      count++
+      const delay = count < 40 ? 3000 : 15000
+      timerId = setTimeout(poll, delay)
+    }
+
+    timerId = setTimeout(poll, 3000)
 
     return () => {
-      cancelled = true
-      clearInterval(interval)
+      active = false
+      clearTimeout(timerId)
     }
   }, [bookingId])
 
@@ -180,8 +234,31 @@ export default function SuccessContent() {
         <p className="text-white/50 text-sm">
           {isConfirmed
             ? "Your session is confirmed. Check your email and WhatsApp for full details."
-            : "Your payment was received. Confirmation will arrive via email and WhatsApp shortly."}
+            : "We are waiting for payment confirmation from Hubtel. This page will update automatically."}
         </p>
+        {!isConfirmed && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12" />
+                  </svg>
+                  Refresh Status
+                </>
+              )}
+            </button>
+          </div>
+        )}
         {lastUpdated && (
           <div className="mt-3 text-center">
             <span className="text-[10px] text-white/30">Updated {getRelativeTime(lastUpdated)}</span>
@@ -190,6 +267,11 @@ export default function SuccessContent() {
         {pollError && (
           <p className="mt-3 text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
             {pollError}
+          </p>
+        )}
+        {params.get("cancelled") === "true" && (
+          <p className="mt-3 text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-center">
+            The extension payment checkout was cancelled. You can try again below.
           </p>
         )}
       </div>
@@ -226,6 +308,88 @@ export default function SuccessContent() {
           </div>
         </div>
       </div>
+
+      {/* Extend Session Top-up Section — client request */}
+      {isConfirmed && (
+        <div className="card bg-black/40 backdrop-blur-sm mb-6 border border-white/5">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-sm font-semibold text-white">Need more time? Extend Session</h3>
+          </div>
+          <p className="text-white/50 text-xs mb-4">
+            Top up this session with additional whole hours. GHS 120/hr. Paid securely via Hubtel.
+          </p>
+
+          <div className="flex items-center justify-between gap-4 mb-4 bg-white/5 border border-white/8 p-3 rounded-xl">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setExtraHours(h => Math.max(1, h - 1))}
+                disabled={extraHours <= 1 || extending}
+                className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-white font-bold transition-all disabled:opacity-30 disabled:hover:border-white/10 flex items-center justify-center"
+              >
+                −
+              </button>
+              <span className="text-base font-bold text-white w-6 text-center tabular-nums">{extraHours}</span>
+              <button
+                type="button"
+                onClick={() => setExtraHours(h => Math.min(8, h + 1))}
+                disabled={extraHours >= 8 || extending}
+                className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-white font-bold transition-all disabled:opacity-30 disabled:hover:border-white/10 flex items-center justify-center"
+              >
+                +
+              </button>
+              <span className="text-white/40 text-xs">hr{extraHours > 1 ? "s" : ""} extra</span>
+            </div>
+            <div className="text-right">
+              <span className="text-white/40 text-[10px] block uppercase tracking-wider">Extra Cost</span>
+              <span className="text-white font-bold text-sm">GHS {(extraHours * 120).toFixed(2)}</span>
+            </div>
+          </div>
+
+          {extensionError && (
+            <p className="text-red-400 text-xs mb-3 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg">
+              {extensionError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleExtendSession}
+            disabled={extending}
+            className="w-full py-2.5 rounded-xl text-xs font-bold text-black hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+            style={{ background: "linear-gradient(135deg,#C5A880 0%,#A3845B 100%)" }}
+          >
+            {extending ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                Redirecting to Hubtel...
+              </>
+            ) : (
+              <>
+                Pay &amp; Extend Session (+{extraHours}h)
+              </>
+            )}
+          </button>
+
+          {booking.extensionHours && booking.extensionHours > 0 ? (
+            <div className="mt-3.5 pt-3 border-t border-white/5 text-[10px] text-white/40 space-y-1">
+              <div className="flex justify-between">
+                <span>Total Extension Added:</span>
+                <span className="text-amber-300 font-semibold">+{booking.extensionHours} hr{booking.extensionHours > 1 ? "s" : ""}</span>
+              </div>
+              {booking.extendedAt && (
+                <div className="flex justify-between">
+                  <span>Last Extended On:</span>
+                  <span>{new Date(booking.extendedAt).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Admin message */}
       {booking.latestMessage && (

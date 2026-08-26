@@ -63,11 +63,36 @@ export default function ProducerPortalPage() {
   const [bookings, setBookings] = useState<ProducerBooking[]>([])
   const [loading, setLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
-  const [activeView, setActiveView] = useState<"assigned" | "completed">("assigned")
+  const [activeView, setActiveView] = useState<"assigned" | "completed" | "extended">("assigned")
   const [search, setSearch] = useState("")
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [confirming, setConfirming] = useState(false)
+
+  // Extended sessions visibility
+  const [extendedBookings, setExtendedBookings] = useState<any[]>([])
+  const [loadingExtended, setLoadingExtended] = useState(false)
+
+  const fetchExtendedBookings = async () => {
+    setLoadingExtended(true)
+    try {
+      const res = await fetch("/api/producer/extended-bookings")
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
+      if (!res.ok) throw new Error("Failed to load extended sessions")
+      const data = await res.json()
+      setExtendedBookings(data.bookings ?? [])
+      setAuthenticated(true)
+      setLastSynced(new Date())
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to load extended sessions")
+    } finally {
+      setLoadingExtended(false)
+    }
+  }
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -93,6 +118,12 @@ export default function ProducerPortalPage() {
   useEffect(() => {
     fetchBookings()
   }, [])
+
+  useEffect(() => {
+    if (activeView === "extended") {
+      fetchExtendedBookings()
+    }
+  }, [activeView])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -287,21 +318,21 @@ export default function ProducerPortalPage() {
         {/* One unified inbox-style control bar. */}
         <div className="sticky top-0 z-40 w-full max-w-full border-b border-white/[0.08] bg-[#08080c] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
           <div className="flex w-full max-w-full flex-wrap items-center gap-2 px-2 py-2 lg:min-h-14 lg:flex-nowrap">
-            <nav className="grid h-9 w-full min-w-0 grid-cols-2 items-center rounded-lg border border-white/[0.07] bg-white/[0.025] p-0.5 sm:w-auto sm:shrink-0" aria-label="Producer session views">
-              {(["assigned", "completed"] as const).map((view) => {
-                const count = view === "assigned" ? assignedBookings.length : completedBookings.length
+            <nav className="grid h-9 w-full min-w-0 grid-cols-3 items-center rounded-lg border border-white/[0.07] bg-white/[0.025] p-0.5 sm:w-auto sm:shrink-0" aria-label="Producer session views">
+              {(["assigned", "completed", "extended"] as const).map((view) => {
+                const count = view === "assigned" ? assignedBookings.length : view === "completed" ? completedBookings.length : extendedBookings.length
                 const selected = activeView === view
                 return (
                   <button
                     key={view}
                     type="button"
                     onClick={() => setActiveView(view)}
-                    className={`h-8 rounded-md px-3 text-[10px] font-semibold transition-all sm:text-[11px] ${
+                    className={`h-8 rounded-md px-2 sm:px-3 text-[10px] font-semibold transition-all sm:text-[11px] ${
                       selected ? "bg-white/[0.1] text-white shadow-sm" : "text-white/40 hover:text-white/75"
                     }`}
                     aria-pressed={selected}
                   >
-                    <span>{view === "assigned" ? "Assigned" : "Completed"}</span>
+                    <span>{view === "assigned" ? "Assigned" : view === "completed" ? "Completed" : "Extended"}</span>
                     <span className="ml-1 text-white/25">{count}</span>
                   </button>
                 )
@@ -369,12 +400,50 @@ export default function ProducerPortalPage() {
             These sessions are waiting on you—mark each one Done once you&apos;ve delivered the work.
           </p>
         )}
+        {activeView === "extended" && (
+          <p className="-mt-3 text-[11px] text-amber-300/80">
+            These sessions have been extended beyond standard packages. Review the breakdown details below.
+          </p>
+        )}
 
         {loading && bookings.length === 0 ? (
           <div className="py-24 text-center space-y-3">
             <div className="animate-spin h-6 w-6 border-2 border-[var(--sg-gold)] border-t-transparent rounded-full mx-auto" />
             <p className="text-white/40 text-xs tracking-wider uppercase">Loading sessions...</p>
           </div>
+        ) : activeView === "extended" ? (
+          loadingExtended ? (
+            <div className="py-24 text-center space-y-3">
+              <div className="animate-spin h-6 w-6 border-2 border-amber-400/50 border-t-transparent rounded-full mx-auto" />
+              <p className="text-white/40 text-xs tracking-wider uppercase">Loading extended sessions...</p>
+            </div>
+          ) : extendedBookings.length === 0 ? (
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] px-6 py-12 flex items-center justify-center overflow-hidden relative">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(197,168,128,0.055),transparent_34%)]" />
+              <div className="relative max-w-sm text-center">
+                <div className="relative mx-auto mb-5 h-20 w-20">
+                  <div className="absolute inset-0 rounded-full border border-amber-500/20" />
+                  <div className="absolute inset-2.5 rounded-full border border-dashed border-white/10" />
+                  <div className="absolute inset-5 rounded-full bg-amber-500/[0.09] border border-amber-500/20 flex items-center justify-center text-amber-300 shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
+                    <svg width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-sm font-semibold text-white/80">No extended sessions shared</h3>
+                <p className="mt-2 text-xs text-white/35 font-medium leading-relaxed">Extended sessions shared by the admin will appear here.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {extendedBookings.map((b) => (
+                <ExtendedBookingCard
+                  key={b.id}
+                  booking={b}
+                />
+              ))}
+            </div>
+          )
         ) : visibleBookings.length === 0 ? (
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] px-6 py-12 flex items-center justify-center overflow-hidden relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(197,168,128,0.055),transparent_34%)]" />
@@ -638,3 +707,125 @@ function BookingCard({
     </div>
   )
 }
+
+function ExtendedBookingCard({ booking }: { booking: any }) {
+  // Simple month/day date formatter
+  const formatDateStr = (dateStr: string) => {
+    try {
+      const [yr, mo, dy] = dateStr.slice(0, 10).split("-").map(Number)
+      return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    } catch {
+      return dateStr
+    }
+  }
+
+  // Simple 12h time formatter
+  const formatTimeStr = (timeStr: string) => {
+    try {
+      const [hours, minutes] = timeStr.split(":").map(Number)
+      const d = new Date()
+      d.setHours(hours, minutes, 0, 0)
+      return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    } catch {
+      return timeStr
+    }
+  }
+
+  return (
+    <div className="border border-amber-500/25 bg-white/[0.025] rounded-2xl p-5 space-y-4 shadow-[0_0_25px_rgba(245,158,11,0.02)] hover:bg-white/[0.04] transition-all duration-200">
+      {/* Top Header Row */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-semibold">
+              #{booking.bookingCode}
+            </span>
+            <span className="text-white/20 text-[10px]">•</span>
+            <span className="bg-amber-500/10 text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded border border-amber-500/20 uppercase tracking-wider">
+              Extended Session
+            </span>
+          </div>
+          <h3 className="mt-1.5 text-base font-bold text-[#F0EFE8]">
+            {booking.customerName}
+          </h3>
+          <p className="text-xs text-[#F0EFE8]/60 font-mono mt-0.5">{booking.customerPhone} · {booking.customerEmail}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <span className="text-[9px] text-white/30 block uppercase tracking-wider">Total Duration</span>
+          <span className="text-white font-bold text-xs">{booking.totalDurationHours} hrs</span>
+        </div>
+      </div>
+
+      <div className="h-px bg-white/5" />
+
+      {/* Details Grid */}
+      <div className="grid grid-cols-2 gap-4 text-xs">
+        <div>
+          <span className="block text-[10px] text-white/40 uppercase tracking-wider font-semibold">
+            Session Schedule
+          </span>
+          <span className="text-[#F0EFE8] font-semibold block mt-1">
+            {formatDateStr(booking.sessionDate)}
+          </span>
+          <span className="text-[#F0EFE8]/60 text-[11px] block mt-0.5 font-mono">
+            {formatTimeStr(booking.startTime)} – {formatTimeStr(booking.endTime)}
+          </span>
+        </div>
+
+        <div>
+          <span className="block text-[10px] text-white/40 uppercase tracking-wider font-semibold">
+            Duration Breakdown
+          </span>
+          <div className="mt-1.5 space-y-0.5 text-[#F0EFE8]/70">
+            <div className="flex justify-between">
+              <span>Base Session:</span>
+              <span className="font-medium">{booking.baseDurationHours}h</span>
+            </div>
+            <div className="flex justify-between text-amber-300">
+              <span>Added Extension:</span>
+              <span className="font-bold">+{booking.extensionHours}h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-px bg-white/5" />
+
+      {/* Payment Details */}
+      <div className="bg-white/5 p-3 rounded-xl border border-white/8 space-y-1.5 text-xs text-[#F0EFE8]/70">
+        <span className="block text-[10px] text-white/40 uppercase tracking-wider font-semibold">
+          Payment Breakdown
+        </span>
+        <div className="flex justify-between">
+          <span>Base Fee:</span>
+          <span>GHS {booking.baseAmountGHS.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-amber-300">
+          <span>Extension Fee:</span>
+          <span>GHS {booking.extensionAmountGHS.toFixed(2)}</span>
+        </div>
+        <div className="pt-1.5 border-t border-white/5 flex justify-between font-bold text-white">
+          <span>Total Received:</span>
+          <span>GHS {booking.totalAmountGHS.toFixed(2)}</span>
+        </div>
+      </div>
+
+      {/* Customer Note */}
+      {booking.notes && (
+        <div className="bg-white/[0.01] border border-white/5 p-3 rounded-xl text-xs space-y-1">
+          <span className="block text-[10px] text-white/40 uppercase tracking-wider font-semibold">
+            Customer Specifications / Notes
+          </span>
+          <p className="text-white/70 leading-relaxed italic">"{booking.notes}"</p>
+        </div>
+      )}
+
+      {booking.sentToProducerAt && (
+        <div className="text-[9px] text-white/35 text-right font-medium">
+          Sent by Admin: {new Date(booking.sentToProducerAt).toLocaleDateString()} at {new Date(booking.sentToProducerAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      )}
+    </div>
+  )
+}
+

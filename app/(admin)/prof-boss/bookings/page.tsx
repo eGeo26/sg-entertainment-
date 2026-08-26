@@ -44,6 +44,11 @@ interface Booking {
   adminNotes: string | null
   pushedToProducer?: boolean
   producerMarkedDone?: boolean
+  extensionHours?: number
+  extensionAmount?: number
+  extendedAt?: string | null
+  extensionSentToProducer?: boolean
+  extensionSentToProducerAt?: string | null
 }
 
 interface StatsData {
@@ -104,6 +109,31 @@ function BookingsContent() {
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
   const [markingReviewed, setMarkingReviewed] = useState(false)
   const [showManualModal, setShowManualModal] = useState(false)
+  const [recheckingIds, setRecheckingIds] = useState<string[]>([])
+
+  const handleRecheckPayment = async (bookingId: string) => {
+    setRecheckingIds((prev) => [...prev, bookingId])
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/recheck-payment`, {
+        method: "POST"
+      })
+      const result = await res.json()
+      if (result.ok) {
+        if (result.confirmed) {
+          toast.success(result.message || "Payment verified! Booking confirmed.")
+          fetchBookings()
+        } else {
+          toast.info(result.message || `Not paid yet. Status: ${result.hubtelStatus}`)
+        }
+      } else {
+        toast.error(result.error || "Failed to verify transaction with Hubtel.")
+      }
+    } catch (err) {
+      toast.error("Network error trying to contact verification server.")
+    } finally {
+      setRecheckingIds((prev) => prev.filter((id) => id !== bookingId))
+    }
+  }
 
   // Mutating lock - suppress polling for 8 seconds after admin makes a change
   const [mutationLock, setMutationLock] = useState(false)
@@ -403,6 +433,49 @@ function BookingsContent() {
     } catch (err: any) {
       console.error(err)
       toast.error(err.message || "Failed to update producer portal push")
+    }
+  }
+
+  const [sendingExtension, setSendingExtension] = useState(false)
+
+  const handleSendExtensionToProducer = async (booking: Booking) => {
+    if (booking.status !== "CONFIRMED") {
+      toast.error("Available once payment is confirmed")
+      return
+    }
+    if (!booking.extensionHours || booking.extensionHours <= 0) {
+      toast.error("Only bookings with an active extension can be sent")
+      return
+    }
+
+    setSendingExtension(true)
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/push-extension-to-producer`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to send extension to producer")
+      }
+      const data = await res.json()
+      toast.success(
+        data.extensionSentToProducer
+          ? "Extension sent to Producer Portal"
+          : "Extension removed from Producer Portal"
+      )
+      if (inspectedBooking?.id === booking.id) {
+        setInspectedBooking({
+          ...inspectedBooking,
+          extensionSentToProducer: data.extensionSentToProducer,
+          extensionSentToProducerAt: data.extensionSentToProducerAt,
+        })
+      }
+      fetchBookings()
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to update extension producer push")
+    } finally {
+      setSendingExtension(false)
     }
   }
 
@@ -861,7 +934,14 @@ function BookingsContent() {
                       </td>
                       <td className="px-4 py-4">
                         <div>
-                          <p className="font-semibold text-white/95">{b.customerName}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white/95">{b.customerName}</span>
+                            {b.extensionHours && b.extensionHours > 0 && (
+                              <span className="bg-amber-400/10 text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded border border-amber-400/20 uppercase tracking-wider">
+                                Extended
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-white/40 mt-0.5">{b.customerEmail} · {b.customerPhone}</p>
                           {b.selectedPackage && (
                             <p className="text-[10px] text-[#C5A880] mt-1 font-medium">
@@ -886,8 +966,13 @@ function BookingsContent() {
                             return new Date(yr, mo - 1, dy).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                           })()}
                         </p>
-                        <p className="text-[10px] text-white/40 mt-0.5">
-                          {b.startTime} – {b.endTime} ({b.durationHours} hrs)
+                        <p className="text-[10px] text-white/40 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span>{b.startTime} – {b.endTime} ({b.durationHours} hrs)</span>
+                          {b.extensionHours && b.extensionHours > 0 ? (
+                            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/20">
+                              +{b.extensionHours}h
+                            </span>
+                          ) : null}
                         </p>
                       </td>
                       <td className="px-4 py-4 font-semibold text-[#FFFFFF]">
@@ -999,6 +1084,15 @@ function BookingsContent() {
                               Cancel
                             </button>
                           )}
+                          {b.status === "AWAITING_PAYMENT" && (
+                            <button
+                              onClick={() => handleRecheckPayment(b.id)}
+                              disabled={recheckingIds.includes(b.id)}
+                              className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-md text-[10px] font-semibold disabled:opacity-50"
+                            >
+                              {recheckingIds.includes(b.id) ? "Checking..." : "Recheck Pay"}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1087,7 +1181,14 @@ function BookingsContent() {
                     aria-controls={`mobile-booking-${b.id}`}
                   >
                     <div>
-                      <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
+                        {b.extensionHours && b.extensionHours > 0 ? (
+                          <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/20">
+                            +{b.extensionHours}h
+                          </span>
+                        ) : null}
+                      </div>
                       <p className={`text-[10px] mt-1 font-semibold ${b.status === "AWAITING_PAYMENT" ? "text-amber-300/75" : "text-white/45"}`}>
                         {statusHint}
                       </p>
@@ -1274,6 +1375,52 @@ function BookingsContent() {
             </div>
 
             <div className="p-6 space-y-6">
+              {inspectedBooking.extensionHours && inspectedBooking.extensionHours > 0 ? (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Extended Booking Detail</span>
+                    </div>
+                    <p className="text-[11px] text-white/60 mt-1">
+                      This session went beyond standard duration by adding <strong className="text-amber-300 font-bold">+{inspectedBooking.extensionHours} hr{inspectedBooking.extensionHours > 1 ? "s" : ""}</strong>.
+                    </p>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => handleSendExtensionToProducer(inspectedBooking)}
+                      disabled={inspectedBooking.status !== "CONFIRMED" || sendingExtension}
+                      className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                        inspectedBooking.status !== "CONFIRMED"
+                          ? "bg-white/5 text-white/20 border border-white/5 cursor-not-allowed"
+                          : inspectedBooking.extensionSentToProducer
+                          ? "bg-purple-500/25 text-purple-300 border border-purple-500/30"
+                          : "bg-amber-400 text-black hover:opacity-90"
+                      }`}
+                    >
+                      {sendingExtension ? (
+                        <>
+                          <span className="w-3 h-3 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                          Sending...
+                        </>
+                      ) : inspectedBooking.extensionSentToProducer ? (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          Sent to Producer
+                        </>
+                      ) : (
+                        <>
+                          Send to Producer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {/* Customer summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/[0.01] p-4 rounded-xl border border-white/5">
                 <div>
@@ -1292,16 +1439,44 @@ function BookingsContent() {
                     })()}
                   </p>
                   <p className="text-white/50 text-[10px] mt-0.5">{inspectedBooking.startTime} - {inspectedBooking.endTime}</p>
-                  <p className="text-white/50 text-[10px] mt-0.5">({inspectedBooking.durationHours} hours)</p>
+                  <p className="text-white/50 text-[10px] mt-0.5">
+                    ({inspectedBooking.durationHours} hours
+                    {inspectedBooking.extensionHours && inspectedBooking.extensionHours > 0
+                      ? ` — includes ${inspectedBooking.extensionHours}h extra`
+                      : ""})
+                  </p>
                 </div>
                 <div>
                   <span className="block text-[9px] text-white/35 uppercase tracking-wider mb-1 font-bold">Payment</span>
-                  <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                  {inspectedBooking.extensionHours && inspectedBooking.extensionHours > 0 ? (
+                    <div className="space-y-0.5 text-xs text-white/60 mb-1">
+                      <p className="font-bold text-[#FFFFFF] text-base">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                      <div className="flex justify-between text-[10px] gap-4">
+                        <span>Base (2.5h):</span>
+                        <span className="text-white/80">GH₵ 300.00</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] gap-4">
+                        <span>Extension (+{inspectedBooking.extensionHours}h):</span>
+                        <span className="text-amber-300">GH₵ {(inspectedBooking.extensionHours * 120).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                  )}
                   <div className="mt-1 flex flex-col gap-1 items-start">
                     <StatusBadge status={inspectedBooking.status} />
                     {inspectedBooking.status === "AWAITING_PAYMENT" && getExpiryCountdown(inspectedBooking.createdAt) && (
                       <span className="text-[9px] text-amber-300/80 font-medium">
                         {getExpiryCountdown(inspectedBooking.createdAt)}
+                      </span>
+                    )}
+                    {inspectedBooking.extendedAt && (
+                      <span className="text-[9px] text-amber-400 font-medium mt-1">
+                        Extended by +{inspectedBooking.extensionHours}h on{" "}
+                        {(() => {
+                          const d = new Date(inspectedBooking.extendedAt)
+                          return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                        })()}
                       </span>
                     )}
                   </div>
