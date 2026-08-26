@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { BookingFormData } from "@/types"
-import { formatDisplayDate, formatDisplayTime, getEndTime } from "@/lib/booking"
+import { formatDisplayDate, formatDisplayTime, getEndTime, calculateTotal } from "@/lib/booking"
 
 function calcSessionPrice(durationHours: number): number {
   const mins = Math.round(durationHours * 60)
@@ -43,8 +43,7 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
 
   const endTime = getEndTime(form.sessionDate, form.startTime, form.durationHours)
   const displayDate = formatDisplayDate(form.sessionDate)
-  const baseRate = calcSessionPrice(form.durationHours)
-  const total = baseRate
+  const { baseRate, total } = calculateTotal(form.durationHours, form.equipment ?? [], form.selectedPackage)
 
   // Clear particles after animation completes
   useEffect(() => {

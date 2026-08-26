@@ -10,13 +10,27 @@ import { formatDisplayDate, formatDisplayTime } from "@/lib/booking"
 
 export const runtime = "nodejs"
 
+// Placeholder sentinel — matches the literal default value in .env.example / .env.local
+const WEBHOOK_SECRET_PLACEHOLDER = "your_hubtel_webhook_secret_here"
+
 export async function POST(req: NextRequest) {
-  // Verify webhook secret if configured
+  // Verify webhook secret only when a real (non-placeholder) value is configured.
+  // If the env var is unset or still equals the placeholder, skip the check and
+  // log a warning so the misconfiguration is visible in server logs.
   const webhookSecret = process.env.HUBTEL_WEBHOOK_SECRET
-  if (webhookSecret) {
-    const receivedSecret = req.headers.get("x-hubtel-secret") || 
+  const isRealSecret = !!webhookSecret && webhookSecret !== WEBHOOK_SECRET_PLACEHOLDER
+
+  if (webhookSecret === WEBHOOK_SECRET_PLACEHOLDER || webhookSecret === "") {
+    console.warn(
+      "[Hubtel Webhook] ⚠️  HUBTEL_WEBHOOK_SECRET is not configured (placeholder or empty). " +
+      "Webhook signature verification is DISABLED. Set a real secret in Vercel env vars."
+    )
+  }
+
+  if (isRealSecret) {
+    const receivedSecret = req.headers.get("x-hubtel-secret") ||
                            req.headers.get("authorization") || ""
-    if (!receivedSecret.includes(webhookSecret)) {
+    if (!receivedSecret.includes(webhookSecret!)) {
       console.warn("[Hubtel Webhook] Invalid webhook secret — rejecting request")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -66,11 +80,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, duplicate: true })
   }
 
-  // 2. Fetch the corresponding booking from DB
+  // 2. Fetch the corresponding booking from DB.
+  // Use booking_code — that is the column populated with the clientReference value
+  // sent to Hubtel at checkout initiation. hubtel_reference mirrors it at insert
+  // time but is a separate column and must not be used as the authoritative lookup.
   const { data: booking, error: bookingError } = await (supabase as any)
     .from("bookings")
     .select("*")
-    .eq("hubtel_reference", reference)
+    .eq("booking_code", reference)
     .maybeSingle()
 
   if (bookingError || !booking) {

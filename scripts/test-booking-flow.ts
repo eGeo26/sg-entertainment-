@@ -77,7 +77,7 @@ async function fetchCustomerBooking(bookingCode: string): Promise<{
   body: any
   raw: string
 }> {
-  const url = `${APP_BASE_URL}/api/bookings/${bookingCode}`
+  const url = `${APP_BASE_URL}/api/bookings/${bookingCode}?email=${encodeURIComponent(TEST_CUSTOMER_EMAIL)}`
   log(`     → GET ${url}`, 'cyan')
 
   const res = await fetch(url, { cache: 'no-store' })
@@ -106,6 +106,7 @@ async function createAdminApiSession(supabase: ReturnType<typeof createServiceCl
     email,
     password,
     email_confirm: true,
+    app_metadata: { role: 'admin' }
   })
 
   if (createUserError || !createdUser?.user?.id) {
