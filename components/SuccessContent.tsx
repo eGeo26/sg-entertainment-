@@ -42,6 +42,52 @@ export default function SuccessContent() {
   const [loadState, setLoadState] = useState<LoadState>("loading")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [pollError, setPollError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const fetchBooking = async (isPoll = false) => {
+    if (!bookingId) return
+    let contactQuery = ""
+    try {
+      const stored = JSON.parse(localStorage.getItem("last_booking_contact") || "{}")
+      const value = stored.email || stored.phone
+      if (value) {
+        const query = new URLSearchParams()
+        query.set(stored.email ? "email" : "phone", value)
+        contactQuery = `?${query.toString()}`
+      }
+    } catch {}
+
+    try {
+      const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}${contactQuery}`, { cache: "no-store" })
+      if (!res.ok) {
+        if (!isPoll) {
+          if (res.status === 404) setLoadState("not-found")
+          else if (res.status >= 500) setLoadState("server-error")
+          else setLoadState("network-error")
+        } else {
+          setPollError("Live updates are temporarily unavailable. The details shown may be stale.")
+        }
+        return
+      }
+      const data = await res.json()
+      setBooking(data)
+      setLastUpdated(new Date())
+      setLoadState("success")
+      setPollError(null)
+    } catch {
+      if (isPoll) {
+        setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
+      } else {
+        setLoadState("network-error")
+      }
+    }
+  }
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchBooking(true)
+    setIsRefreshing(false)
+  }
 
   useEffect(() => {
     // Clear booking ID from URL after 5 minutes so next visitor doesn't see it
@@ -60,57 +106,26 @@ export default function SuccessContent() {
       return
     }
 
-    let cancelled = false
-    let contactQuery = ""
-    try {
-      const stored = JSON.parse(localStorage.getItem("last_booking_contact") || "{}")
-      const value = stored.email || stored.phone
-      if (value) {
-        const query = new URLSearchParams()
-        query.set(stored.email ? "email" : "phone", value)
-        contactQuery = `?${query.toString()}`
-      }
-    } catch {
-      // A missing or malformed local value will produce the same generic not-found response.
-    }
-
-    const classify = (res: Response): LoadState => {
-      if (res.status === 404) return "not-found"
-      if (res.status >= 500) return "server-error"
-      return "network-error"
-    }
-
-    const fetchBooking = async (isPoll = false) => {
-      try {
-        const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}${contactQuery}`, { cache: "no-store" })
-        if (!res.ok) {
-          if (!cancelled && !isPoll) setLoadState(classify(res))
-          if (!cancelled && isPoll) setPollError("Live updates are temporarily unavailable. The details shown may be stale.")
-          return
-        }
-        const data = await res.json()
-        if (cancelled) return
-        setBooking(data)
-        setLastUpdated(new Date())
-        setLoadState("success")
-        setPollError(null)
-      } catch {
-        if (cancelled) return
-        if (isPoll) {
-          setPollError("Couldn't connect for live updates. We'll keep trying automatically.")
-        } else {
-          setLoadState("network-error")
-        }
-      }
-    }
-
     fetchBooking()
-    // Keep payment-status updates responsive; the guest endpoint allows 40/min.
-    const interval = setInterval(() => fetchBooking(true), 3_000)
+
+    // Adaptive polling: poll every 3s for the first 40 polls (2 minutes), then slow down to 15s.
+    let count = 0
+    let timerId: NodeJS.Timeout
+    let active = true
+
+    const poll = async () => {
+      if (!active) return
+      await fetchBooking(true)
+      count++
+      const delay = count < 40 ? 3000 : 15000
+      timerId = setTimeout(poll, delay)
+    }
+
+    timerId = setTimeout(poll, 3000)
 
     return () => {
-      cancelled = true
-      clearInterval(interval)
+      active = false
+      clearTimeout(timerId)
     }
   }, [bookingId])
 
@@ -180,8 +195,31 @@ export default function SuccessContent() {
         <p className="text-white/50 text-sm">
           {isConfirmed
             ? "Your session is confirmed. Check your email and WhatsApp for full details."
-            : "Your payment was received. Confirmation will arrive via email and WhatsApp shortly."}
+            : "We are waiting for payment confirmation from Hubtel. This page will update automatically."}
         </p>
+        {!isConfirmed && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12" />
+                  </svg>
+                  Refresh Status
+                </>
+              )}
+            </button>
+          </div>
+        )}
         {lastUpdated && (
           <div className="mt-3 text-center">
             <span className="text-[10px] text-white/30">Updated {getRelativeTime(lastUpdated)}</span>

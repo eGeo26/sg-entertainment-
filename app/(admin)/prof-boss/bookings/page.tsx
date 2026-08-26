@@ -104,6 +104,31 @@ function BookingsContent() {
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
   const [markingReviewed, setMarkingReviewed] = useState(false)
   const [showManualModal, setShowManualModal] = useState(false)
+  const [recheckingIds, setRecheckingIds] = useState<string[]>([])
+
+  const handleRecheckPayment = async (bookingId: string) => {
+    setRecheckingIds((prev) => [...prev, bookingId])
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/recheck-payment`, {
+        method: "POST"
+      })
+      const result = await res.json()
+      if (result.ok) {
+        if (result.confirmed) {
+          toast.success(result.message || "Payment verified! Booking confirmed.")
+          fetchBookings()
+        } else {
+          toast.info(result.message || `Not paid yet. Status: ${result.hubtelStatus}`)
+        }
+      } else {
+        toast.error(result.error || "Failed to verify transaction with Hubtel.")
+      }
+    } catch (err) {
+      toast.error("Network error trying to contact verification server.")
+    } finally {
+      setRecheckingIds((prev) => prev.filter((id) => id !== bookingId))
+    }
+  }
 
   // Mutating lock - suppress polling for 8 seconds after admin makes a change
   const [mutationLock, setMutationLock] = useState(false)
@@ -997,6 +1022,15 @@ function BookingsContent() {
                               className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/10 rounded-md text-[10px] font-semibold"
                             >
                               Cancel
+                            </button>
+                          )}
+                          {b.status === "AWAITING_PAYMENT" && (
+                            <button
+                              onClick={() => handleRecheckPayment(b.id)}
+                              disabled={recheckingIds.includes(b.id)}
+                              className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-md text-[10px] font-semibold disabled:opacity-50"
+                            >
+                              {recheckingIds.includes(b.id) ? "Checking..." : "Recheck Pay"}
                             </button>
                           )}
                         </div>

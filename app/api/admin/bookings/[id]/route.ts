@@ -112,8 +112,13 @@ export async function PATCH(
   if (isPaidVal !== undefined) {
     updateData.is_paid = isPaidVal
     if (isPaidVal === true) {
+      updateData.status = "CONFIRMED"
       updateData.status_payment = true
       updateData.status_payment_at = currentBooking.status_payment_at || new Date().toISOString()
+      updateData.status_confirmed = true
+      updateData.status_confirmed_at = currentBooking.status_confirmed_at || new Date().toISOString()
+      updateData.status_reviewed = true
+      updateData.status_reviewed_at = currentBooking.status_reviewed_at || new Date().toISOString()
     } else {
       updateData.status_payment = false
       updateData.status_payment_at = null

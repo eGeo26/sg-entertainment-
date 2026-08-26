@@ -216,9 +216,6 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
             disabled={isSubmitting}
             className="btn-secondary flex-1 py-3.5 text-sm flex items-center justify-center gap-1.5"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
             Go Back
           </button>
           <button
@@ -237,9 +234,6 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
             ) : (
               <span className="flex items-center justify-center gap-1.5">
                 Pay Now: GHS {total.toLocaleString()}
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
               </span>
             )}
           </button>
