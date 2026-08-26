@@ -124,6 +124,8 @@ export async function GET(req: NextRequest) {
       extensionHours: b.extension_hours ?? 0,
       extensionAmount: pesewasToGhs(b.extension_amount),
       extendedAt: b.extended_at,
+      extensionSentToProducer: b.extension_sent_to_producer ?? false,
+      extensionSentToProducerAt: b.extension_sent_to_producer_at,
       createdAt: b.created_at,
       updatedAt: b.updated_at,
     }))
