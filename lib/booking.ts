@@ -39,8 +39,19 @@ export function calcSessionBase(durationHours: number): number {
 
 export function calculateTotal(
   durationHours: number,
-  selectedEquipment: string[]
+  selectedEquipment: string[],
+  selectedPackage?: string
 ): { baseRate: number; equipmentTotal: number; total: number; breakdown: string[] } {
+  // Intercept the payment test package to override total to GHS 2.00
+  if (selectedPackage === "Payment Test — Temporary (GHS 2.00)") {
+    return {
+      baseRate: 2,
+      equipmentTotal: 0,
+      total: 2,
+      breakdown: ["TEMPORARY PAYMENT TEST ONLY: GHS 2.00"],
+    }
+  }
+
   const baseRate = calcSessionBase(durationHours)
   const durationDisplay = minutesToDisplay(Math.round(durationHours * 60))
 

@@ -46,6 +46,12 @@ function buildBasicAuth(): string {
     )
   }
 
+  // Print first and last characters to verify loaded credentials securely
+  console.log("[Hubtel Debug] Credentials loaded at execution time:", {
+    apiId: apiId.length > 4 ? `${apiId.slice(0, 2)}...${apiId.slice(-2)}` : "too short",
+    apiKey: apiKey.length > 8 ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : "too short"
+  })
+
   return "Basic " + Buffer.from(`${apiId}:${apiKey}`).toString("base64")
 }
 

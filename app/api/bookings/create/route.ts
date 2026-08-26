@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     // ————————————————————————————————————————————————————————————
 
     const endTime = getEndTime(data.sessionDate, data.startTime, data.durationHours)
-    const { total } = calculateTotal(data.durationHours, data.equipment)
+    const { total } = calculateTotal(data.durationHours, data.equipment, data.selectedPackage)
     const pesewas = ghsToPesewas(total)
     const sessionDateISO = new Date(`${data.sessionDate}T${data.startTime}:00Z`).toISOString()
 

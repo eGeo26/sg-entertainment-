@@ -25,8 +25,8 @@ DROP POLICY IF EXISTS admin_all_closed_dates ON public.closed_dates;
 CREATE POLICY admin_all_closed_dates ON public.closed_dates
   FOR ALL
   TO authenticated
-  USING  (auth.jwt() ->> 'role' = 'admin')
-  WITH CHECK (auth.jwt() ->> 'role' = 'admin');
+  USING  ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 -- Public: read-only (anon key, used by calendar and banner)
 DROP POLICY IF EXISTS public_read_closed_dates ON public.closed_dates;
