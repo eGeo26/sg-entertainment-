@@ -19,6 +19,7 @@ export const REMOTE_PACKAGES = [
   { id: "waves_mix_mastering",     name: "Waves Mix & Mastering",     priceGHS: 1000 },
   { id: "mp3_mix_mastering",       name: "MP3 Mix & Mastering",       priceGHS: 700 },
   { id: "full_production",         name: "Full Production",           priceGHS: 5000 },
+  { id: "complete_track_production", name: "Complete Track Production", priceGHS: 5000 },
 ] as const
 
 

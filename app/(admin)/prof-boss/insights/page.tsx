@@ -141,19 +141,19 @@ export default function InsightsPage() {
         stats={[
           {
             label: "Confirmed vs. Pending Rev",
-            value: `GH₵ ${data.revenueOverview.confirmedGHS.toFixed(0)}`,
-            subtext: `Pending: GH₵ ${data.revenueOverview.pendingGHS.toFixed(0)}`,
+            value: `GH₵ ${data.revenueOverview.confirmedGHS.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+            subtext: `Pending: GH₵ ${data.revenueOverview.pendingGHS.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
             accent: "gold",
           },
           {
             label: "MoM Growth Margin",
-            value: `GH₵ ${data.compareMoM.currentMonthGHS.toFixed(0)}`,
-            subtext: `Previous Month: GH₵ ${data.compareMoM.prevMonthGHS.toFixed(0)}`,
+            value: `GH₵ ${data.compareMoM.currentMonthGHS.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+            subtext: `Previous Month: GH₵ ${data.compareMoM.prevMonthGHS.toLocaleString("en-GH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
             accent: "green",
           },
           {
             label: "Average Order Value (AOV)",
-            value: `GH₵ ${data.metrics.aovGHS.toFixed(2)}`,
+            value: `GH₵ ${data.metrics.aovGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             subtext: "Based on verified bookings",
             accent: "blue",
           },
@@ -178,7 +178,7 @@ export default function InsightsPage() {
                 <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 11 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: "#111", borderColor: "rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 11 }}
-                  formatter={(val) => [`GH₵ ${Number(val).toFixed(2)}`, "Revenue"]}
+                  formatter={(val) => [`GH₵ ${Number(val).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Revenue"]}
                 />
                 <Bar dataKey="amount" fill="#FFFFFF" radius={[8, 8, 0, 0]} barSize={50} />
               </BarChart>

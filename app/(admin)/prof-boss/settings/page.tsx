@@ -5,6 +5,8 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { createBrowserSupabaseClient } from "@/lib/supabase"
 import PasswordInput from "../components/PasswordInput"
+import { REMOTE_PACKAGES } from "@/types"
+import StarIcon from "@/components/StarIcon"
 
 export default function SettingsConsolePage() {
   const [loading, setLoading] = useState(false)
@@ -230,6 +232,53 @@ export default function SettingsConsolePage() {
               </div>
             </form>
           )}
+        </div>
+
+        {/* Packages & Premium Services */}
+        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Packages &amp; Premium Services</h3>
+            <span className="text-[10px] text-[#C5A880] font-semibold bg-[#C5A880]/10 border border-[#C5A880]/20 px-2 py-0.5 rounded flex items-center gap-1">
+              <StarIcon className="w-3 h-3 text-[#C5A880]" /> Active Offerings
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {REMOTE_PACKAGES.map((pkg) => {
+              const isPremium = pkg.name === "Complete Track Production"
+              return (
+                <div
+                  key={pkg.id}
+                  className={`p-3.5 rounded-xl border transition-all ${
+                    isPremium
+                      ? "bg-[#C5A880]/10 border-[#C5A880]/40 shadow-lg shadow-[#C5A880]/5"
+                      : "bg-white/3 border-white/8"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      {isPremium && <StarIcon className="w-4 h-4 text-[#C5A880] shrink-0" title="Premium Package" />}
+                      <span className={`text-xs font-bold ${isPremium ? "text-[#C5A880]" : "text-white/90"}`}>
+                        {pkg.name}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md ${
+                      isPremium
+                        ? "bg-[#C5A880] text-black"
+                        : "bg-white/10 text-white/80"
+                    }`}>
+                      GHS {pkg.priceGHS.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-white/50 leading-relaxed">
+                    {isPremium
+                      ? "Complete Track Production: End-to-end song creation from concept to release-ready master—includes custom beat composition, studio recording, vocal arrangement, professional mixing, and mastering."
+                      : "Multi-track mix and mastering audio engineering service."}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* Producer Portal Management */}

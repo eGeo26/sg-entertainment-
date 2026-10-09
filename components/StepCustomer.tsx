@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { BookingFormData, REMOTE_PACKAGES } from "@/types"
 import { validatePhoneNumber, normalizePhone, COUNTRY_DIAL_CODES } from "@/lib/booking"
+import StarIcon from "@/components/StarIcon"
 
 const schema = z.object({
   customerName:  z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -32,6 +33,7 @@ export default function StepCustomer({ form, updateForm, onNext, onBack }: Props
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -43,6 +45,8 @@ export default function StepCustomer({ form, updateForm, onNext, onBack }: Props
       selectedPackage: form.selectedPackage ?? "",
     },
   })
+
+  const selectedPkgValue = watch("selectedPackage")
 
   const onSubmit = (data: FormValues) => {
     const fullPhone = normalizePhone(dialCode, data.customerPhone)
@@ -139,10 +143,19 @@ export default function StepCustomer({ form, updateForm, onNext, onBack }: Props
           </div>
 
           {/* Optional Package Add-on */}
-          <div>
-            <label className="label">
-              Add-on Package
-              <span className="text-white/30 font-normal ml-1">(optional — settle pricing in person)</span>
+          <div className={`p-4 rounded-xl border transition-all ${
+            selectedPkgValue === "Complete Track Production"
+              ? "border-[#C5A880]/60 bg-[#C5A880]/10"
+              : "border-white/10 bg-transparent"
+          }`}>
+            <label className="label flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                {selectedPkgValue === "Complete Track Production" && (
+                  <StarIcon className="w-4 h-4 text-[#C5A880]" />
+                )}
+                Package Selection
+              </span>
+              <span className="text-white/30 font-normal text-xs">(optional)</span>
             </label>
             <select
               {...register("selectedPackage")}
@@ -151,13 +164,20 @@ export default function StepCustomer({ form, updateForm, onNext, onBack }: Props
               <option value="" className="bg-[#161619] text-white">None (Studio Time Only)</option>
               {REMOTE_PACKAGES.map((pkg) => (
                 <option key={pkg.id} value={pkg.name} className="bg-[#161619] text-white">
-                  {pkg.name} — GHS {pkg.priceGHS.toLocaleString()} (Settle in person)
+                  {pkg.name === "Complete Track Production" ? "★ " : ""}{pkg.name} — GHS {pkg.priceGHS.toLocaleString()} {pkg.name === "Complete Track Production" ? "(All-Inclusive Premium)" : "(Settle in person)"}
                 </option>
               ))}
             </select>
-            <p className="text-white/30 text-xs mt-1">
-              Package fees are settled with the producer in person. Online payment is for studio time only.
-            </p>
+            {selectedPkgValue === "Complete Track Production" ? (
+              <p className="text-[#C5A880] text-xs mt-2 font-medium flex items-center gap-1.5">
+                <StarIcon className="w-3.5 h-3.5 text-[#C5A880] shrink-0" />
+                Complete Track Production is an all-inclusive premium package priced at GHS 5,000 upfront (covers beats, recording, mixing & mastering).
+              </p>
+            ) : (
+              <p className="text-white/30 text-xs mt-1">
+                Package fees are settled with the producer in person. Online payment is for studio time only.
+              </p>
+            )}
           </div>
         </div>
       </div>

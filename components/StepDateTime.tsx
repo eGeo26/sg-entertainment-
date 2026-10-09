@@ -7,6 +7,7 @@ import { format, addDays, addMinutes } from "date-fns"
 import clsx from "clsx"
 import { BookingFormData, TIME_SLOTS } from "@/types"
 import { isDateAvailable, toGhanaDateString, EXTRA_HOUR_RATE_GHS } from "@/lib/booking"
+import StarIcon from "@/components/StarIcon"
 import "react-calendar/dist/Calendar.css"
 
 const SESSION_RATE = 300
@@ -140,9 +141,10 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
   // Extended end time includes the extra hours
   const totalDurationMinutes = DURATION_MINUTES + extensionHours * 60
   const extendedEndTime = selectedTime ? getEndTimestamp(dateStr, selectedTime, totalDurationMinutes) : null
-  const price = SESSION_RATE
-  const extensionTotal = extensionHours * EXTRA_HOUR_RATE_GHS
-  const grandTotal = price + extensionTotal
+  const isCompleteTrackProduction = form.selectedPackage === "Complete Track Production" || form.selectedPackage === "complete_track_production"
+  const price = isCompleteTrackProduction ? 5000 : SESSION_RATE
+  const extensionTotal = isCompleteTrackProduction ? 0 : extensionHours * EXTRA_HOUR_RATE_GHS
+  const grandTotal = isCompleteTrackProduction ? 5000 : price + extensionTotal
   const canProceed = !!selectedDate && !!selectedTime
 
   const handleNext = () => {
@@ -248,8 +250,24 @@ export default function StepDateTime({ form, updateForm, onNext }: Props) {
             )}
           </div>
 
-          {/* Extension / top-up stepper — shown after time is selected */}
-          {selectedTime && (
+          {/* Complete Track Production All-Inclusive Pricing Card */}
+          {selectedTime && isCompleteTrackProduction && (
+            <div className="card bg-black/40 backdrop-blur-sm border border-[#C5A880]/40 p-4 space-y-2">
+              <div className="flex justify-between items-center text-xs font-semibold text-[#C5A880]">
+                <span className="flex items-center gap-1.5 font-bold">
+                  <StarIcon className="w-4 h-4 text-[#C5A880]" />
+                  Complete Track Production Package
+                </span>
+                <span className="text-[#C5A880] font-bold text-base">GHS 5,000</span>
+              </div>
+              <p className="text-white/60 text-xs leading-relaxed">
+                All-inclusive end-to-end song creation package. Includes beat composition, studio recording, vocal arrangement, mixing, and mastering upfront.
+              </p>
+            </div>
+          )}
+
+          {/* Extension / top-up stepper — shown after time is selected for standard sessions */}
+          {selectedTime && !isCompleteTrackProduction && (
             <div className="card bg-black/40 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3">
                 <div>

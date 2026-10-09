@@ -164,6 +164,7 @@ const ManualBookingSchema = z.object({
   studio: z.string().default("Main Studio"),
   equipment: z.array(z.string()).default([]),
   notes: z.string().max(500).optional(),
+  selectedPackage: z.string().optional(),
   amountGHS: z.number().min(0),
 })
 
@@ -202,6 +203,7 @@ export async function POST(req: NextRequest) {
         studio: data.studio,
         equipment: data.equipment,
         notes: data.notes ?? null,
+        selected_package: data.selectedPackage ?? null,
         amount_ghs: ghsToPesewas(data.amountGHS),
         hubtel_reference: bookingCode,
         status: "CONFIRMED", // Manual bookings are auto-confirmed

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react"
 import { BookingFormData } from "@/types"
 import { formatDisplayDate, formatDisplayTime, getEndTime, calculateTotal } from "@/lib/booking"
+import StarIcon from "@/components/StarIcon"
 
 function calcSessionPrice(durationHours: number): number {
   const mins = Math.round(durationHours * 60)
@@ -151,9 +152,19 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
               <Row label="Name"  value={form.customerName} />
               <Row label="Email" value={form.customerEmail} />
               <Row label="Phone" value={form.customerPhone} />
-              {form.selectedPackage && (
+              {form.selectedPackage === "Complete Track Production" ? (
+                <Row
+                  label="Package"
+                  value={
+                    <span className="inline-flex items-center gap-1.5 font-bold text-[#C5A880]">
+                      <StarIcon className="w-4 h-4 text-[#C5A880] shrink-0" />
+                      Complete Track Production (All-Inclusive)
+                    </span>
+                  }
+                />
+              ) : form.selectedPackage ? (
                 <Row label="Add-on Package" value={`${form.selectedPackage} (Settle in person)`} />
-              )}
+              ) : null}
               {form.notes && <Row label="Notes" value={form.notes} />}
             </div>
           </div>
@@ -162,28 +173,40 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
           <div className="border-t border-white/8 pt-3">
             <p className="text-white/35 text-xs uppercase tracking-wider mb-2">Pricing</p>
             <div className="space-y-1">
-              {form.extensionHours && form.extensionHours > 0 ? (
-                <>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-white/50">Base session (2h 30m)</span>
-                    <span className="text-white/80">GHS 300</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-amber-300/80">+{form.extensionHours} hr{form.extensionHours > 1 ? "s" : ""} extension</span>
-                    <span className="text-amber-300/80">GHS {(form.extensionHours * 120).toLocaleString()}</span>
-                  </div>
-                </>
+              {form.selectedPackage === "Complete Track Production" ? (
+                <div className="flex justify-between text-xs items-center py-1 bg-[#C5A880]/10 px-2.5 rounded-lg border border-[#C5A880]/20">
+                  <span className="text-[#C5A880] font-semibold flex items-center gap-1.5">
+                    <StarIcon className="w-4 h-4 text-[#C5A880]" />
+                    Complete Track Production (All-Inclusive Package)
+                  </span>
+                  <span className="text-[#C5A880] font-bold text-sm">GHS 5,000</span>
+                </div>
               ) : (
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/50">Studio time ({minutesToDisplay(form.durationHours)})</span>
-                  <span className="text-white/80">GHS {baseRate.toLocaleString()}</span>
-                </div>
-              )}
-              {form.selectedPackage && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-[#C5A880]/80">Package: {form.selectedPackage}</span>
-                  <span className="text-[#C5A880]/80">Settle in person</span>
-                </div>
+                <>
+                  {form.extensionHours && form.extensionHours > 0 ? (
+                    <>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-white/50">Base session (2h 30m)</span>
+                        <span className="text-white/80">GHS 300</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-amber-300/80">+{form.extensionHours} hr{form.extensionHours > 1 ? "s" : ""} extension</span>
+                        <span className="text-amber-300/80">GHS {(form.extensionHours * 120).toLocaleString()}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">Studio time ({minutesToDisplay(form.durationHours)})</span>
+                      <span className="text-white/80">GHS {baseRate.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {form.selectedPackage && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#C5A880]/80">Package: {form.selectedPackage}</span>
+                      <span className="text-[#C5A880]/80">Settle in person</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-white/8">
@@ -265,9 +288,9 @@ export default function StepReview({ form, onBack, onSubmit, isSubmitting }: Pro
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-3">
+    <div className="flex justify-between gap-3 items-center">
       <span className="text-white/35 text-xs shrink-0">{label}</span>
       <span className="text-white/75 text-xs text-right break-all">{value}</span>
     </div>

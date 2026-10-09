@@ -36,7 +36,7 @@ export default function BookingFlow() {
     const packageParam = searchParams.get("package")
     if (serviceParam || packageParam) {
       setForm((prev) => {
-        const autoPackage = packageParam ?? (serviceParam === "Full Production" ? "Full Production" : prev.selectedPackage)
+        const autoPackage = packageParam ?? (serviceParam === "Complete Track Production" ? "Complete Track Production" : serviceParam === "Full Production" ? "Full Production" : prev.selectedPackage)
         if (!serviceParam) {
           return {
             ...prev,
@@ -89,7 +89,7 @@ export default function BookingFlow() {
 
   const handleProceedToPayment = async () => {
     const data = form as BookingFormData
-    const { total } = calculateTotal(data.durationHours, data.equipment ?? [])
+    const { total } = calculateTotal(data.durationHours, data.equipment ?? [], data.selectedPackage)
 
     setIsSubmitting(true)
     try {

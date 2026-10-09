@@ -57,11 +57,22 @@ export function calculateTotal(
   selectedEquipment: string[],
   selectedPackage?: string
 ): { baseRate: number; equipmentTotal: number; total: number; breakdown: string[] } {
+  if (selectedPackage === "Complete Track Production") {
+    return {
+      baseRate: 5000,
+      equipmentTotal: 0,
+      total: 5000,
+      breakdown: [
+        "Complete Track Production (All-Inclusive Premium Package): GHS 5,000",
+      ],
+    }
+  }
+
   const baseRate = calcSessionBase(durationHours)
   const durationDisplay = minutesToDisplay(Math.round(durationHours * 60))
 
   const breakdown: string[] = [
-    `Studio time (${durationDisplay}): GHS ${baseRate}`,
+    `Studio time (${durationDisplay}): GHS ${baseRate.toLocaleString("en-GH")}`,
   ]
 
   let equipmentTotal = 0
@@ -69,7 +80,7 @@ export function calculateTotal(
     const item = EQUIPMENT_OPTIONS.find((e) => e.id === id)
     if (item) {
       equipmentTotal += item.priceGHS
-      breakdown.push(`${item.label}: GHS ${item.priceGHS}`)
+      breakdown.push(`${item.label}: GHS ${item.priceGHS.toLocaleString("en-GH")}`)
     }
   }
 
