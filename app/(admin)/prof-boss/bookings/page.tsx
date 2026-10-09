@@ -6,9 +6,10 @@ import { useSearchParams, useRouter } from "next/navigation"
 import StatusBadge from "../components/StatusBadge"
 import CollapsibleStatRow from "../components/CollapsibleStatRow"
 import { calculateTotal, normalizePhone, COUNTRY_DIAL_CODES } from "@/lib/booking"
-import { EQUIPMENT_OPTIONS, TIME_SLOTS } from "@/types"
+import { EQUIPMENT_OPTIONS, TIME_SLOTS, REMOTE_PACKAGES } from "@/types"
 import { toast } from "sonner"
 import { createBrowserSupabaseClient } from "@/lib/supabase"
+import StarIcon from "@/components/StarIcon"
 
 interface Booking {
   id: string
@@ -150,6 +151,7 @@ function BookingsContent() {
     startTime: "10:00",
     durationHours: 3,
     equipment: [] as string[],
+    selectedPackage: "",
     notes: "",
     amountGHS: 0,
     isPriceOverridden: false,
@@ -272,11 +274,12 @@ function BookingsContent() {
     if (!manualForm.isPriceOverridden) {
       const { total } = calculateTotal(
         manualForm.durationHours,
-        manualForm.equipment
+        manualForm.equipment,
+        manualForm.selectedPackage
       )
       setManualForm((prev) => ({ ...prev, amountGHS: total }))
     }
-  }, [manualForm.durationHours, manualForm.equipment, manualForm.isPriceOverridden])
+  }, [manualForm.durationHours, manualForm.equipment, manualForm.selectedPackage, manualForm.isPriceOverridden])
 
   const getRelativeTime = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
@@ -599,6 +602,7 @@ function BookingsContent() {
           durationHours: Number(manualForm.durationHours),
           equipment: manualForm.equipment,
           notes: manualForm.notes,
+          selectedPackage: manualForm.selectedPackage || undefined,
           amountGHS: Number(manualForm.amountGHS),
         }),
       })
@@ -619,6 +623,7 @@ function BookingsContent() {
         startTime: "10:00",
         durationHours: 3,
         equipment: [],
+        selectedPackage: "",
         notes: "",
         amountGHS: 0,
         isPriceOverridden: false,
@@ -674,7 +679,7 @@ function BookingsContent() {
       b.startTime,
       b.endTime,
       b.durationHours.toString(),
-      b.amountGHS.toFixed(2),
+      b.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       b.status,
       b.isPaid ? "Paid" : "Awaiting"
     ])
@@ -935,7 +940,18 @@ function BookingsContent() {
                       <td className="px-4 py-4">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-white/95">{b.customerName}</span>
+                            <span className="font-semibold text-white/95 flex items-center gap-1.5">
+                              {b.selectedPackage === "Complete Track Production" && (
+                                <StarIcon className="w-4 h-4 text-[#C5A880] shrink-0" title="Premium Package: Complete Track Production" />
+                              )}
+                              {b.customerName}
+                            </span>
+                            {b.selectedPackage === "Complete Track Production" && (
+                              <span className="bg-[#C5A880]/15 text-[#C5A880] text-[8px] font-bold px-1.5 py-0.5 rounded border border-[#C5A880]/30 uppercase tracking-wider flex items-center gap-1" title="Premium Package">
+                                <StarIcon className="w-2.5 h-2.5 text-[#C5A880]" />
+                                Premium
+                              </span>
+                            )}
                             {b.extensionHours && b.extensionHours > 0 && (
                               <span className="bg-amber-400/10 text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded border border-amber-400/20 uppercase tracking-wider">
                                 Extended
@@ -944,8 +960,10 @@ function BookingsContent() {
                           </div>
                           <p className="text-[10px] text-white/40 mt-0.5">{b.customerEmail} · {b.customerPhone}</p>
                           {b.selectedPackage && (
-                            <p className="text-[10px] text-[#C5A880] mt-1 font-medium">
-                              Also wants: {b.selectedPackage} — settle in person
+                            <p className="text-[10px] text-[#C5A880] mt-1 font-medium flex items-center gap-1">
+                              <StarIcon className="w-3 h-3 text-[#C5A880] shrink-0" />
+                              {b.selectedPackage}
+                              {b.selectedPackage !== "Complete Track Production" && " — settle in person"}
                             </p>
                           )}
                           {/* Alert: duplicate only */}
@@ -976,7 +994,7 @@ function BookingsContent() {
                         </p>
                       </td>
                       <td className="px-4 py-4 font-semibold text-[#FFFFFF]">
-                        <div>GH₵ {b.amountGHS.toFixed(2)}</div>
+                        <div>GH₵ {b.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                         {b.status === "AWAITING_PAYMENT" && getExpiryCountdown(b.createdAt) && (
                           <div className="text-[9px] text-amber-300/80 font-normal mt-0.5">
                             {getExpiryCountdown(b.createdAt)}
@@ -1182,7 +1200,15 @@ function BookingsContent() {
                   >
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
+                        {b.selectedPackage === "Complete Track Production" && (
+                          <StarIcon className="w-4 h-4 text-[#C5A880] shrink-0" title="Premium Package" />
+                        )}
                         <p className="text-sm font-semibold text-white/95">{b.customerName}</p>
+                        {b.selectedPackage === "Complete Track Production" && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#C5A880]/15 text-[#C5A880] border border-[#C5A880]/30 flex items-center gap-1">
+                            <StarIcon className="w-2.5 h-2.5 text-[#C5A880]" /> Premium
+                          </span>
+                        )}
                         {b.extensionHours && b.extensionHours > 0 ? (
                           <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-400/20">
                             +{b.extensionHours}h
@@ -1193,8 +1219,10 @@ function BookingsContent() {
                         {statusHint}
                       </p>
                       {isExpanded && b.selectedPackage && (
-                        <p className="text-[10px] text-[#C5A880] mt-1 font-medium">
-                          Also wants: {b.selectedPackage} — settle in person
+                        <p className="text-[10px] text-[#C5A880] mt-1 font-medium flex items-center gap-1">
+                          <StarIcon className="w-3 h-3 text-[#C5A880] shrink-0" />
+                          {b.selectedPackage}
+                          {b.selectedPackage !== "Complete Track Production" && " — settle in person"}
                         </p>
                       )}
                       {isExpanded && isDuplicate && (
@@ -1204,7 +1232,7 @@ function BookingsContent() {
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-white">GH₵ {b.amountGHS.toFixed(2)}</p>
+                      <p className="text-sm font-bold text-white">GH₵ {b.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       {isExpanded && b.status === "AWAITING_PAYMENT" && getExpiryCountdown(b.createdAt) && (
                         <p className="text-[9px] text-amber-300/80 mt-0.5">
                           {getExpiryCountdown(b.createdAt)}
@@ -1450,18 +1478,18 @@ function BookingsContent() {
                   <span className="block text-[9px] text-white/35 uppercase tracking-wider mb-1 font-bold">Payment</span>
                   {inspectedBooking.extensionHours && inspectedBooking.extensionHours > 0 ? (
                     <div className="space-y-0.5 text-xs text-white/60 mb-1">
-                      <p className="font-bold text-[#FFFFFF] text-base">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                      <p className="font-bold text-[#FFFFFF] text-base">GH₵ {inspectedBooking.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       <div className="flex justify-between text-[10px] gap-4">
                         <span>Base (2.5h):</span>
                         <span className="text-white/80">GH₵ 300.00</span>
                       </div>
                       <div className="flex justify-between text-[10px] gap-4">
                         <span>Extension (+{inspectedBooking.extensionHours}h):</span>
-                        <span className="text-amber-300">GH₵ {(inspectedBooking.extensionHours * 120).toFixed(2)}</span>
+                        <span className="text-amber-300">GH₵ {(inspectedBooking.extensionHours * 120).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toFixed(2)}</p>
+                    <p className="text-[#FFFFFF] text-base font-bold">GH₵ {inspectedBooking.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   )}
                   <div className="mt-1 flex flex-col gap-1 items-start">
                     <StatusBadge status={inspectedBooking.status} />
@@ -1481,8 +1509,12 @@ function BookingsContent() {
                     )}
                   </div>
                   {inspectedBooking.selectedPackage && (
-                    <p className="text-[10px] text-[#C5A880] mt-2 font-medium">
-                      Also wants: {inspectedBooking.selectedPackage} — settle in person
+                    <p className="text-[10px] text-[#C5A880] mt-2 font-medium flex items-center gap-1.5 bg-[#C5A880]/10 p-2 rounded-lg border border-[#C5A880]/20">
+                      <StarIcon className="w-4 h-4 text-[#C5A880] shrink-0" />
+                      <strong className="text-white font-semibold">{inspectedBooking.selectedPackage}</strong>
+                      {inspectedBooking.selectedPackage !== "Complete Track Production" && (
+                        <span className="text-white/60">— settle in person</span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -1688,6 +1720,63 @@ function BookingsContent() {
 
                 <hr className="border-white/8" />
 
+                {/* Package Selector */}
+                <div className={`space-y-1.5 p-3.5 rounded-xl border transition-all ${
+                  manualForm.selectedPackage === "Complete Track Production"
+                    ? "border-[#C5A880]/60 bg-[#C5A880]/10 shadow-lg shadow-[#C5A880]/5"
+                    : "border-white/8 bg-white/5"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] text-white/70 uppercase tracking-wide flex items-center gap-1.5 font-bold">
+                      {manualForm.selectedPackage === "Complete Track Production" && (
+                        <StarIcon className="w-3.5 h-3.5 text-[#C5A880]" />
+                      )}
+                      Service / Package Selection
+                    </label>
+                    {manualForm.selectedPackage === "Complete Track Production" && (
+                      <span className="text-[9px] text-[#C5A880] bg-[#C5A880]/20 border border-[#C5A880]/30 px-2 py-0.5 rounded font-semibold uppercase tracking-wider" title="Premium Package">
+                        Premium Package
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {manualForm.selectedPackage === "Complete Track Production" && (
+                      <div className="shrink-0 p-1.5 bg-[#C5A880]/20 rounded-lg border border-[#C5A880]/30" title="Premium Package">
+                        <StarIcon className="w-4 h-4 text-[#C5A880]" />
+                      </div>
+                    )}
+                    <select
+                      value={manualForm.selectedPackage}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setManualForm((prev) => ({
+                          ...prev,
+                          selectedPackage: val,
+                          isPriceOverridden: false,
+                        }))
+                      }}
+                      className="w-full bg-[#111] border border-white/12 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#C5A880] cursor-pointer"
+                      title={manualForm.selectedPackage === "Complete Track Production" ? "Premium Package" : undefined}
+                    >
+                      <option value="">None (Standard Studio Session Rate)</option>
+                      {REMOTE_PACKAGES.map((pkg) => (
+                        <option key={pkg.id} value={pkg.name} className="bg-[#111]">
+                          {pkg.name === "Complete Track Production" ? "★ " : ""}{pkg.name} — GH₵ {pkg.priceGHS.toLocaleString()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {manualForm.selectedPackage === "Complete Track Production" && (
+                    <p className="text-[10px] text-[#C5A880] mt-1 font-medium flex items-center gap-1" title="Premium Package">
+                      <StarIcon className="w-3 h-3 text-[#C5A880] shrink-0" />
+                      Complete Track Production — GHS 5,000
+                    </p>
+                  )}
+                </div>
+
+                <hr className="border-white/8" />
+
                 <div className="space-y-2">
                   <label className="block text-[10px] text-white/50 uppercase tracking-wide">Add Equipment Options</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1708,7 +1797,7 @@ function BookingsContent() {
                         />
                         <div className="flex-1 text-xs">
                           <p className="font-semibold">{opt.label}</p>
-                          <p className="text-[10px] text-white/40 mt-0.5">GH₵ {opt.priceGHS}</p>
+                          <p className="text-[10px] text-white/40 mt-0.5">GH₵ {opt.priceGHS.toLocaleString("en-GH")}</p>
                         </div>
                       </label>
                     ))}
@@ -1862,7 +1951,7 @@ function BookingsContent() {
               <div className="border-t-2 border-dashed border-gray-300 pt-3 text-[11px]">
                 <div className="flex justify-between items-center text-sm font-bold">
                   <span>TOTAL GHS:</span>
-                  <span>GH₵ {receiptBooking.amountGHS.toFixed(2)}</span>
+                  <span>GH₵ {receiptBooking.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-[10px] mt-1 text-gray-500">
                   <span>Status:</span>

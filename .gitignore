@@ -9,3 +9,5 @@ prisma/migrations/
 dist/
 .vercel
 .env*
+scratch/
+

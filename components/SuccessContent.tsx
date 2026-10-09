@@ -345,7 +345,7 @@ export default function SuccessContent() {
             </div>
             <div className="text-right">
               <span className="text-white/40 text-[10px] block uppercase tracking-wider">Extra Cost</span>
-              <span className="text-white font-bold text-sm">GHS {(extraHours * 120).toFixed(2)}</span>
+              <span className="text-white font-bold text-sm">GHS {(extraHours * 120).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
 

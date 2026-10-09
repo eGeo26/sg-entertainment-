@@ -798,15 +798,15 @@ function ExtendedBookingCard({ booking }: { booking: any }) {
         </span>
         <div className="flex justify-between">
           <span>Base Fee:</span>
-          <span>GHS {booking.baseAmountGHS.toFixed(2)}</span>
+          <span>GHS {booking.baseAmountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="flex justify-between text-amber-300">
           <span>Extension Fee:</span>
-          <span>GHS {booking.extensionAmountGHS.toFixed(2)}</span>
+          <span>GHS {booking.extensionAmountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="pt-1.5 border-t border-white/5 flex justify-between font-bold text-white">
           <span>Total Received:</span>
-          <span>GHS {booking.totalAmountGHS.toFixed(2)}</span>
+          <span>GHS {booking.totalAmountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 

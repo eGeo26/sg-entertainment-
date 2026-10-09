@@ -3,6 +3,7 @@
 
 import { BookingFormData } from "@/types"
 import clsx from "clsx"
+import StarIcon from "@/components/StarIcon"
 
 const EQUIPMENT_LIST = [
   {
@@ -111,11 +112,14 @@ export default function StepEquipment({ form, updateForm, onNext, onBack }: Prop
     })
   }
 
-  const baseRate = calcSessionPrice(duration)
-  const equipTotal = selected.reduce((sum, id) => {
-    return sum + (EQUIPMENT_LIST.find((e) => e.id === id)?.priceGHS ?? 0)
-  }, 0)
-  const total = baseRate + equipTotal
+  const isCompletePackage = form.selectedPackage === "Complete Track Production"
+  const baseRate = isCompletePackage ? 5000 : calcSessionPrice(duration)
+  const equipTotal = isCompletePackage
+    ? 0
+    : selected.reduce((sum, id) => {
+        return sum + (EQUIPMENT_LIST.find((e) => e.id === id)?.priceGHS ?? 0)
+      }, 0)
+  const total = isCompletePackage ? 5000 : baseRate + equipTotal
 
   return (
     <div className="space-y-4">
@@ -123,78 +127,107 @@ export default function StepEquipment({ form, updateForm, onNext, onBack }: Prop
       <div className="card bg-black/40 backdrop-blur-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-base font-semibold text-white">Equipment Add-ons</h2>
+            <h2 className="text-base font-semibold text-white flex items-center gap-2">
+              {isCompletePackage && <StarIcon className="w-5 h-5 text-[#C5A880]" />}
+              Equipment &amp; Session Setup
+            </h2>
             <p className="text-white/35 text-xs mt-0.5">
-              All optional. Studio monitors &amp; basic cables included free.
+              {isCompletePackage
+                ? "Complete Track Production is an all-inclusive song production package."
+                : "All optional. Studio monitors & basic cables included free."}
             </p>
           </div>
         </div>
 
-        <div className="space-y-2">
-          {EQUIPMENT_LIST.map((item) => {
-            const isSelected = selected.includes(item.id)
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => toggle(item.id)}
-                className={clsx(
-                  "w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-150 text-left",
-                  isSelected
-                    ? "bg-white/5 border-white/40"
-                    : "bg-white/3 border-white/8 hover:border-white/18"
-                )}
-              >
-                {/* Checkbox */}
-                <div className={clsx(
-                  "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
-                  isSelected ? "bg-white border-white" : "border-white/20"
-                )}>
-                  {isSelected && (
-                    <svg className="w-2.5 h-2.5 text-black" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+        {isCompletePackage ? (
+          <div className="bg-[#C5A880]/10 border border-[#C5A880]/40 rounded-xl p-4 flex items-center gap-3 text-left">
+            <StarIcon className="w-6 h-6 text-[#C5A880] shrink-0" />
+            <div>
+              <p className="text-[#C5A880] text-xs font-bold uppercase tracking-wider">All-Inclusive Package Selected</p>
+              <p className="text-white/70 text-xs mt-0.5 leading-relaxed">
+                Complete Track Production covers all studio equipment, microphone setups, instrument inputs, vocal arrangement, mixing, and mastering at no extra fee.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {EQUIPMENT_LIST.map((item) => {
+              const isSelected = selected.includes(item.id)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => toggle(item.id)}
+                  className={clsx(
+                    "w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-150 text-left",
+                    isSelected
+                      ? "bg-white/5 border-white/40"
+                      : "bg-white/3 border-white/8 hover:border-white/18"
                   )}
-                </div>
+                >
+                  {/* Checkbox */}
+                  <div className={clsx(
+                    "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
+                    isSelected ? "bg-white border-white" : "border-white/20"
+                  )}>
+                    {isSelected && (
+                      <svg className="w-2.5 h-2.5 text-black" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
 
-                {/* Icon */}
-                <span className={clsx("shrink-0", isSelected ? "text-white" : "text-white/35")}>
-                  {item.icon}
-                </span>
-
-                {/* Text */}
-                <div className="flex-1 min-w-0">
-                  <span className={clsx("text-xs font-medium block truncate", isSelected ? "text-white" : "text-white/65")}>
-                    {item.label}
+                  {/* Icon */}
+                  <span className={clsx("shrink-0", isSelected ? "text-white" : "text-white/35")}>
+                    {item.icon}
                   </span>
-                  <span className="text-xs text-white/30 truncate block">{item.desc}</span>
-                </div>
 
-                {/* Price */}
-                <span className={clsx("text-xs font-semibold shrink-0", isSelected ? "text-white" : "text-white/35")}>
-                  +GHS {item.priceGHS}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <span className={clsx("text-xs font-medium block truncate", isSelected ? "text-white" : "text-white/65")}>
+                      {item.label}
+                    </span>
+                    <span className="text-xs text-white/30 truncate block">{item.desc}</span>
+                  </div>
+
+                  {/* Price */}
+                  <span className={clsx("text-xs font-semibold shrink-0", isSelected ? "text-white" : "text-white/35")}>
+                    +GHS {item.priceGHS.toLocaleString("en-GH")}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Compact price summary */}
       <div className="card bg-black/30 backdrop-blur-sm py-3.5 px-4">
-        <div className="flex justify-between text-xs text-white/50 mb-1">
-          <span>Studio time ({minutesToDisplay(duration)})</span>
-          <span>GHS {baseRate.toLocaleString()}</span>
-        </div>
-        {selected.map((id) => {
-          const item = EQUIPMENT_LIST.find((e) => e.id === id)
-          return item ? (
-            <div key={id} className="flex justify-between text-xs text-white/50 mb-1">
-              <span>{item.label}</span>
-              <span>GHS {item.priceGHS}</span>
+        {isCompletePackage ? (
+          <div className="flex justify-between text-xs text-[#C5A880] font-medium mb-1">
+            <span className="flex items-center gap-1.5">
+              <StarIcon className="w-3.5 h-3.5 text-[#C5A880]" />
+              Complete Track Production (All-Inclusive)
+            </span>
+            <span>GHS 5,000</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-between text-xs text-white/50 mb-1">
+              <span>Studio time ({minutesToDisplay(duration)})</span>
+              <span>GHS {baseRate.toLocaleString()}</span>
             </div>
-          ) : null
-        })}
+            {selected.map((id) => {
+              const item = EQUIPMENT_LIST.find((e) => e.id === id)
+              return item ? (
+                <div key={id} className="flex justify-between text-xs text-white/50 mb-1">
+                  <span>{item.label}</span>
+                  <span>GHS {item.priceGHS.toLocaleString("en-GH")}</span>
+                </div>
+              ) : null
+            })}
+          </>
+        )}
         <div className="border-t border-white/8 pt-2.5 mt-2.5 flex justify-between items-center">
           <span className="text-white text-sm font-semibold">Total</span>
           <span className="text-lg font-bold text-white">GHS {total.toLocaleString()}</span>

@@ -543,7 +543,7 @@ export default function TrackBookingStatus() {
             </div>
             <div>
               <span className="block text-white/40 mb-0.5">Amount Paid</span>
-              <span className="text-white font-semibold">GH₵ {booking.amountGHS.toFixed(2)}</span>
+              <span className="text-white font-semibold">GH₵ {booking.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         </div>

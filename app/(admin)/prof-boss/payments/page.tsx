@@ -209,7 +209,7 @@ export default function PaymentsLedgerPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-white font-semibold">
-                      GH₵ {p.amountGHS.toFixed(2)}
+                      GH₵ {p.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={p.hubtelStatus} />
@@ -275,7 +275,7 @@ export default function PaymentsLedgerPage() {
                   </div>
                   <div>
                     <span className="block text-white/40 mb-0.5">Amount to Refund</span>
-                    <span className="text-white/85 font-semibold">GH₵ {refundTarget.amountGHS.toFixed(2)}</span>
+                    <span className="text-white/85 font-semibold">GH₵ {refundTarget.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 

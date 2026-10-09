@@ -3,6 +3,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import StarIcon from "@/components/StarIcon"
 
 const IN_HOUSE_SERVICES = [
   {
@@ -69,6 +70,13 @@ const IN_HOUSE_SERVICES = [
       </svg>
     ),
   },
+  {
+    title: "Complete Track Production",
+    desc: "Complete Track Production: End-to-end song creation from concept to release-ready master—includes custom beat composition, studio recording, vocal arrangement, professional mixing, and mastering. Everything in one package.",
+    packageParam: "Complete Track Production",
+    icon: <StarIcon className="w-6 h-6 text-[#C5A880]" />,
+    isPremium: true,
+  },
 ]
 
 const REMOTE_PACKAGES = [
@@ -91,6 +99,12 @@ const REMOTE_PACKAGES = [
     name: "Full Production",
     price: "GHS 5,000",
     desc: "End-to-end beat composition, arrangement, vocal tuning, mixing, and mastering from concept to final release.",
+  },
+  {
+    name: "Complete Track Production",
+    price: "GHS 5,000",
+    desc: "Complete Track Production: End-to-end song creation from concept to release-ready master—includes custom beat composition, studio recording, vocal arrangement, professional mixing, and mastering. Everything in one package.",
+    isPremium: true,
   },
 ]
 
@@ -166,7 +180,11 @@ export default function ServicesPage() {
               <Link
                 key={s.title}
                 href={`/booking?service=${encodeURIComponent(s.title)}${s.packageParam ? `&package=${encodeURIComponent(s.packageParam)}` : ''}`}
-                className="flex items-center gap-5 bg-black/40 backdrop-blur-sm border border-white/10 rounded-xl px-5 py-4 hover:border-[#C5A880] transition-all duration-200 group"
+                className={`flex items-center gap-5 bg-black/40 backdrop-blur-sm border rounded-xl px-5 py-4 transition-all duration-200 group ${
+                  s.isPremium
+                    ? "border-[#C5A880]/60 bg-gradient-to-r from-[#C5A880]/15 via-black/40 to-black/40 hover:border-[#C5A880] shadow-lg shadow-[#C5A880]/5"
+                    : "border-white/10 hover:border-[#C5A880]"
+                }`}
               >
                 {/* Icon */}
                 <div className="shrink-0 text-[#C5A880] group-hover:scale-110 transition-transform duration-200">
@@ -175,7 +193,15 @@ export default function ServicesPage() {
 
                 {/* Text */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm mb-0.5">{s.title}</p>
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <p className="text-white font-semibold text-sm">{s.title}</p>
+                    {s.isPremium && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#C5A880] bg-[#C5A880]/15 border border-[#C5A880]/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        <StarIcon className="w-3 h-3 text-[#C5A880]" />
+                        All-Inclusive Premium
+                      </span>
+                    )}
+                  </div>
                   <p className="text-white/50 text-xs leading-relaxed">{s.desc}</p>
                 </div>
 
@@ -230,11 +256,18 @@ export default function ServicesPage() {
             {REMOTE_PACKAGES.map((pkg) => (
               <div
                 key={pkg.name}
-                className="bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:border-white/25 transition-all"
+                className={`bg-black/40 backdrop-blur-sm border rounded-2xl p-6 flex flex-col justify-between space-y-4 transition-all ${
+                  pkg.isPremium
+                    ? "border-[#C5A880]/60 bg-gradient-to-br from-[#C5A880]/15 via-black/40 to-black/40 shadow-lg shadow-[#C5A880]/5"
+                    : "border-white/10 hover:border-white/25"
+                }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-base font-bold text-white">{pkg.name}</h3>
+                    <div className="flex items-center gap-2">
+                      {pkg.isPremium && <StarIcon className="w-5 h-5 text-[#C5A880] shrink-0" />}
+                      <h3 className="text-base font-bold text-white">{pkg.name}</h3>
+                    </div>
                     <span className="text-sm font-extrabold text-[#C5A880] shrink-0 bg-[#C5A880]/10 border border-[#C5A880]/20 px-3 py-1 rounded-lg">
                       {pkg.price}
                     </span>

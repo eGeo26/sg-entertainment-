@@ -190,7 +190,7 @@ export default function CustomersCRMPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-white font-semibold">
-                          GH₵ {c.totalSpentGHS.toFixed(2)}
+                          GH₵ {c.totalSpentGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-4 text-white/70">
                           {formatSimpleDate(c.lastBooking)}
@@ -238,7 +238,7 @@ export default function CustomersCRMPage() {
 
                                       <div className="flex items-center gap-3">
                                         <span className="text-sm font-semibold text-white">
-                                          GH₵ {b.amountGHS.toFixed(2)}
+                                          GH₵ {b.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                         <StatusBadge status={b.status} size="sm" />
                                       </div>
@@ -310,7 +310,7 @@ export default function CustomersCRMPage() {
                     </div>
                     <div className="flex-1 bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center">
                       <div className="text-[10px] text-white/40 uppercase tracking-wider">Total Spent</div>
-                      <div className="text-sm font-bold text-white mt-1">GH₵ {c.totalSpentGHS.toFixed(2)}</div>
+                      <div className="text-sm font-bold text-white mt-1">GH₵ {c.totalSpentGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                     <div className="flex-1 bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center">
                       <div className="text-[10px] text-white/40 uppercase tracking-wider">Last Visit</div>
@@ -329,7 +329,7 @@ export default function CustomersCRMPage() {
                               <p className="text-xs text-white/40 mt-0.5">{b.startTime} - {b.endTime}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-white">GH₵ {b.amountGHS.toFixed(2)}</p>
+                              <p className="text-sm font-semibold text-white">GH₵ {b.amountGHS.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                               <StatusBadge status={b.status} size="sm" />
                             </div>
                           </div>
